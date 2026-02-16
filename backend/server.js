@@ -1389,6 +1389,7 @@ async function startMonitoring(creatorId, tiktokUsername) {
     if (!currentStreamId) return;
 
     const giftValue = (data.diamondCount || 0) * (data.repeatCount || 1);
+    const coinValue = giftValue * 2; // Coins are typically 2x diamonds
     
     const gift = {
       stream_id: currentStreamId,
@@ -1399,6 +1400,7 @@ async function startMonitoring(creatorId, tiktokUsername) {
       gift_name: data.giftName,
       gift_type: data.giftType,
       diamond_count: data.diamondCount || 0,
+      coin_value: coinValue,
       repeat_count: data.repeatCount || 1,
       repeat_end: data.repeatEnd || false,
       total_value: giftValue,
@@ -1407,10 +1409,16 @@ async function startMonitoring(creatorId, tiktokUsername) {
 
     await db.collection('gifts').insertOne(gift);
 
-    // Update stream total gifts value
+    // Update stream total gifts value and coins
     await db.collection('live_streams').updateOne(
       { _id: currentStreamId },
-      { $inc: { total_gifts_value: giftValue, total_gifts_count: 1 } }
+      { 
+        $inc: { 
+          total_gifts_value: giftValue, 
+          total_gifts_count: 1,
+          total_coins: coinValue
+        } 
+      }
     );
 
     // Track fan engagement and update fan tier based on gift value
@@ -1424,6 +1432,7 @@ async function startMonitoring(creatorId, tiktokUsername) {
     if (stream) {
       await checkStreamMilestones(currentStreamId, new ObjectId(creatorId), 'diamonds', stream.total_gifts_value || 0);
       await checkStreamMilestones(currentStreamId, new ObjectId(creatorId), 'gifts', stream.total_gifts_count || 0);
+      await checkStreamMilestones(currentStreamId, new ObjectId(creatorId), 'coins', stream.total_coins || 0);
     }
 
     // Log activity
@@ -1432,7 +1441,8 @@ async function startMonitoring(creatorId, tiktokUsername) {
       username: data.uniqueId,
       nickname: data.nickname,
       gift_name: data.giftName,
-      diamonds: giftValue
+      diamonds: giftValue,
+      coins: coinValue
     });
 
     // Emit to clients
