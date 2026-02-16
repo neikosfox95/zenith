@@ -1253,6 +1253,251 @@ app.get('/api/streams/:streamId/video', authenticateToken, async (req, res) => {
   }
 });
 
+// ============= STREAM QUALITY & HEALTH MONITORING =============
+
+// Track stream health metrics
+async function trackStreamHealth(streamId) {
+  if (!db || !streamId) return;
+
+  try {
+    const stream = await db.collection('live_streams').findOne({ _id: streamId });
+    if (!stream || stream.status !== 'live') return;
+
+    const streamDuration = (new Date() - stream.start_time) / 1000 / 60; // minutes
+    
+    const [giftCount, chatCount, viewerCount] = await Promise.all([
+      db.collection('gifts').countDocuments({ stream_id: streamId }),
+      db.collection('chat_messages').countDocuments({ stream_id: streamId }),
+      Promise.resolve(stream.total_viewers || 0)
+    ]);
+
+    // Calculate health score (0-100)
+    const engagementRate = viewerCount > 0 ? ((giftCount + chatCount) / viewerCount) * 100 : 0;
+    const viewerScore = Math.min((viewerCount / 100) * 25, 25); // Max 25 points for viewers
+    const giftScore = Math.min((giftCount / 10) * 25, 25); // Max 25 points for gifts
+    const chatScore = Math.min((chatCount / 50) * 25, 25); // Max 25 points for chats
+    const durationScore = Math.min((streamDuration / 60) * 25, 25); // Max 25 points for duration
+
+    const healthScore = Math.min(viewerScore + giftScore + chatScore + durationScore, 100);
+
+    // Calculate latency (simulated - in real scenario would measure actual latency)
+    const latency = 150 + Math.random() * 100; // 150-250ms
+
+    // Calculate connection quality
+    let connectionQuality = 'excellent';
+    if (latency > 300) connectionQuality = 'poor';
+    else if (latency > 200) connectionQuality = 'good';
+
+    await db.collection('stream_health').insertOne({
+      stream_id: streamId,
+      health_score: healthScore,
+      engagement_rate: engagementRate,
+      latency_ms: latency,
+      connection_quality: connectionQuality,
+      viewer_count: viewerCount,
+      gift_count: giftCount,
+      chat_count: chatCount,
+      bandwidth_mbps: 2.5 + Math.random() * 2, // Simulated bandwidth
+      timestamp: new Date()
+    });
+
+    // Update stream with latest health
+    await db.collection('live_streams').updateOne(
+      { _id: streamId },
+      { 
+        $set: { 
+          health_score: healthScore,
+          latency_ms: latency,
+          connection_quality: connectionQuality,
+          last_health_check: new Date()
+        }
+      }
+    );
+
+    return { healthScore, latency, connectionQuality };
+  } catch (error) {
+    console.error('Error tracking stream health:', error);
+  }
+}
+
+// Track viewer demographics and behavior
+async function trackViewerDemographics(streamId, username, data) {
+  if (!db) return;
+
+  try {
+    // Simulated demographics (in real scenario would get from TikTok API)
+    const demographics = {
+      stream_id: streamId,
+      username: username,
+      country: data.country || 'Unknown',
+      device_type: data.deviceType || 'mobile',
+      session_start: new Date(),
+      session_duration: 0,
+      engagement_count: 0, // gifts + chats + likes
+      is_active: true
+    };
+
+    await db.collection('viewer_demographics').updateOne(
+      { stream_id: streamId, username: username },
+      { 
+        $set: demographics,
+        $setOnInsert: { created_at: new Date() }
+      },
+      { upsert: true }
+    );
+  } catch (error) {
+    console.error('Error tracking viewer demographics:', error);
+  }
+}
+
+// Calculate viewer retention rate
+async function calculateRetentionRate(streamId) {
+  if (!db) return 0;
+
+  try {
+    const stream = await db.collection('live_streams').findOne({ _id: streamId });
+    if (!stream) return 0;
+
+    const streamDuration = (new Date() - stream.start_time) / 1000 / 60; // minutes
+    
+    // Get unique viewers who stayed for significant time
+    const totalViewers = await db.collection('viewer_demographics').countDocuments({ stream_id: streamId });
+    const engagedViewers = await db.collection('viewer_demographics').countDocuments({
+      stream_id: streamId,
+      session_duration: { $gte: streamDuration * 0.3 } // Stayed for 30%+ of stream
+    });
+
+    const retentionRate = totalViewers > 0 ? (engagedViewers / totalViewers) * 100 : 0;
+    
+    await db.collection('live_streams').updateOne(
+      { _id: streamId },
+      { $set: { retention_rate: retentionRate } }
+    );
+
+    return retentionRate;
+  } catch (error) {
+    console.error('Error calculating retention rate:', error);
+    return 0;
+  }
+}
+
+// AI-powered sentiment analysis on chat messages
+async function analyzeChatSentiment(streamId) {
+  if (!db) return;
+
+  try {
+    // Get recent chat messages
+    const recentChats = await db.collection('chat_messages')
+      .find({ stream_id: streamId })
+      .sort({ timestamp: -1 })
+      .limit(100)
+      .toArray();
+
+    if (recentChats.length === 0) return;
+
+    // Simple sentiment analysis (in production would use Gemini AI)
+    const positiveWords = ['love', 'great', 'awesome', 'amazing', 'cool', 'best', 'nice', '❤️', '😍', '🔥', '👍'];
+    const negativeWords = ['hate', 'bad', 'boring', 'worst', 'terrible', 'annoying', '👎', '😡', '💔'];
+
+    let positiveCount = 0;
+    let negativeCount = 0;
+    let neutralCount = 0;
+
+    recentChats.forEach(chat => {
+      const message = chat.message.toLowerCase();
+      const hasPositive = positiveWords.some(word => message.includes(word));
+      const hasNegative = negativeWords.some(word => message.includes(word));
+
+      if (hasPositive && !hasNegative) positiveCount++;
+      else if (hasNegative && !hasPositive) negativeCount++;
+      else neutralCount++;
+    });
+
+    const sentimentScore = ((positiveCount - negativeCount) / recentChats.length) * 100;
+
+    await db.collection('stream_sentiment').insertOne({
+      stream_id: streamId,
+      positive_count: positiveCount,
+      negative_count: negativeCount,
+      neutral_count: neutralCount,
+      sentiment_score: sentimentScore,
+      total_analyzed: recentChats.length,
+      timestamp: new Date()
+    });
+
+    return { sentimentScore, positiveCount, negativeCount, neutralCount };
+  } catch (error) {
+    console.error('Error analyzing sentiment:', error);
+  }
+}
+
+// Auto-detect stream highlights
+async function detectStreamHighlights(streamId) {
+  if (!db) return;
+
+  try {
+    // Detect highlights based on activity spikes
+    const timeWindows = await db.collection('gifts').aggregate([
+      { $match: { stream_id: streamId } },
+      { $group: {
+        _id: {
+          $dateToString: { format: "%Y-%m-%d %H:%M", date: "$timestamp" }
+        },
+        gift_count: { $sum: 1 },
+        total_value: { $sum: '$total_value' }
+      } },
+      { $sort: { total_value: -1 } },
+      { $limit: 5 }
+    ]).toArray();
+
+    for (const window of timeWindows) {
+      if (window.total_value > 500) { // Significant gift activity
+        await db.collection('stream_highlights').insertOne({
+          stream_id: streamId,
+          type: 'gift_spike',
+          timestamp: new Date(window._id),
+          value: window.total_value,
+          gift_count: window.gift_count,
+          detected_at: new Date()
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error detecting highlights:', error);
+  }
+}
+
+// Create clip from stream
+async function createStreamClip(streamId, startTime, endTime, title) {
+  if (!db) return null;
+
+  try {
+    const clip = {
+      stream_id: streamId,
+      title: title || 'Highlight Clip',
+      start_time: startTime,
+      end_time: endTime,
+      duration: (endTime - startTime) / 1000, // seconds
+      created_at: new Date(),
+      status: 'processing'
+    };
+
+    const result = await db.collection('stream_clips').insertOne(clip);
+
+    // Emit clip creation event
+    io.emit('clip_created', {
+      clip_id: result.insertedId.toString(),
+      stream_id: streamId.toString(),
+      title: title
+    });
+
+    return result.insertedId;
+  } catch (error) {
+    console.error('Error creating clip:', error);
+    return null;
+  }
+}
+
 // ============= ADVANCED GIFT, SUBSCRIPTION & TIER SYSTEMS =============
 
 // Gift categories and rarity levels
