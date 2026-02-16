@@ -644,6 +644,66 @@ app.get('/api/streams/:streamId/chat-analytics', authenticateToken, async (req, 
   }
 });
 
+// Get coin analytics
+app.get('/api/creators/:creatorId/coins', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+    const { period = 'all' } = req.query;
+    
+    let startDate = null;
+    if (period === 'today') {
+      startDate = new Date();
+      startDate.setHours(0, 0, 0, 0);
+    } else if (period === 'week') {
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - 7);
+    } else if (period === 'month') {
+      startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - 1);
+    }
+
+    const matchQuery = { creator_id: new ObjectId(creatorId) };
+    if (startDate) {
+      matchQuery.timestamp = { $gte: startDate };
+    }
+
+    const [totalCoins, coinByGift, topCoinSpenders] = await Promise.all([
+      db.collection('gifts').aggregate([
+        { $match: matchQuery },
+        { $group: { _id: null, total: { $sum: '$coin_value' }, count: { $sum: 1 } } }
+      ]).toArray(),
+      db.collection('gifts').aggregate([
+        { $match: matchQuery },
+        { $group: { _id: '$gift_name', count: { $sum: 1 }, coins: { $sum: '$coin_value' } } },
+        { $sort: { coins: -1 } },
+        { $limit: 10 }
+      ]).toArray(),
+      db.collection('gifts').aggregate([
+        { $match: matchQuery },
+        { $group: { 
+          _id: '$sender_username',
+          nickname: { $first: '$sender_nickname' },
+          total_coins: { $sum: '$coin_value' },
+          gift_count: { $sum: 1 }
+        } },
+        { $sort: { total_coins: -1 } },
+        { $limit: 20 }
+      ]).toArray()
+    ]);
+
+    res.json({
+      period,
+      total_coins: totalCoins[0]?.total || 0,
+      total_gifts: totalCoins[0]?.count || 0,
+      coin_by_gift: coinByGift,
+      top_coin_spenders: topCoinSpenders
+    });
+  } catch (error) {
+    console.error('Get coin analytics error:', error);
+    res.status(500).json({ error: 'Failed to get coin analytics' });
+  }
+});
+
 // Get historical comparison
 app.get('/api/creators/:creatorId/historical', authenticateToken, async (req, res) => {
   try {
