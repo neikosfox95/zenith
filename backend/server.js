@@ -388,6 +388,238 @@ app.get('/api/streams/:streamId/video', authenticateToken, async (req, res) => {
   }
 });
 
+// ============= FAN CLUB ROUTES =============
+// Get all fans for a creator
+app.get('/api/creators/:creatorId/fans', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+    const { tier, sortBy = 'total_diamonds', limit = 100 } = req.query;
+
+    const query = { creator_id: new ObjectId(creatorId) };
+    if (tier) {
+      query.tier = tier.toUpperCase();
+    }
+
+    const sortOptions = {};
+    sortOptions[sortBy] = -1;
+
+    const fans = await db.collection('fans')
+      .find(query)
+      .sort(sortOptions)
+      .limit(parseInt(limit))
+      .toArray();
+
+    // Enrich with tier info
+    const enrichedFans = fans.map(fan => ({
+      ...fan,
+      tier_info: FAN_TIERS[fan.tier] || FAN_TIERS.CASUAL
+    }));
+
+    res.json(enrichedFans);
+  } catch (error) {
+    console.error('Get fans error:', error);
+    res.status(500).json({ error: 'Failed to get fans' });
+  }
+});
+
+// Get super fans (top spenders)
+app.get('/api/creators/:creatorId/superfans', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+    const { limit = 20 } = req.query;
+
+    const superFans = await db.collection('fans')
+      .find({ 
+        creator_id: new ObjectId(creatorId),
+        tier: { $in: ['SUPER_FAN', 'ULTRA_FAN', 'MEGA_FAN'] }
+      })
+      .sort({ total_diamonds: -1 })
+      .limit(parseInt(limit))
+      .toArray();
+
+    const enrichedFans = superFans.map(fan => ({
+      ...fan,
+      tier_info: FAN_TIERS[fan.tier] || FAN_TIERS.CASUAL
+    }));
+
+    res.json(enrichedFans);
+  } catch (error) {
+    console.error('Get super fans error:', error);
+    res.status(500).json({ error: 'Failed to get super fans' });
+  }
+});
+
+// Get fan details
+app.get('/api/fans/:username', authenticateToken, async (req, res) => {
+  try {
+    const { username } = req.params;
+    const { creatorId } = req.query;
+
+    const fan = await db.collection('fans').findOne({
+      username,
+      creator_id: new ObjectId(creatorId)
+    });
+
+    if (!fan) {
+      return res.status(404).json({ error: 'Fan not found' });
+    }
+
+    // Get fan's recent activities
+    const recentGifts = await db.collection('gifts')
+      .find({ sender_username: username })
+      .sort({ timestamp: -1 })
+      .limit(10)
+      .toArray();
+
+    const recentChats = await db.collection('chat_messages')
+      .find({ sender_username: username })
+      .sort({ timestamp: -1 })
+      .limit(10)
+      .toArray();
+
+    // Enrich with badge info
+    const badges = (fan.badges || []).map(badgeId => 
+      BADGE_DEFINITIONS.find(b => b.id === badgeId)
+    ).filter(b => b);
+
+    res.json({
+      ...fan,
+      tier_info: FAN_TIERS[fan.tier] || FAN_TIERS.CASUAL,
+      badges,
+      recent_gifts: recentGifts,
+      recent_chats: recentChats
+    });
+  } catch (error) {
+    console.error('Get fan details error:', error);
+    res.status(500).json({ error: 'Failed to get fan details' });
+  }
+});
+
+// Get fan club stats
+app.get('/api/creators/:creatorId/fanclub/stats', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+
+    // Get tier distribution
+    const tierStats = await db.collection('fans').aggregate([
+      { $match: { creator_id: new ObjectId(creatorId) } },
+      { $group: { _id: '$tier', count: { $sum: 1 }, total_diamonds: { $sum: '$total_diamonds' } } }
+    ]).toArray();
+
+    // Get total stats
+    const totalFans = await db.collection('fans').countDocuments({ creator_id: new ObjectId(creatorId) });
+    
+    const topFans = await db.collection('fans')
+      .find({ creator_id: new ObjectId(creatorId) })
+      .sort({ total_diamonds: -1 })
+      .limit(10)
+      .toArray();
+
+    res.json({
+      total_fans: totalFans,
+      tier_distribution: tierStats,
+      top_fans: topFans.map(fan => ({
+        ...fan,
+        tier_info: FAN_TIERS[fan.tier]
+      }))
+    });
+  } catch (error) {
+    console.error('Get fan club stats error:', error);
+    res.status(500).json({ error: 'Failed to get fan club stats' });
+  }
+});
+
+// Get badges info
+app.get('/api/badges', authenticateToken, async (req, res) => {
+  try {
+    res.json(BADGE_DEFINITIONS);
+  } catch (error) {
+    console.error('Get badges error:', error);
+    res.status(500).json({ error: 'Failed to get badges' });
+  }
+});
+
+// Get leaderboard
+app.get('/api/creators/:creatorId/leaderboard', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+    const { type = 'diamonds', limit = 50 } = req.query;
+
+    const sortField = type === 'diamonds' ? 'total_diamonds' : 
+                     type === 'gifts' ? 'total_gifts' :
+                     type === 'chats' ? 'chat_count' : 'total_diamonds';
+
+    const leaderboard = await db.collection('fans')
+      .find({ creator_id: new ObjectId(creatorId) })
+      .sort({ [sortField]: -1 })
+      .limit(parseInt(limit))
+      .toArray();
+
+    const enrichedLeaderboard = leaderboard.map((fan, index) => ({
+      rank: index + 1,
+      ...fan,
+      tier_info: FAN_TIERS[fan.tier],
+      badges: (fan.badges || []).map(badgeId => 
+        BADGE_DEFINITIONS.find(b => b.id === badgeId)
+      ).filter(b => b)
+    }));
+
+    res.json(enrichedLeaderboard);
+  } catch (error) {
+    console.error('Get leaderboard error:', error);
+    res.status(500).json({ error: 'Failed to get leaderboard' });
+  }
+});
+
+// ============= FAN CLUB & BADGES SYSTEM =============
+app.get('/api/streams/:streamId/video', authenticateToken, async (req, res) => {
+  try {
+    const streamId = req.params.streamId;
+
+    const stream = await db.collection('live_streams')
+      .findOne({ _id: new ObjectId(streamId) });
+
+    if (!stream || !stream.video_path) {
+      return res.status(404).json({ error: 'Video not found' });
+    }
+
+    const videoPath = stream.video_path;
+    if (!fs.existsSync(videoPath)) {
+      return res.status(404).json({ error: 'Video file not found' });
+    }
+
+    const stat = fs.statSync(videoPath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+
+    if (range) {
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = (end - start) + 1;
+      const file = fs.createReadStream(videoPath, { start, end });
+      const head = {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': 'video/mp4',
+      };
+      res.writeHead(206, head);
+      file.pipe(res);
+    } else {
+      const head = {
+        'Content-Length': fileSize,
+        'Content-Type': 'video/mp4',
+      };
+      res.writeHead(200, head);
+      fs.createReadStream(videoPath).pipe(res);
+    }
+  } catch (error) {
+    console.error('Get video error:', error);
+    res.status(500).json({ error: 'Failed to get video' });
+  }
+});
+
 // ============= FAN CLUB & BADGES SYSTEM =============
 // Fan tiers based on total diamonds spent
 const FAN_TIERS = {
