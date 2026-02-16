@@ -1164,6 +1164,12 @@ async function startMonitoring(creatorId, tiktokUsername) {
       }
     );
 
+    // Check viewer milestones
+    await checkStreamMilestones(currentStreamId, new ObjectId(creatorId), 'viewers', viewerCount);
+
+    // Update stream metrics
+    await updateStreamMetrics(currentStreamId, 'viewer_peak', { count: viewerCount });
+
     // Emit to clients
     io.emit('viewer_update', {
       stream_id: currentStreamId.toString(),
