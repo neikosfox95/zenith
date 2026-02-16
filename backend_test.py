@@ -264,10 +264,10 @@ def test_socket_io_connection():
         log_info("Attempting HTTP test to Socket.IO endpoint...")
         
         # Fallback: Test if Socket.IO endpoint responds
-        response = make_request("GET", f"{BASE_URL}/socket.io/")
+        response = make_request("GET", f"{BASE_URL}/socket.io/", timeout=5)
         
-        if response and response.status_code in [200, 400, 426]:  # 426 = Upgrade Required (expected for Socket.IO)
-            log_success("Socket.IO endpoint accessible")
+        if response and response.status_code in [200, 400, 426]:  # 426 = Upgrade Required, 400 = Transport unknown (both expected for Socket.IO)
+            log_success(f"Socket.IO endpoint accessible - Status: {response.status_code}")
             return True
         else:
             log_error(f"Socket.IO endpoint not accessible - Status: {response.status_code if response else 'No response'}")
