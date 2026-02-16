@@ -1219,24 +1219,6 @@ app.post('/api/streams/:streamId/detect-highlights', authenticateToken, async (r
   }
 });
 
-      available_boxes: availableBoxes
-    });
-  } catch (error) {
-    console.error('Get available boxes error:', error);
-    res.status(500).json({ error: 'Failed to get available boxes' });
-  }
-});
-
-// Get gift rarity info
-app.get('/api/gift-rarity', authenticateToken, async (req, res) => {
-  try {
-    res.json(GIFT_RARITY);
-  } catch (error) {
-    console.error('Get gift rarity error:', error);
-    res.status(500).json({ error: 'Failed to get gift rarity' });
-  }
-});
-
 // Get historical comparison
 app.get('/api/creators/:creatorId/historical', authenticateToken, async (req, res) => {
   try {
