@@ -620,6 +620,181 @@ app.get('/api/streams/:streamId/video', authenticateToken, async (req, res) => {
   }
 });
 
+// ============= ADVANCED TRACKING & ANALYTICS =============
+
+// Track stream metrics in real-time
+async function updateStreamMetrics(streamId, metricType, data) {
+  if (!db || !streamId) return;
+
+  try {
+    const updateData = {};
+    
+    if (metricType === 'viewer_peak') {
+      updateData.peak_viewers = data.count;
+      updateData.peak_viewers_time = new Date();
+    } else if (metricType === 'engagement') {
+      updateData.total_engagement_count = data.count;
+    } else if (metricType === 'unique_chatters') {
+      updateData.unique_chatters = data.count;
+    } else if (metricType === 'unique_gifters') {
+      updateData.unique_gifters = data.count;
+    }
+
+    await db.collection('live_streams').updateOne(
+      { _id: streamId },
+      { $set: updateData }
+    );
+  } catch (error) {
+    console.error('Error updating stream metrics:', error);
+  }
+}
+
+// Track follower growth
+async function trackFollowerGrowth(creatorId, streamId, followerUsername) {
+  if (!db) return;
+
+  try {
+    await db.collection('follower_tracking').insertOne({
+      creator_id: creatorId,
+      stream_id: streamId,
+      follower_username: followerUsername,
+      followed_at: new Date()
+    });
+
+    // Update creator total followers
+    await db.collection('creators').updateOne(
+      { _id: creatorId },
+      { $inc: { total_followers_gained: 1 } }
+    );
+  } catch (error) {
+    console.error('Error tracking follower:', error);
+  }
+}
+
+// Track stream milestones
+async function checkStreamMilestones(streamId, creatorId, metricType, currentValue) {
+  if (!db) return;
+
+  const milestones = {
+    viewers: [100, 500, 1000, 5000, 10000, 50000, 100000],
+    gifts: [10, 50, 100, 500, 1000, 5000],
+    diamonds: [1000, 5000, 10000, 50000, 100000, 500000, 1000000],
+    followers: [10, 50, 100, 500, 1000, 5000, 10000]
+  };
+
+  const relevantMilestones = milestones[metricType] || [];
+  
+  for (const milestone of relevantMilestones) {
+    if (currentValue >= milestone) {
+      // Check if milestone already recorded
+      const existing = await db.collection('milestones').findOne({
+        stream_id: streamId,
+        metric_type: metricType,
+        milestone_value: milestone
+      });
+
+      if (!existing) {
+        const milestoneDoc = {
+          stream_id: streamId,
+          creator_id: creatorId,
+          metric_type: metricType,
+          milestone_value: milestone,
+          achieved_at: new Date(),
+          current_value: currentValue
+        };
+
+        await db.collection('milestones').insertOne(milestoneDoc);
+
+        // Emit milestone achievement
+        io.emit('milestone_achieved', {
+          stream_id: streamId.toString(),
+          creator_id: creatorId.toString(),
+          metric_type: metricType,
+          milestone: milestone,
+          current_value: currentValue
+        });
+      }
+    }
+  }
+}
+
+// Calculate engagement rate
+async function calculateEngagementRate(streamId) {
+  if (!db) return 0;
+
+  try {
+    const stream = await db.collection('live_streams').findOne({ _id: streamId });
+    if (!stream) return 0;
+
+    const [giftCount, chatCount] = await Promise.all([
+      db.collection('gifts').countDocuments({ stream_id: streamId }),
+      db.collection('chat_messages').countDocuments({ stream_id: streamId })
+    ]);
+
+    const totalEngagement = giftCount + chatCount;
+    const viewers = stream.peak_viewers || stream.total_viewers || 1;
+    
+    return (totalEngagement / viewers) * 100;
+  } catch (error) {
+    console.error('Error calculating engagement rate:', error);
+    return 0;
+  }
+}
+
+// Track chat velocity (messages per minute)
+async function updateChatVelocity(streamId) {
+  if (!db) return;
+
+  try {
+    const oneMinuteAgo = new Date(Date.now() - 60000);
+    
+    const recentChatCount = await db.collection('chat_messages').countDocuments({
+      stream_id: streamId,
+      timestamp: { $gte: oneMinuteAgo }
+    });
+
+    await db.collection('live_streams').updateOne(
+      { _id: streamId },
+      { $set: { chat_velocity: recentChatCount } }
+    );
+  } catch (error) {
+    console.error('Error updating chat velocity:', error);
+  }
+}
+
+// Track activity for real-time feed
+async function logActivity(activityType, data) {
+  if (!db) return;
+
+  try {
+    const activity = {
+      type: activityType,
+      data: data,
+      timestamp: new Date()
+    };
+
+    await db.collection('activity_feed').insertOne(activity);
+
+    // Emit to real-time feed
+    io.emit('new_activity', activity);
+
+    // Keep only last 1000 activities
+    const count = await db.collection('activity_feed').countDocuments();
+    if (count > 1000) {
+      const oldActivities = await db.collection('activity_feed')
+        .find()
+        .sort({ timestamp: 1 })
+        .limit(count - 1000)
+        .toArray();
+      
+      const idsToDelete = oldActivities.map(a => a._id);
+      await db.collection('activity_feed').deleteMany({ _id: { $in: idsToDelete } });
+    }
+  } catch (error) {
+    console.error('Error logging activity:', error);
+  }
+}
+
 // ============= FAN CLUB & BADGES SYSTEM =============
 // Fan tiers based on total diamonds spent
 const FAN_TIERS = {
