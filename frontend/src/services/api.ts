@@ -59,4 +59,41 @@ export const streamsAPI = {
   },
 };
 
+export const fansAPI = {
+  getFans: async (creatorId: string, tier?: string, sortBy?: string, limit?: number) => {
+    const params = new URLSearchParams();
+    if (tier) params.append('tier', tier);
+    if (sortBy) params.append('sortBy', sortBy);
+    if (limit) params.append('limit', limit.toString());
+    
+    const response = await api.get(`/creators/${creatorId}/fans?${params.toString()}`);
+    return response.data;
+  },
+  getSuperFans: async (creatorId: string, limit?: number) => {
+    const params = limit ? `?limit=${limit}` : '';
+    const response = await api.get(`/creators/${creatorId}/superfans${params}`);
+    return response.data;
+  },
+  getFanDetails: async (username: string, creatorId: string) => {
+    const response = await api.get(`/fans/${username}?creatorId=${creatorId}`);
+    return response.data;
+  },
+  getFanClubStats: async (creatorId: string) => {
+    const response = await api.get(`/creators/${creatorId}/fanclub/stats`);
+    return response.data;
+  },
+  getLeaderboard: async (creatorId: string, type: 'diamonds' | 'gifts' | 'chats' = 'diamonds', limit?: number) => {
+    const params = new URLSearchParams();
+    params.append('type', type);
+    if (limit) params.append('limit', limit.toString());
+    
+    const response = await api.get(`/creators/${creatorId}/leaderboard?${params.toString()}`);
+    return response.data;
+  },
+  getBadges: async () => {
+    const response = await api.get('/badges');
+    return response.data;
+  },
+};
+
 export default api;
