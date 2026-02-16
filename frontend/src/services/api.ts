@@ -96,4 +96,45 @@ export const fansAPI = {
   },
 };
 
+export const analyticsAPI = {
+  getStreamAnalytics: async (streamId: string) => {
+    const response = await api.get(`/streams/${streamId}/analytics`);
+    return response.data;
+  },
+  getActivityFeed: async (limit?: number, type?: string) => {
+    const params = new URLSearchParams();
+    if (limit) params.append('limit', limit.toString());
+    if (type) params.append('type', type);
+    
+    const response = await api.get(`/activity?${params.toString()}`);
+    return response.data;
+  },
+  getStreamMilestones: async (streamId: string) => {
+    const response = await api.get(`/streams/${streamId}/milestones`);
+    return response.data;
+  },
+  getCreatorMilestones: async (creatorId: string) => {
+    const response = await api.get(`/creators/${creatorId}/milestones`);
+    return response.data;
+  },
+  getFollowerGrowth: async (creatorId: string, days?: number) => {
+    const params = days ? `?days=${days}` : '';
+    const response = await api.get(`/creators/${creatorId}/follower-growth${params}`);
+    return response.data;
+  },
+  getRevenueAnalytics: async (creatorId: string, period: 'all' | 'today' | 'week' | 'month' = 'all') => {
+    const response = await api.get(`/creators/${creatorId}/revenue?period=${period}`);
+    return response.data;
+  },
+  getChatAnalytics: async (streamId: string) => {
+    const response = await api.get(`/streams/${streamId}/chat-analytics`);
+    return response.data;
+  },
+  getHistoricalData: async (creatorId: string, limit?: number) => {
+    const params = limit ? `?limit=${limit}` : '';
+    const response = await api.get(`/creators/${creatorId}/historical${params}`);
+    return response.data;
+  },
+};
+
 export default api;
