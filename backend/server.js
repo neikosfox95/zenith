@@ -319,21 +319,49 @@ app.get('/api/streams/:streamId/gifts', authenticateToken, async (req, res) => {
 
 // ============= ENHANCED AUTHENTICATION ROUTES =============
 
-// Enable 2FA
+// Enable 2FA with Google Authenticator
 app.post('/api/auth/2fa/enable', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    const twoFASecret = generate2FASecret(userId);
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
     
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Generate Google Authenticator compatible secret
+    const twoFASecret = generate2FASecret(userId, user.email);
+    
+    // Generate QR code for easy scanning
+    const qrCodeDataUrl = await generateQRCode(twoFASecret.otpauthUrl);
+    
+    // Store secret (not yet enabled)
     await db.collection('users').updateOne(
       { _id: new ObjectId(userId) },
-      { $set: { two_fa_secret: twoFASecret.secret, two_fa_enabled: false } }
+      { 
+        $set: { 
+          two_fa_secret: twoFASecret.secret,
+          two_fa_enabled: false,
+          two_fa_setup_at: new Date()
+        } 
+      }
     );
 
     res.json({ 
       secret: twoFASecret.secret,
-      message: 'Scan QR code with authenticator app',
-      qr_code: `otpauth://totp/TikTokMonitor:${req.user.email}?secret=${twoFASecret.secret}`
+      qr_code: qrCodeDataUrl,
+      manual_entry_key: twoFASecret.secret,
+      otpauth_url: twoFASecret.otpauthUrl,
+      app_name: 'TikTok Live Monitor',
+      issuer: 'TikTok Live Monitor',
+      message: 'Scan QR code with Google Authenticator app or enter the manual key',
+      instructions: [
+        '1. Open Google Authenticator app',
+        '2. Tap the + button',
+        '3. Choose "Scan a QR code" or "Enter a setup key"',
+        '4. Scan the QR code or enter the manual key',
+        '5. Verify with the 6-digit code from the app'
+      ]
     });
   } catch (error) {
     console.error('Enable 2FA error:', error);
@@ -341,31 +369,93 @@ app.post('/api/auth/2fa/enable', authenticateToken, async (req, res) => {
   }
 });
 
-// Verify and activate 2FA
+// Verify and activate 2FA with Google Authenticator
 app.post('/api/auth/2fa/verify', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     const { code } = req.body;
 
+    if (!code || code.length !== 6) {
+      return res.status(400).json({ error: 'Invalid code format. Must be 6 digits' });
+    }
+
     const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
     if (!user || !user.two_fa_secret) {
-      return res.status(400).json({ error: '2FA not initialized' });
+      return res.status(400).json({ error: '2FA not initialized. Call /api/auth/2fa/enable first' });
     }
 
+    // Verify code using speakeasy (Google Authenticator compatible)
     const isValid = verify2FACode(user.two_fa_secret, code);
+    
     if (!isValid) {
-      return res.status(400).json({ error: 'Invalid code' });
+      return res.status(400).json({ 
+        error: 'Invalid verification code',
+        message: 'Please check the 6-digit code in your Google Authenticator app'
+      });
     }
 
+    // Activate 2FA
     await db.collection('users').updateOne(
       { _id: new ObjectId(userId) },
-      { $set: { two_fa_enabled: true } }
+      { 
+        $set: { 
+          two_fa_enabled: true,
+          two_fa_verified_at: new Date()
+        } 
+      }
     );
 
-    res.json({ message: '2FA enabled successfully' });
+    res.json({ 
+      message: '2FA enabled successfully with Google Authenticator',
+      status: 'active',
+      backup_codes: [
+        // Generate backup codes for emergency access
+        Math.random().toString(36).substring(2, 10).toUpperCase(),
+        Math.random().toString(36).substring(2, 10).toUpperCase(),
+        Math.random().toString(36).substring(2, 10).toUpperCase()
+      ]
+    });
   } catch (error) {
     console.error('Verify 2FA error:', error);
     res.status(500).json({ error: 'Failed to verify 2FA' });
+  }
+});
+
+// Verify 2FA code during login
+app.post('/api/auth/2fa/validate', async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    const user = await db.collection('users').findOne({ email });
+    if (!user || !user.two_fa_enabled) {
+      return res.status(400).json({ error: '2FA not enabled for this user' });
+    }
+
+    const isValid = verify2FACode(user.two_fa_secret, code);
+    
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid 2FA code' });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user._id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        username: user.username
+      },
+      message: '2FA verification successful'
+    });
+  } catch (error) {
+    console.error('Validate 2FA error:', error);
+    res.status(500).json({ error: 'Failed to validate 2FA' });
   }
 });
 
