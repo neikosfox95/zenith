@@ -474,13 +474,35 @@ app.post('/api/auth/2fa/disable', authenticateToken, async (req, res) => {
 
     await db.collection('users').updateOne(
       { _id: new ObjectId(userId) },
-      { $set: { two_fa_enabled: false, two_fa_secret: null } }
+      { 
+        $set: { two_fa_enabled: false },
+        $unset: { two_fa_secret: '', two_fa_setup_at: '', two_fa_verified_at: '' }
+      }
     );
 
     res.json({ message: '2FA disabled successfully' });
   } catch (error) {
     console.error('Disable 2FA error:', error);
     res.status(500).json({ error: 'Failed to disable 2FA' });
+  }
+});
+
+// Get 2FA status
+app.get('/api/auth/2fa/status', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+
+    res.json({
+      two_fa_enabled: user.two_fa_enabled || false,
+      has_secret: !!user.two_fa_secret,
+      setup_at: user.two_fa_setup_at || null,
+      verified_at: user.two_fa_verified_at || null,
+      method: 'Google Authenticator (TOTP)'
+    });
+  } catch (error) {
+    console.error('Get 2FA status error:', error);
+    res.status(500).json({ error: 'Failed to get 2FA status' });
   }
 });
 
