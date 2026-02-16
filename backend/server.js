@@ -962,6 +962,23 @@ app.get('/api/users/:userId/available-boxes', authenticateToken, async (req, res
 
     res.json({
       subscription_tier: benefits.tier,
+      available_boxes: availableBoxes
+    });
+  } catch (error) {
+    console.error('Get available boxes error:', error);
+    res.status(500).json({ error: 'Failed to get available boxes' });
+  }
+});
+
+// Get gift rarity info
+app.get('/api/gift-rarity', authenticateToken, async (req, res) => {
+  try {
+    res.json(GIFT_RARITY);
+  } catch (error) {
+    console.error('Get gift rarity error:', error);
+    res.status(500).json({ error: 'Failed to get gift rarity' });
+  }
+});
 
 // ============= STREAM HEALTH & QUALITY ROUTES =============
 
