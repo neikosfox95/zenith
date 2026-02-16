@@ -51,7 +51,10 @@ def log_info(message):
 def make_request(method, url, **kwargs):
     """Make HTTP request with error handling"""
     try:
-        response = requests.request(method, url, timeout=30, **kwargs)
+        # Set default timeout if not provided
+        if 'timeout' not in kwargs:
+            kwargs['timeout'] = 10
+        response = requests.request(method, url, **kwargs)
         return response
     except requests.exceptions.RequestException as e:
         log_error(f"Request failed: {e}")
