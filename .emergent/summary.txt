@@ -1,0 +1,208 @@
+<analysis>
+<original_problem_statement>
+The user's initial request was to refactor an existing web application codebase into a native Android app. This was quickly refined to be a TikTok live stream monitoring app designed to track a specific creator's () live streams, recognize events, and record gifts, all with real-time updates.
+
+The scope of the project then expanded exponentially through a series of user requests:
+- The feature count escalated from a basic set to 25, then 65, 100, 150, 295, and finally over 500.
+- The user requested the integration of numerous, highly advanced, and partially futuristic/fictional AI models and technologies. This includes:
+  - **Google:** Gemini 3.0 Ecosystem (Deep Think, Flash, Nano Pro), Veo 3.1, Flow 3.1, Kling 3.0 Omni.
+  - **OpenAI:** GPT-5.2, Sora 2 Pro.
+  - **Anthropic:** Claude 4.5 Opus.
+  - **ByteDance:** Doubao 2.0, Seedance 1.5/2.0, Seedream 4.5/5.0.
+  - **Other Concepts:** Sovereign Savant architecture, Aethelgard Swarm Command, Mythic Dark Matter engine, Singularity Zenith, MPTCP for networking, and 100% fidelity UI replication of the TikTok app.
+
+The final vision described by the user is a 1,000,000/1,000,000 Zenith Grade super-app with hundreds of features, acting as an autonomous, hyper-intelligent command center for the creator's brand.
+</original_problem_statement>
+<User's_preferred_language>English</User's_preferred_language>
+<what_currently_exists?>
+The project is in a very early, non-functional scaffolding stage.
+-   **Backend:** The original Python/FastAPI backend has been completely replaced with a Node.js/Express backend structure. Key files are  and . It is configured to use Mongoose for MongoDB and Socket.IO for real-time communication. It contains many placeholder API routes (e.g., , ) but none have working logic. The backend service is unstable and does not respond correctly to API calls.
+-   **Frontend:** An Expo (React Native) mobile app has been scaffolded with a large number of empty placeholder files for screens, components, and navigation (). The basic tab navigation structure is defined in , but the screens themselves are blank.
+-   **Documentation:** Several markdown files (, , etc.) have been created. These documents are the primary output of the session and list the hundreds of features requested by the user.
+
+</what_currently_exists?>
+<Last_working_item>
+-   **Last item agent was working:** The agent was responding to the user's latest request to integrate the Kling 3.0 and ByteDance (Seedance, Doubao, Seedream) AI ecosystems. Its last action was to perform web searches to research these technologies.
+-   **Status:** NOT STARTED
+-   **Agent Testing Done:** N
+-   **Which testing method agent to use?** backend testing agent
+-   **User Testing Done:** N
+
+</Last_working_item>
+<All_Pending/In_progress_Issue_list>
+  Issue 1:  Unstable and Non-Functional Node.js Backend (P0)
+  
+  **Issues Detail:**
+  - **Issue 1:** Unstable and Non-Functional Node.js Backend
+     - **Description:** The agent replaced the original Python backend with a new Node.js/Express backend, but it does not function correctly. API requests made via  to its endpoints (e.g., ) fail or time out. The agent struggled significantly with the  configuration to switch from the Python process to the Node.js process, and this misconfiguration is the likely root cause of the instability.
+     - **Attempted fixes:** The previous agent tried restarting supervisor, killing Python/Node processes manually, checking process lists (USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root           1  0.0  0.0   4192  2968 ?        Ss   18:16   0:00 /bin/bash /entrypoint.sh
+root          63  1.7  0.1  38960 29800 ?        S    18:16   0:00 /opt/plugins-venv/bin/python /opt/plugins-venv/bin/e1_monitor b4ffa581-b310-4bc9-acf4-a841f1adf000 https://demobackend.emergentagent.com --interval 1
+root          66  0.0  0.0   4192  2048 ?        S    18:16   0:00 /bin/bash /entrypoint.sh
+root          70 17.9  0.6 270460 106248 ?       Sl   18:16   0:01 /opt/plugins-venv/bin/python /opt/plugins-venv/bin/uvicorn plugins.tools.agent.server:app --host 0.0.0.0 --port 8010 --workers 1 --no-access-log
+root          72 11.6  0.7 5246260 121448 ?      Sl   18:16   0:01 node /usr/bin/mongodb-mcp-server --transport http --httpHost=0.0.0.0 --httpPort=8020 --readOnly
+root          89  0.1  0.1  37256 25884 ?        Ss   18:16   0:00 /usr/bin/python3 /usr/bin/supervisord -c /etc/supervisor/supervisord.conf
+root          97  0.0  0.0  13456  8840 ?        S    18:16   0:00 nginx: master process /usr/sbin/nginx -g daemon off; -c /etc/nginx/nginx-code-server.conf
+root          98  2.6  0.1 102748 27428 ?        Sl   18:16   0:00 /root/.venv/bin/python /root/.venv/bin/uvicorn server:app --host 0.0.0.0 --port 8001 --workers 1 --reload
+root          99  1.9  0.5 1000172 88308 ?       Sl   18:16   0:00 node /bin/yarn expo start --tunnel --port 3000
+root         100 10.5  0.9 548988 152232 ?       Sl   18:16   0:00 /usr/bin/mongod --bind_ip_all
+root         107  0.0  0.0  13888  3688 ?        S    18:16   0:00 nginx: worker process
+root         120  0.0  0.0   2324  1408 ?        S    18:16   0:00 /bin/sh -c /app/frontend/node_modules/.bin/expo start --tunnel --port 3000
+root         121 26.3  1.3 9535988 223472 ?      Sl   18:16   0:01 /usr/bin/node /app/frontend/node_modules/.bin/expo start --tunnel --port 3000
+root         128  0.3  0.0  15900 11080 ?        S    18:16   0:00 /root/.venv/bin/python -c from multiprocessing.resource_tracker import main;main(4)
+root         129  6.9  0.3  76348 60572 ?        S    18:16   0:00 /root/.venv/bin/python -c from multiprocessing.spawn import spawn_main; spawn_main(tracker_fd=5, pipe_handle=7) --multiprocessing-fork
+root         183  2.8  0.1 725812 25964 ?        Sl   18:16   0:00 /app/frontend/node_modules/@expo/ngrok-bin-linux-arm64/ngrok start --none --log=stdout --config=/root/.expo/ngrok.yml
+root         194  1.0  0.2 462724 38356 ?        Sl   18:16   0:00 /usr/bin/node /app/frontend/node_modules/jest-worker/build/workers/processChild.js
+root         195  1.0  0.2 462724 38364 ?        Sl   18:16   0:00 /usr/bin/node /app/frontend/node_modules/jest-worker/build/workers/processChild.js
+root         211  0.0  0.0   4192  2944 ?        S    18:16   0:00 /bin/bash -c (sudo supervisorctl stop expo backend &&  find /app \( -name node_modules -o -name .git -o -name .next -o -name dist -o -name build -o -name .cache -o -name __pycache__ -o -name .expo -o -name .turbo -o -name coverage -o -name .nyc_output -o -name .yarn -o -name .pnpm -o -name venv -o -name .venv -o -name android -o -name ios -o -name .metro-cache \) -prune -o -type f -exec grep -Il -E '(https://.*\.preview\.emergentagent\.com|=[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|EXPO_TUNNEL_SUBDOMAIN=zenith-dashboard-3
+root         213  0.0  0.0   4344  3084 ?        S    18:16   0:00 /bin/bash -c mkdir -p /app/.emergent && echo "<analysis> <original_problem_statement> The user's initial request was to refactor an existing web application codebase into a native Android app. This was quickly refined to be a "TikTok live stream monitoring app" designed to track a specific creator's (`darkskully`) live streams, recognize events, and record gifts, all with real-time updates.  The scope of the project then expanded exponentially through a series of user requests: - The feature count escalated from a basic set to 25, then 65, 100, 150, 295, and finally over 500. - The user requested the integration of numerous, highly advanced, and partially futuristic/fictional AI models and technologies. This includes:   - **Google:** Gemini 3.0 Ecosystem (Deep Think, Flash, Nano Pro), Veo 3.1, Flow 3.1, Kling 3.0 Omni.   - **OpenAI:** GPT-5.2, Sora 2 Pro.   - **Anthropic:** Claude 4.5 Opus.   - **ByteDance:** Doubao 2.0, Seedance 1.5/2.0, Seedream 4.5/5.0.   - **Other Concepts:** "Sovereign Savant" architecture, "Aethelgard Swarm Command", "Mythic Dark Matter engine", "Singularity Zenith", MPTCP for networking, and "100% fidelity" UI replication of the TikTok app.  The final vision described by the user is a "1,000,000/1,000,000 Zenith Grade" super-app with hundreds of features, acting as an autonomous, hyper-intelligent command center for the creator's brand. </original_problem_statement> <User's_preferred_language>English</User's_preferred_language> <what_currently_exists?> The project is in a very early, non-functional scaffolding stage. -   **Backend:** The original Python/FastAPI backend has been completely replaced with a Node.js/Express backend structure. Key files are `backend/server.js` and `backend/package.json`. It is configured to use Mongoose for MongoDB and Socket.IO for real-time communication. It contains many placeholder API routes (e.g., `/api/creators`, `/api/ai/generate-summary`) but none have working logic. The backend service is unstable and does not respond correctly to API calls. -   **Frontend:** An Expo (React Native) mobile app has been scaffolded with a large number of empty placeholder files for screens, components, and navigation (`/app/frontend/app/(tabs)`). The basic tab navigation structure is defined in `frontend/app/_layout.tsx`, but the screens themselves are blank. -   **Documentation:** Several markdown files (`/app/docs/FEATURES.md`, `PROJECT_SUMMARY.md`, etc.) have been created. These documents are the primary output of the session and list the hundreds of features requested by the user.  </what_currently_exists?> <Last_working_item> -   **Last item agent was working:** The agent was responding to the user's latest request to integrate the Kling 3.0 and ByteDance (Seedance, Doubao, Seedream) AI ecosystems. Its last action was to perform web searches to research these technologies. -   **Status:** NOT STARTED -   **Agent Testing Done:** N -   **Which testing method agent to use?** backend testing agent -   **User Testing Done:** N  </Last_working_item> <All_Pending/In_progress_Issue_list>   Issue 1:  Unstable and Non-Functional Node.js Backend (P0)      **Issues Detail:**   - **Issue 1:** Unstable and Non-Functional Node.js Backend      - **Description:** The agent replaced the original Python backend with a new Node.js/Express backend, but it does not function correctly. API requests made via `curl` to its endpoints (e.g., `/api/creators`) fail or time out. The agent struggled significantly with the `supervisor` configuration to switch from the Python process to the Node.js process, and this misconfiguration is the likely root cause of the instability.      - **Attempted fixes:** The previous agent tried restarting supervisor, killing Python/Node processes manually, checking process lists (`ps aux`), and reading logs. While it believed the Node server was running, the API remained unresponsive, indicating a deeper issue.      - **Next debug checklist:**         1.  Verify the command in `/etc/supervisor/conf.d/supervisord.conf` is correctly set to `command=node /app/backend/server.js`.         2.  Thoroughly check the backend error logs at `/var/log/supervisor/backend-stderr.log` for any runtime errors on startup.         3.  Examine `backend/server.js` for fundamental errors. Specifically, check the Express app setup, middleware, and how routes are defined and attached.         4.  As a primary debugging step, simplify `backend/server.js` to a single, minimal "Hello World" endpoint (e.g., `app.get('/api/health', (req, res) => res.send('OK'))`) to isolate the problem from the more complex routes. Test this endpoint with `curl`.      - **Why fix this issue and what will be achieved with the fix?** The backend is the foundation of the entire application. Without a functional API, no frontend development, data storage, or real-time features can be implemented or tested. This is a critical blocker.      - **Status:** IN PROGRESS      - **Is recurring issue?** Y      - **Should Test frontend/backend/both after fix?** backend      - **Blocked on other issue:** None. This is the root blocker.  </All_Pending/In_progress_Issue_list> <In_progress_Task_List>   There are no specific tasks in progress. The agent was acknowledging new feature requests rather than implementing a specific one. </In_progress_Task_List> <Upcoming_and_Future_Tasks> The user's requests are vast and contain futuristic/fictional elements. The next agent's priority must be to manage expectations and deliver a working MVP before tackling the extended list.  **Upcoming Tasks (P0 - Build a Functional MVP):** 1.  **Fix the Backend (P0):** Resolve the "Unstable Node.js Backend" issue described above. 2.  **Implement Core TikTok Connection (P0):**     -   In `backend/server.js`, use the `tiktok-live-connector` library to connect to the live stream of the specified user (`darkskully`). 3.  **Implement Core Data Persistence (P0):**     -   Create Mongoose schemas for `LiveEvent` (e.g., gifts, comments, likes).     -   In the TikTok connection logic, save incoming events to the MongoDB database. 4.  **Implement Real-Time Broadcasting (P0):**     -   Use the existing Socket.IO setup in `backend/server.js` to broadcast new events to all connected clients. 5.  **Build a Basic Frontend Dashboard (P0):**     -   In one of the placeholder screens (e.g., `frontend/app/(tabs)/dashboard.tsx`), implement a Socket.IO client to connect to the backend.     -   Create a simple UI to display the stream of incoming live events in real-time.  **Future Tasks (P1 - Phased implementation based on user priority):** -   **User Authentication:** Implement the requested JWT-based custom authentication. -   **AI & ML Features:** Begin exploring the feasible AI integrations requested by the user. Start with the most practical one, such as using the Gemini API (`@google/generative-ai`) for a simple text-based feature (e.g., generating a summary of a live session). This will require using the `EMERGENT_LLM_KEY`. -   **Advanced TikTok Monitoring:** Implement features like live stream recording (using the installed `ffmpeg`), advanced gift tracking, and historical analytics. -   **Full Feature Implementation:** Systematically work through the massive 500+ feature list documented in `/app/docs/FEATURES.md`, prioritizing with the user at each step. This includes the highly ambitious "Sovereign Savant," "Kling 3.0," and "100% Fidelity UI" concepts.  </Upcoming_and_Future_Tasks> <Completed_work_in_this_session> - **Backend Technology Migration:** The entire backend stack was migrated from Python/FastAPI to a new Node.js/Express/Mongoose/Socket.IO architecture. - **Project Scaffolding:** A comprehensive but empty file structure for the React Native frontend was created, including directories for screens, components, navigation, and contexts. - **Dependency Management:** Required npm packages for both the Node.js backend (`express`, `mongoose`, `socket.io`) and the Expo frontend (`@react-navigation/native`, `socket.io-client`, etc.) were installed. - **Extensive Documentation:** The agent created numerous documentation files (`/app/docs/FEATURES.md`, `PROJECT_SUMMARY.md`) to capture and list the hundreds of expanding feature requests from the user.  </Completed_work_in_this_session> <Earlier_issues_found/mentioned_but_not_fixed>    - **Issue 1:** The non-functional Node.js backend API is the single most critical unresolved issue. It was discovered and struggled with during the session but never fixed. This is detailed under `All Pending/In progress Issue list`.  </Earlier_issues_found/mentioned_but_not_fixed> <Known_issue_recurrence_from_previous_fork>   - **Issue recurrence in previous fork:** N/A   - **Recurrence count:** 0   - **Status:** N/A  </Known_issue_recurrence_from_previous_fork> <Code_Architecture> ``` /app ├── backend/ │   ├── .env │   ├── package.json │   ├── server.js         // Main Node.js/Express/Socket.io entry point │   └── models/ │       └── Creator.js      // Mongoose schema for creators └── frontend/     ├── .env     ├── package.json     ├── app.json     └── app/                // Expo app root         ├── _layout.tsx     // Root navigator (Tab navigator)         ├── (tabs)/         // Directory for tab-based screens         │   ├── _layout.tsx // Defines the tabs         │   ├── dashboard.tsx // Placeholders for all screens         │   └── ...         ├── components/     // Placeholder directory for shared components         └── contexts/       // Placeholder directory for React contexts ``` </Code_Architecture> <Key_Technical_Concepts> -   **Backend:** Node.js, Express.js (for REST APIs), Mongoose (MongoDB ODM), Socket.IO (for real-time WebSocket communication). -   **Frontend:** React Native, Expo (mobile app framework), React Navigation (for file-based routing and navigation), Socket.IO Client (to receive real-time updates). -   **Database:** MongoDB. -   **Core Integration:** `tiktok-live-connector` (planned, not yet implemented) is the key library for fetching live stream data. </Key_Technical_Concepts> <key_DB_schema>   - **creators**: `{ tiktokUsername: String, status: String, lastLiveAt: Date }` </key_DB_schema> <changes_in_tech_stack>   - The entire backend was migrated from Python/FastAPI to Node.js/Express. This is a fundamental change from the initial project template. </changes_in_tech_stack> <All_files_of_reference> -   `backend/server.js`: The new, core backend file containing all server logic (currently placeholders). This is the first file to debug. -   `backend/package.json`: Defines all backend dependencies. -   `/etc/supervisor/conf.d/supervisord.conf`: The service configuration file that was the source of much trouble. It dictates how the backend process is run. -   `frontend/app/_layout.tsx`: The root of the React Native app's navigation structure. -   `frontend/app/(tabs)/_layout.tsx`: Defines the main tab bar for the application. -   `/app/docs/FEATURES.md`: A critical file to understand the full scope of the user's ambitious requests. </All_files_of_reference> <Areas_that_need_refactoring> The entire project needs to be built, not refactored. The current state is a skeleton of placeholder files and a broken backend. The immediate priority is to make the backend functional and then build out one core feature end-to-end. </Areas_that_need_refactoring> <key_api_endpoints> The agent defined several placeholder endpoints in `backend/server.js`. None are functional. -   `GET /api/creators` -   `POST /api/creators` -   `GET /api/ai/generate-summary` -   `GET /api/ai/sentiment-analysis` </key_api_endpoints> <Critical_Info_for_New_Agent> -   **Manage User Expectations:** The user's feature requests have escalated into science fiction. The list of 500+ features and "Zenith Grade" AI models is not feasible as described. Your primary challenge will be to communicate this reality gently and guide the user towards a realistic, phased roadmap. Start by building a simple, tangible MVP to demonstrate progress. -   **Fix The Backend First:** Your first and only priority is to fix the broken Node.js backend. Nothing else can proceed until the API is stable and responsive. Refer to the debug checklist in the "Pending Issues" section. -   **Ignore Fictional Code:** The user provided conceptual code snippets in Kotlin/Java. These should be treated as high-level ideas, not as literal code to be implemented in the JavaScript/Node.js environment. -   **Embrace the Tech Stack Change:** The project is now a Node.js and React Native application. Do not attempt to revert to the original Python backend. -   **Build Incrementally:** Do not attempt to build all 500 features at once. After fixing the backend, implement a single, end-to-end feature: connect to a TikTok stream, save an event, and display it on the frontend in real-time. This will build a solid foundation and demonstrate value to the user. </Critical_Info_for_New_Agent> <documents_created_in_this_job> -   /app/docs/FEATURES.md -   /app/docs/PROJECT_SUMMARY.md -   /app/docs/GEMINI_INTEGRATION.md -   /app/docs/EXPERT_FEATURES.md -   /app/docs/TIKTOK_LIVE_STUDIO.md -   /app/docs/SINGULARITY_ZENITH.md -   /app/docs/SOVEREIGN_SAVANT.md </documents_created_in_this_job> <Last_10_User_Messages> - 10. **Request:** Integrate Kling 3.0 and all new 2026 ByteDance AI models for video/image. **Status:** Acknowledged. - 9. **Request:** Name the 150 additional features that brought the total from 350 to 500. **Status:** Acknowledged (documentation updated). - 8. **Request:** Continue working on the 500 features without stopping. **Status:** Acknowledged. - 7. **Request:** Incorporate the "Sovereign Savant Aethelgard Swarm" concept. **Status:** Acknowledged (documentation updated). - 6. **Request:** Incorporate the "Singularity Zenith" & "Mythic Dark Matter" concepts. **Status:** Acknowledged (documentation updated). - 5. **Request:** Incorporate the "Gemini 3.0 Zenith Grade" ecosystem. **Status:** Acknowledged (documentation updated). - 4. **Request:** Massively expand the app to 295 features. **Status:** Acknowledged (documentation updated). - 3. **Request:** Add features for location maps, fan clubs, gifting levels, and leaderboards. **Status:** Acknowledged (documentation updated). - 2. **Request:** Incorporate TikTok Live Studio support, new Creator Rewards, and 50 expert features. **Status:** Acknowledged (documentation updated). - 1. **Request:** Increase feature count to 100 and add AI enhancements using Gemini. **Status:** Acknowledged (documentation updated). </Last_10_User_Messages> <Project_Health_Check> **Broken:** The core backend service is non-functional, blocking all other development. The frontend is an empty shell. No features have been implemented. The project is currently a collection of placeholder files and extensive documentation based on highly ambitious user requests. </Project_Health_Check> <3rd_Party_Integrations> - **Planned:**   - `tiktok-live-connector`: For connecting to TikTok live streams.   - `socket.io`: For real-time client-server communication.   - `@google/generative-ai`: For Gemini integration. **Uses Emergent LLM Key**. - **Requested by User (but not implemented):**   - Google Veo, Kling, Flow   - OpenAI Sora, GPT-5.2   - Anthropic Claude 4.5   - ByteDance Doubao, Seedance, Seedream   - Rive (for vector animations)   - ExoPlayer (for video playback) </3rd_Party_Integrations> <Testing_status>   - **Testing agent used after significant changes:** NO   - **Troubleshoot agent used after agent stuck in loop:** NO (but should have been)   - **Test files created:** A temporary `test_mongo.js` was created and run, but no permanent test files exist.   - **Known regressions:** N/A (no prior working state). </Testing_status> <Credentials_to_test_flow> N/A </Credentials_to_test_flow> <What_agent_forgot_to_execute> The agent did not forget to execute a specific task; rather, it failed to execute any *meaningful* implementation. Instead of building the core functionality of the app (connecting to TikTok), it got stuck on a technical issue (the backend server) and then pivoted to creating documentation for an ever-expanding, unrealistic list of features. It failed to build a single working, end-to-end feature slice, which should have been its primary goal after the initial planning phase. It also failed to use the `troubleshoot_agent` despite being stuck on the backend issue for a significant number of steps. </What_agent_forgot_to_execute> </analysis>" > /app/.emergent/summary.txt
+root         214  0.0  0.0   4192  1508 ?        S    18:16   0:00 /bin/bash -c (sudo supervisorctl stop expo backend &&  find /app \( -name node_modules -o -name .git -o -name .next -o -name dist -o -name build -o -name .cache -o -name __pycache__ -o -name .expo -o -name .turbo -o -name coverage -o -name .nyc_output -o -name .yarn -o -name .pnpm -o -name venv -o -name .venv -o -name android -o -name ios -o -name .metro-cache \) -prune -o -type f -exec grep -Il -E '(https://.*\.preview\.emergentagent\.com|=[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|EXPO_TUNNEL_SUBDOMAIN=zenith-dashboard-3
+root         215  0.0  0.0   2644  1376 ?        S    18:16   0:00 tee /var/log/fork_config.log
+root         216  0.0  0.0   7808  3728 ?        S    18:16   0:00 sudo supervisorctl stop expo backend
+root         222 60.0  0.0  18372 12300 ?        R    18:16   0:00 /usr/bin/python3 /usr/bin/supervisorctl stop expo backend
+root         231  0.0  0.0   8580  4084 ?        R    18:16   0:00 ps aux), and reading logs. While it believed the Node server was running, the API remained unresponsive, indicating a deeper issue.
+     - **Next debug checklist:**
+        1.  Verify the command in  is correctly set to .
+        2.  Thoroughly check the backend error logs at  for any runtime errors on startup.
+        3.  Examine  for fundamental errors. Specifically, check the Express app setup, middleware, and how routes are defined and attached.
+        4.  As a primary debugging step, simplify  to a single, minimal Hello World endpoint (e.g., ) to isolate the problem from the more complex routes. Test this endpoint with .
+     - **Why fix this issue and what will be achieved with the fix?** The backend is the foundation of the entire application. Without a functional API, no frontend development, data storage, or real-time features can be implemented or tested. This is a critical blocker.
+     - **Status:** IN PROGRESS
+     - **Is recurring issue?** Y
+     - **Should Test frontend/backend/both after fix?** backend
+     - **Blocked on other issue:** None. This is the root blocker.
+
+</All_Pending/In_progress_Issue_list>
+<In_progress_Task_List>
+  There are no specific tasks in progress. The agent was acknowledging new feature requests rather than implementing a specific one.
+</In_progress_Task_List>
+<Upcoming_and_Future_Tasks>
+The user's requests are vast and contain futuristic/fictional elements. The next agent's priority must be to manage expectations and deliver a working MVP before tackling the extended list.
+
+**Upcoming Tasks (P0 - Build a Functional MVP):**
+1.  **Fix the Backend (P0):** Resolve the Unstable Node.js Backend issue described above.
+2.  **Implement Core TikTok Connection (P0):**
+    -   In , use the  library to connect to the live stream of the specified user ().
+3.  **Implement Core Data Persistence (P0):**
+    -   Create Mongoose schemas for  (e.g., gifts, comments, likes).
+    -   In the TikTok connection logic, save incoming events to the MongoDB database.
+4.  **Implement Real-Time Broadcasting (P0):**
+    -   Use the existing Socket.IO setup in  to broadcast new events to all connected clients.
+5.  **Build a Basic Frontend Dashboard (P0):**
+    -   In one of the placeholder screens (e.g., ), implement a Socket.IO client to connect to the backend.
+    -   Create a simple UI to display the stream of incoming live events in real-time.
+
+**Future Tasks (P1 - Phased implementation based on user priority):**
+-   **User Authentication:** Implement the requested JWT-based custom authentication.
+-   **AI & ML Features:** Begin exploring the feasible AI integrations requested by the user. Start with the most practical one, such as using the Gemini API () for a simple text-based feature (e.g., generating a summary of a live session). This will require using the .
+-   **Advanced TikTok Monitoring:** Implement features like live stream recording (using the installed ), advanced gift tracking, and historical analytics.
+-   **Full Feature Implementation:** Systematically work through the massive 500+ feature list documented in , prioritizing with the user at each step. This includes the highly ambitious Sovereign Savant, Kling 3.0, and 100% Fidelity UI concepts.
+
+</Upcoming_and_Future_Tasks>
+<Completed_work_in_this_session>
+- **Backend Technology Migration:** The entire backend stack was migrated from Python/FastAPI to a new Node.js/Express/Mongoose/Socket.IO architecture.
+- **Project Scaffolding:** A comprehensive but empty file structure for the React Native frontend was created, including directories for screens, components, navigation, and contexts.
+- **Dependency Management:** Required npm packages for both the Node.js backend (, , ) and the Expo frontend (, , etc.) were installed.
+- **Extensive Documentation:** The agent created numerous documentation files (, ) to capture and list the hundreds of expanding feature requests from the user.
+
+</Completed_work_in_this_session>
+<Earlier_issues_found/mentioned_but_not_fixed>
+   - **Issue 1:** The non-functional Node.js backend API is the single most critical unresolved issue. It was discovered and struggled with during the session but never fixed. This is detailed under .
+
+</Earlier_issues_found/mentioned_but_not_fixed>
+<Known_issue_recurrence_from_previous_fork>
+  - **Issue recurrence in previous fork:** N/A
+  - **Recurrence count:** 0
+  - **Status:** N/A
+
+</Known_issue_recurrence_from_previous_fork>
+<Code_Architecture>
+
+</Code_Architecture>
+<Key_Technical_Concepts>
+-   **Backend:** Node.js, Express.js (for REST APIs), Mongoose (MongoDB ODM), Socket.IO (for real-time WebSocket communication).
+-   **Frontend:** React Native, Expo (mobile app framework), React Navigation (for file-based routing and navigation), Socket.IO Client (to receive real-time updates).
+-   **Database:** MongoDB.
+-   **Core Integration:**  (planned, not yet implemented) is the key library for fetching live stream data.
+</Key_Technical_Concepts>
+<key_DB_schema>
+  - **creators**: 
+</key_DB_schema>
+<changes_in_tech_stack>
+  - The entire backend was migrated from Python/FastAPI to Node.js/Express. This is a fundamental change from the initial project template.
+</changes_in_tech_stack>
+<All_files_of_reference>
+-   : The new, core backend file containing all server logic (currently placeholders). This is the first file to debug.
+-   : Defines all backend dependencies.
+-   : The service configuration file that was the source of much trouble. It dictates how the backend process is run.
+-   : The root of the React Native app's navigation structure.
+-   : Defines the main tab bar for the application.
+-   : A critical file to understand the full scope of the user's ambitious requests.
+</All_files_of_reference>
+<Areas_that_need_refactoring>
+The entire project needs to be built, not refactored. The current state is a skeleton of placeholder files and a broken backend. The immediate priority is to make the backend functional and then build out one core feature end-to-end.
+</Areas_that_need_refactoring>
+<key_api_endpoints>
+The agent defined several placeholder endpoints in . None are functional.
+-   
+-   
+-   
+-   
+</key_api_endpoints>
+<Critical_Info_for_New_Agent>
+-   **Manage User Expectations:** The user's feature requests have escalated into science fiction. The list of 500+ features and Zenith Grade AI models is not feasible as described. Your primary challenge will be to communicate this reality gently and guide the user towards a realistic, phased roadmap. Start by building a simple, tangible MVP to demonstrate progress.
+-   **Fix The Backend First:** Your first and only priority is to fix the broken Node.js backend. Nothing else can proceed until the API is stable and responsive. Refer to the debug checklist in the Pending Issues section.
+-   **Ignore Fictional Code:** The user provided conceptual code snippets in Kotlin/Java. These should be treated as high-level ideas, not as literal code to be implemented in the JavaScript/Node.js environment.
+-   **Embrace the Tech Stack Change:** The project is now a Node.js and React Native application. Do not attempt to revert to the original Python backend.
+-   **Build Incrementally:** Do not attempt to build all 500 features at once. After fixing the backend, implement a single, end-to-end feature: connect to a TikTok stream, save an event, and display it on the frontend in real-time. This will build a solid foundation and demonstrate value to the user.
+</Critical_Info_for_New_Agent>
+<documents_created_in_this_job>
+-   /app/docs/FEATURES.md
+-   /app/docs/PROJECT_SUMMARY.md
+-   /app/docs/GEMINI_INTEGRATION.md
+-   /app/docs/EXPERT_FEATURES.md
+-   /app/docs/TIKTOK_LIVE_STUDIO.md
+-   /app/docs/SINGULARITY_ZENITH.md
+-   /app/docs/SOVEREIGN_SAVANT.md
+</documents_created_in_this_job>
+<Last_10_User_Messages>
+- 10. **Request:** Integrate Kling 3.0 and all new 2026 ByteDance AI models for video/image. **Status:** Acknowledged.
+- 9. **Request:** Name the 150 additional features that brought the total from 350 to 500. **Status:** Acknowledged (documentation updated).
+- 8. **Request:** Continue working on the 500 features without stopping. **Status:** Acknowledged.
+- 7. **Request:** Incorporate the Sovereign Savant Aethelgard Swarm concept. **Status:** Acknowledged (documentation updated).
+- 6. **Request:** Incorporate the Singularity Zenith & Mythic Dark Matter concepts. **Status:** Acknowledged (documentation updated).
+- 5. **Request:** Incorporate the Gemini 3.0 Zenith Grade ecosystem. **Status:** Acknowledged (documentation updated).
+- 4. **Request:** Massively expand the app to 295 features. **Status:** Acknowledged (documentation updated).
+- 3. **Request:** Add features for location maps, fan clubs, gifting levels, and leaderboards. **Status:** Acknowledged (documentation updated).
+- 2. **Request:** Incorporate TikTok Live Studio support, new Creator Rewards, and 50 expert features. **Status:** Acknowledged (documentation updated).
+- 1. **Request:** Increase feature count to 100 and add AI enhancements using Gemini. **Status:** Acknowledged (documentation updated).
+</Last_10_User_Messages>
+<Project_Health_Check>
+**Broken:** The core backend service is non-functional, blocking all other development. The frontend is an empty shell. No features have been implemented. The project is currently a collection of placeholder files and extensive documentation based on highly ambitious user requests.
+</Project_Health_Check>
+<3rd_Party_Integrations>
+- **Planned:**
+  - : For connecting to TikTok live streams.
+  - : For real-time client-server communication.
+  - : For Gemini integration. **Uses Emergent LLM Key**.
+- **Requested by User (but not implemented):**
+  - Google Veo, Kling, Flow
+  - OpenAI Sora, GPT-5.2
+  - Anthropic Claude 4.5
+  - ByteDance Doubao, Seedance, Seedream
+  - Rive (for vector animations)
+  - ExoPlayer (for video playback)
+</3rd_Party_Integrations>
+<Testing_status>
+  - **Testing agent used after significant changes:** NO
+  - **Troubleshoot agent used after agent stuck in loop:** NO (but should have been)
+  - **Test files created:** A temporary  was created and run, but no permanent test files exist.
+  - **Known regressions:** N/A (no prior working state).
+</Testing_status>
+<Credentials_to_test_flow>
+N/A
+</Credentials_to_test_flow>
+<What_agent_forgot_to_execute>
+The agent did not forget to execute a specific task; rather, it failed to execute any *meaningful* implementation. Instead of building the core functionality of the app (connecting to TikTok), it got stuck on a technical issue (the backend server) and then pivoted to creating documentation for an ever-expanding, unrealistic list of features. It failed to build a single working, end-to-end feature slice, which should have been its primary goal after the initial planning phase. It also failed to use the  despite being stuck on the backend issue for a significant number of steps.
+</What_agent_forgot_to_execute>
+</analysis>
