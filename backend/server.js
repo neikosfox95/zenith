@@ -84,6 +84,17 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
+
+// ============= HEALTH CHECK =============
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok',
+    message: 'TikTok Live Monitor API is running',
+    timestamp: new Date().toISOString(),
+    database: db ? 'connected' : 'disconnected'
+  });
+});
+
 // ============= AUTH ROUTES =============
 app.post('/api/auth/register', async (req, res) => {
   try {
