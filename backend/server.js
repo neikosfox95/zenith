@@ -1286,6 +1286,9 @@ async function startMonitoring(creatorId, tiktokUsername) {
       total_viewers: 0,
       peak_viewers: 0,
       total_gifts_value: 0,
+      total_gifts_count: 0,
+      total_coins: 0,
+      total_shares: 0,
       status: 'live'
     };
 
