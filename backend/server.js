@@ -962,6 +962,246 @@ app.get('/api/users/:userId/available-boxes', authenticateToken, async (req, res
 
     res.json({
       subscription_tier: benefits.tier,
+
+// ============= STREAM HEALTH & QUALITY ROUTES =============
+
+// Get stream health metrics
+app.get('/api/streams/:streamId/health', authenticateToken, async (req, res) => {
+  try {
+    const streamId = req.params.streamId;
+    
+    const [latestHealth, healthHistory, stream] = await Promise.all([
+      db.collection('stream_health')
+        .findOne({ stream_id: new ObjectId(streamId) }, { sort: { timestamp: -1 } }),
+      db.collection('stream_health')
+        .find({ stream_id: new ObjectId(streamId) })
+        .sort({ timestamp: -1 })
+        .limit(50)
+        .toArray(),
+      db.collection('live_streams').findOne({ _id: new ObjectId(streamId) })
+    ]);
+
+    res.json({
+      current: latestHealth,
+      history: healthHistory,
+      stream_info: {
+        health_score: stream?.health_score || 0,
+        latency_ms: stream?.latency_ms || 0,
+        connection_quality: stream?.connection_quality || 'unknown',
+        retention_rate: stream?.retention_rate || 0
+      }
+    });
+  } catch (error) {
+    console.error('Get stream health error:', error);
+    res.status(500).json({ error: 'Failed to get stream health' });
+  }
+});
+
+// Get viewer demographics
+app.get('/api/streams/:streamId/demographics', authenticateToken, async (req, res) => {
+  try {
+    const streamId = req.params.streamId;
+    
+    const [countryDistribution, deviceDistribution, totalViewers] = await Promise.all([
+      db.collection('viewer_demographics').aggregate([
+        { $match: { stream_id: new ObjectId(streamId) } },
+        { $group: { _id: '$country', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]).toArray(),
+      db.collection('viewer_demographics').aggregate([
+        { $match: { stream_id: new ObjectId(streamId) } },
+        { $group: { _id: '$device_type', count: { $sum: 1 } } }
+      ]).toArray(),
+      db.collection('viewer_demographics').countDocuments({ stream_id: new ObjectId(streamId) })
+    ]);
+
+    res.json({
+      total_viewers: totalViewers,
+      by_country: countryDistribution,
+      by_device: deviceDistribution
+    });
+  } catch (error) {
+    console.error('Get demographics error:', error);
+    res.status(500).json({ error: 'Failed to get demographics' });
+  }
+});
+
+// Get sentiment analysis
+app.get('/api/streams/:streamId/sentiment', authenticateToken, async (req, res) => {
+  try {
+    const streamId = req.params.streamId;
+    
+    const [latestSentiment, sentimentHistory] = await Promise.all([
+      db.collection('stream_sentiment')
+        .findOne({ stream_id: new ObjectId(streamId) }, { sort: { timestamp: -1 } }),
+      db.collection('stream_sentiment')
+        .find({ stream_id: new ObjectId(streamId) })
+        .sort({ timestamp: -1 })
+        .limit(20)
+        .toArray()
+    ]);
+
+    res.json({
+      current: latestSentiment,
+      history: sentimentHistory
+    });
+  } catch (error) {
+    console.error('Get sentiment error:', error);
+    res.status(500).json({ error: 'Failed to get sentiment' });
+  }
+});
+
+// Get stream highlights
+app.get('/api/streams/:streamId/highlights', authenticateToken, async (req, res) => {
+  try {
+    const streamId = req.params.streamId;
+    
+    const highlights = await db.collection('stream_highlights')
+      .find({ stream_id: new ObjectId(streamId) })
+      .sort({ value: -1 })
+      .toArray();
+
+    res.json(highlights);
+  } catch (error) {
+    console.error('Get highlights error:', error);
+    res.status(500).json({ error: 'Failed to get highlights' });
+  }
+});
+
+// Create stream clip
+app.post('/api/streams/:streamId/clips', authenticateToken, async (req, res) => {
+  try {
+    const streamId = req.params.streamId;
+    const { startTime, endTime, title } = req.body;
+
+    if (!startTime || !endTime) {
+      return res.status(400).json({ error: 'Start time and end time required' });
+    }
+
+    const clipId = await createStreamClip(
+      new ObjectId(streamId),
+      new Date(startTime),
+      new Date(endTime),
+      title
+    );
+
+    if (!clipId) {
+      return res.status(500).json({ error: 'Failed to create clip' });
+    }
+
+    res.json({ clip_id: clipId.toString(), status: 'processing' });
+  } catch (error) {
+    console.error('Create clip error:', error);
+    res.status(500).json({ error: 'Failed to create clip' });
+  }
+});
+
+// Get stream clips
+app.get('/api/streams/:streamId/clips', authenticateToken, async (req, res) => {
+  try {
+    const streamId = req.params.streamId;
+    
+    const clips = await db.collection('stream_clips')
+      .find({ stream_id: new ObjectId(streamId) })
+      .sort({ created_at: -1 })
+      .toArray();
+
+    res.json(clips);
+  } catch (error) {
+    console.error('Get clips error:', error);
+    res.status(500).json({ error: 'Failed to get clips' });
+  }
+});
+
+// Get viewer engagement score
+app.get('/api/streams/:streamId/engagement-score', authenticateToken, async (req, res) => {
+  try {
+    const streamId = req.params.streamId;
+    
+    const stream = await db.collection('live_streams').findOne({ _id: new ObjectId(streamId) });
+    if (!stream) {
+      return res.status(404).json({ error: 'Stream not found' });
+    }
+
+    const [giftCount, chatCount, likeCount, shareCount] = await Promise.all([
+      db.collection('gifts').countDocuments({ stream_id: new ObjectId(streamId) }),
+      db.collection('chat_messages').countDocuments({ stream_id: new ObjectId(streamId) }),
+      db.collection('fans').aggregate([
+        { $match: { last_stream_id: new ObjectId(streamId) } },
+        { $group: { _id: null, total_likes: { $sum: '$like_count' } } }
+      ]).toArray(),
+      db.collection('shares').countDocuments({ stream_id: new ObjectId(streamId) })
+    ]);
+
+    const totalLikes = likeCount[0]?.total_likes || 0;
+    const viewers = stream.peak_viewers || stream.total_viewers || 1;
+
+    // Calculate engagement score (0-100)
+    const giftScore = Math.min((giftCount / viewers) * 30, 30);
+    const chatScore = Math.min((chatCount / viewers) * 25, 25);
+    const likeScore = Math.min((totalLikes / (viewers * 5)) * 25, 25);
+    const shareScore = Math.min((shareCount / viewers) * 20, 20);
+
+    const engagementScore = giftScore + chatScore + likeScore + shareScore;
+
+    res.json({
+      engagement_score: Math.round(engagementScore),
+      breakdown: {
+        gifts: Math.round(giftScore),
+        chats: Math.round(chatScore),
+        likes: Math.round(likeScore),
+        shares: Math.round(shareScore)
+      },
+      metrics: {
+        total_gifts: giftCount,
+        total_chats: chatCount,
+        total_likes: totalLikes,
+        total_shares: shareCount,
+        viewers: viewers
+      }
+    });
+  } catch (error) {
+    console.error('Get engagement score error:', error);
+    res.status(500).json({ error: 'Failed to get engagement score' });
+  }
+});
+
+// Trigger stream health check
+app.post('/api/streams/:streamId/health-check', authenticateToken, async (req, res) => {
+  try {
+    const streamId = req.params.streamId;
+    const result = await trackStreamHealth(new ObjectId(streamId));
+    res.json(result || { message: 'Health check completed' });
+  } catch (error) {
+    console.error('Health check error:', error);
+    res.status(500).json({ error: 'Failed to perform health check' });
+  }
+});
+
+// Trigger sentiment analysis
+app.post('/api/streams/:streamId/analyze-sentiment', authenticateToken, async (req, res) => {
+  try {
+    const streamId = req.params.streamId;
+    const result = await analyzeChatSentiment(new ObjectId(streamId));
+    res.json(result || { message: 'Sentiment analysis completed' });
+  } catch (error) {
+    console.error('Sentiment analysis error:', error);
+    res.status(500).json({ error: 'Failed to analyze sentiment' });
+  }
+});
+
+// Detect highlights
+app.post('/api/streams/:streamId/detect-highlights', authenticateToken, async (req, res) => {
+  try {
+    const streamId = req.params.streamId;
+    await detectStreamHighlights(new ObjectId(streamId));
+    res.json({ message: 'Highlights detection completed' });
+  } catch (error) {
+    console.error('Detect highlights error:', error);
+    res.status(500).json({ error: 'Failed to detect highlights' });
+  }
+});
+
       available_boxes: availableBoxes
     });
   } catch (error) {
