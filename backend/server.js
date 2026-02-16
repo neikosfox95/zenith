@@ -1112,7 +1112,7 @@ async function startMonitoring(creatorId, tiktokUsername) {
     // Update stream total gifts value
     await db.collection('live_streams').updateOne(
       { _id: currentStreamId },
-      { $inc: { total_gifts_value: giftValue } }
+      { $inc: { total_gifts_value: giftValue, total_gifts_count: 1 } }
     );
 
     // Track fan engagement and update fan tier based on gift value
@@ -1120,6 +1120,22 @@ async function startMonitoring(creatorId, tiktokUsername) {
     
     // Check and award badges
     await checkAndAwardBadges(data.uniqueId, creatorId);
+
+    // Check milestones
+    const stream = await db.collection('live_streams').findOne({ _id: currentStreamId });
+    if (stream) {
+      await checkStreamMilestones(currentStreamId, new ObjectId(creatorId), 'diamonds', stream.total_gifts_value || 0);
+      await checkStreamMilestones(currentStreamId, new ObjectId(creatorId), 'gifts', stream.total_gifts_count || 0);
+    }
+
+    // Log activity
+    await logActivity('gift', {
+      stream_id: currentStreamId.toString(),
+      username: data.uniqueId,
+      nickname: data.nickname,
+      gift_name: data.giftName,
+      diamonds: giftValue
+    });
 
     // Emit to clients
     io.emit('new_gift', {
