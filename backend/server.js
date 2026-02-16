@@ -705,6 +705,281 @@ app.get('/api/creators/:creatorId/coins', authenticateToken, async (req, res) =>
   }
 });
 
+
+// ============= GIFT FEATURES ROUTES =============
+
+// Get gift combos
+app.get('/api/streams/:streamId/gift-combos', authenticateToken, async (req, res) => {
+  try {
+    const streamId = req.params.streamId;
+    
+    const combos = await db.collection('gift_combos')
+      .find({ stream_id: new ObjectId(streamId), active: true })
+      .sort({ combo_count: -1 })
+      .limit(20)
+      .toArray();
+
+    res.json(combos);
+  } catch (error) {
+    console.error('Get gift combos error:', error);
+    res.status(500).json({ error: 'Failed to get gift combos' });
+  }
+});
+
+// Get gift streaks
+app.get('/api/creators/:creatorId/gift-streaks', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+    
+    const streaks = await db.collection('gift_streaks')
+      .find({ creator_id: new ObjectId(creatorId) })
+      .sort({ streak_count: -1 })
+      .limit(20)
+      .toArray();
+
+    res.json(streaks);
+  } catch (error) {
+    console.error('Get gift streaks error:', error);
+    res.status(500).json({ error: 'Failed to get gift streaks' });
+  }
+});
+
+// Get user gift streak
+app.get('/api/users/:username/gift-streak', authenticateToken, async (req, res) => {
+  try {
+    const { username } = req.params;
+    const { creatorId } = req.query;
+    
+    const streak = await db.collection('gift_streaks').findOne({
+      username,
+      creator_id: new ObjectId(creatorId)
+    });
+
+    res.json(streak || { streak_count: 0, longest_streak: 0 });
+  } catch (error) {
+    console.error('Get user streak error:', error);
+    res.status(500).json({ error: 'Failed to get user streak' });
+  }
+});
+
+// Get gift analytics
+app.get('/api/creators/:creatorId/gift-analytics', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+    
+    const [topGifts, rareGifts, giftTrends] = await Promise.all([
+      db.collection('gifts').aggregate([
+        { $match: { creator_id: new ObjectId(creatorId) } },
+        { $group: { 
+          _id: '$gift_name',
+          count: { $sum: 1 },
+          total_value: { $sum: '$total_value' },
+          total_coins: { $sum: '$coin_value' }
+        } },
+        { $sort: { total_value: -1 } },
+        { $limit: 20 }
+      ]).toArray(),
+      db.collection('gifts').aggregate([
+        { $match: { creator_id: new ObjectId(creatorId), total_value: { $gte: 1000 } } },
+        { $group: { _id: '$gift_name', count: { $sum: 1 }, total_value: { $sum: '$total_value' } } },
+        { $sort: { total_value: -1 } }
+      ]).toArray(),
+      db.collection('gifts').aggregate([
+        { $match: { creator_id: new ObjectId(creatorId) } },
+        { $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } },
+          count: { $sum: 1 },
+          value: { $sum: '$total_value' }
+        } },
+        { $sort: { _id: -1 } },
+        { $limit: 30 }
+      ]).toArray()
+    ]);
+
+    res.json({
+      top_gifts: topGifts,
+      rare_gifts: rareGifts,
+      gift_trends: giftTrends
+    });
+  } catch (error) {
+    console.error('Get gift analytics error:', error);
+    res.status(500).json({ error: 'Failed to get gift analytics' });
+  }
+});
+
+// ============= SUBSCRIPTION ROUTES =============
+
+// Subscribe to creator
+app.post('/api/subscriptions', authenticateToken, async (req, res) => {
+  try {
+    const { creatorId, tier, duration } = req.body;
+    const userId = req.user.id;
+
+    if (!['BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'DIAMOND'].includes(tier)) {
+      return res.status(400).json({ error: 'Invalid subscription tier' });
+    }
+
+    const subscription = await manageSubscription(userId, creatorId, tier, duration || 'monthly');
+    
+    res.json(subscription);
+  } catch (error) {
+    console.error('Subscribe error:', error);
+    res.status(500).json({ error: 'Failed to create subscription' });
+  }
+});
+
+// Get user subscriptions
+app.get('/api/users/:userId/subscriptions', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    
+    const subscriptions = await db.collection('subscriptions')
+      .find({ user_id: new ObjectId(userId), status: 'active' })
+      .toArray();
+
+    res.json(subscriptions);
+  } catch (error) {
+    console.error('Get subscriptions error:', error);
+    res.status(500).json({ error: 'Failed to get subscriptions' });
+  }
+});
+
+// Get creator subscribers
+app.get('/api/creators/:creatorId/subscribers', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+    const { tier } = req.query;
+    
+    const query = { creator_id: new ObjectId(creatorId), status: 'active' };
+    if (tier) {
+      query.tier = tier;
+    }
+
+    const subscribers = await db.collection('subscriptions')
+      .find(query)
+      .sort({ start_date: -1 })
+      .toArray();
+
+    // Get tier distribution
+    const tierDistribution = await db.collection('subscriptions').aggregate([
+      { $match: { creator_id: new ObjectId(creatorId), status: 'active' } },
+      { $group: { _id: '$tier', count: { $sum: 1 }, revenue: { $sum: '$price' } } }
+    ]).toArray();
+
+    res.json({
+      subscribers,
+      total_count: subscribers.length,
+      tier_distribution: tierDistribution
+    });
+  } catch (error) {
+    console.error('Get subscribers error:', error);
+    res.status(500).json({ error: 'Failed to get subscribers' });
+  }
+});
+
+// Get subscription tiers
+app.get('/api/subscription-tiers', authenticateToken, async (req, res) => {
+  try {
+    res.json(SUBSCRIPTION_TIERS);
+  } catch (error) {
+    console.error('Get subscription tiers error:', error);
+    res.status(500).json({ error: 'Failed to get subscription tiers' });
+  }
+});
+
+// ============= TREASURE BOX ROUTES =============
+
+// Open treasure box
+app.post('/api/treasure-boxes/open', authenticateToken, async (req, res) => {
+  try {
+    const { boxType, creatorId } = req.body;
+    const userId = req.user.id;
+
+    if (!['BASIC', 'SILVER', 'GOLD', 'PLATINUM', 'LEGENDARY'].includes(boxType)) {
+      return res.status(400).json({ error: 'Invalid treasure box type' });
+    }
+
+    const reward = await openTreasureBox(new ObjectId(userId), boxType, new ObjectId(creatorId));
+    
+    if (!reward) {
+      return res.status(500).json({ error: 'Failed to open treasure box' });
+    }
+
+    res.json(reward);
+  } catch (error) {
+    console.error('Open treasure box error:', error);
+    res.status(500).json({ error: 'Failed to open treasure box' });
+  }
+});
+
+// Get treasure box history
+app.get('/api/users/:userId/treasure-boxes', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    
+    const history = await db.collection('treasure_box_history')
+      .find({ user_id: new ObjectId(userId) })
+      .sort({ opened_at: -1 })
+      .limit(50)
+      .toArray();
+
+    const stats = await db.collection('user_rewards').findOne({
+      user_id: new ObjectId(userId)
+    });
+
+    res.json({
+      history,
+      stats: stats || { total_diamonds_from_boxes: 0, total_coins_from_boxes: 0, boxes_opened: 0 }
+    });
+  } catch (error) {
+    console.error('Get treasure box history error:', error);
+    res.status(500).json({ error: 'Failed to get treasure box history' });
+  }
+});
+
+// Get available treasure boxes for user
+app.get('/api/users/:userId/available-boxes', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const { creatorId } = req.query;
+    
+    // Check subscription benefits
+    const benefits = await getSubscriptionBenefits(userId, creatorId);
+    
+    const availableBoxes = [];
+    
+    // All users get basic boxes
+    availableBoxes.push({ type: 'BASIC', available: true, from: 'Free' });
+    
+    // Subscription-based boxes
+    if (benefits.tier === 'PLATINUM' || benefits.tier === 'DIAMOND') {
+      availableBoxes.push({ type: 'GOLD', available: true, from: 'Subscription' });
+    }
+    if (benefits.tier === 'DIAMOND') {
+      availableBoxes.push({ type: 'PLATINUM', available: true, from: 'Subscription' });
+      availableBoxes.push({ type: 'LEGENDARY', available: true, from: 'Subscription' });
+    }
+
+    res.json({
+      subscription_tier: benefits.tier,
+      available_boxes: availableBoxes
+    });
+  } catch (error) {
+    console.error('Get available boxes error:', error);
+    res.status(500).json({ error: 'Failed to get available boxes' });
+  }
+});
+
+// Get gift rarity info
+app.get('/api/gift-rarity', authenticateToken, async (req, res) => {
+  try {
+    res.json(GIFT_RARITY);
+  } catch (error) {
+    console.error('Get gift rarity error:', error);
+    res.status(500).json({ error: 'Failed to get gift rarity' });
+  }
+});
+
 // Get historical comparison
 app.get('/api/creators/:creatorId/historical', authenticateToken, async (req, res) => {
   try {
