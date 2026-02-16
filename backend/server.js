@@ -1068,6 +1068,17 @@ async function startMonitoring(creatorId, tiktokUsername) {
     // Track fan engagement
     await trackFanEngagement(data.uniqueId, data.nickname, currentStreamId, 'chat', 1);
 
+    // Update chat velocity
+    await updateChatVelocity(currentStreamId);
+
+    // Log activity
+    await logActivity('chat', {
+      stream_id: currentStreamId.toString(),
+      username: data.uniqueId,
+      nickname: data.nickname,
+      message: data.comment
+    });
+
     // Emit to clients
     io.emit('new_chat', {
       stream_id: currentStreamId.toString(),
