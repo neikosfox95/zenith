@@ -1819,6 +1819,10 @@ async function startMonitoring(creatorId, tiktokUsername) {
     // Track fan engagement and update fan tier based on gift value
     await trackFanEngagement(data.uniqueId, data.nickname, currentStreamId, 'gift', giftValue);
     
+    // Track gift combo and streak
+    await trackGiftCombo(data.uniqueId, new ObjectId(creatorId), currentStreamId, data.giftName);
+    await trackGiftStreak(data.uniqueId, new ObjectId(creatorId));
+    
     // Check and award badges
     await checkAndAwardBadges(data.uniqueId, creatorId);
 
