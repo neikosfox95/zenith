@@ -434,6 +434,7 @@ app.get('/api/streams/:streamId/analytics', authenticateToken, async (req, res) 
       total_viewers: stream.total_viewers || 0,
       total_gifts: totalGifts,
       total_gifts_value: stream.total_gifts_value || 0,
+      total_coins: stream.total_coins || 0,
       total_chats: totalChats,
       total_shares: totalShares,
       unique_chatters: uniqueChatters.length,
