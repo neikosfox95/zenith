@@ -126,6 +126,10 @@ export const analyticsAPI = {
     const response = await api.get(`/creators/${creatorId}/revenue?period=${period}`);
     return response.data;
   },
+  getCoinAnalytics: async (creatorId: string, period: 'all' | 'today' | 'week' | 'month' = 'all') => {
+    const response = await api.get(`/creators/${creatorId}/coins?period=${period}`);
+    return response.data;
+  },
   getChatAnalytics: async (streamId: string) => {
     const response = await api.get(`/streams/${streamId}/chat-analytics`);
     return response.data;
