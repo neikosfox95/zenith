@@ -388,6 +388,303 @@ app.get('/api/streams/:streamId/video', authenticateToken, async (req, res) => {
   }
 });
 
+// ============= ANALYTICS & TRACKING ROUTES =============
+
+// Get comprehensive stream analytics
+app.get('/api/streams/:streamId/analytics', authenticateToken, async (req, res) => {
+  try {
+    const streamId = req.params.streamId;
+    
+    const stream = await db.collection('live_streams').findOne({ _id: new ObjectId(streamId) });
+    if (!stream) {
+      return res.status(404).json({ error: 'Stream not found' });
+    }
+
+    const [
+      totalGifts,
+      totalChats,
+      totalShares,
+      uniqueChatters,
+      uniqueGifters,
+      topGifts,
+      chatVelocity,
+      engagementRate
+    ] = await Promise.all([
+      db.collection('gifts').countDocuments({ stream_id: new ObjectId(streamId) }),
+      db.collection('chat_messages').countDocuments({ stream_id: new ObjectId(streamId) }),
+      db.collection('shares').countDocuments({ stream_id: new ObjectId(streamId) }),
+      db.collection('chat_messages').distinct('sender_username', { stream_id: new ObjectId(streamId) }),
+      db.collection('gifts').distinct('sender_username', { stream_id: new ObjectId(streamId) }),
+      db.collection('gifts').aggregate([
+        { $match: { stream_id: new ObjectId(streamId) } },
+        { $group: { _id: '$gift_name', count: { $sum: 1 }, total_value: { $sum: '$total_value' } } },
+        { $sort: { total_value: -1 } },
+        { $limit: 10 }
+      ]).toArray(),
+      stream.chat_velocity || 0,
+      calculateEngagementRate(new ObjectId(streamId))
+    ]);
+
+    const analytics = {
+      stream_id: streamId,
+      duration: stream.end_time ? 
+        Math.floor((stream.end_time - stream.start_time) / 1000 / 60) : // minutes
+        Math.floor((new Date() - stream.start_time) / 1000 / 60),
+      peak_viewers: stream.peak_viewers || 0,
+      total_viewers: stream.total_viewers || 0,
+      total_gifts: totalGifts,
+      total_gifts_value: stream.total_gifts_value || 0,
+      total_chats: totalChats,
+      total_shares: totalShares,
+      unique_chatters: uniqueChatters.length,
+      unique_gifters: uniqueGifters.length,
+      chat_velocity: chatVelocity,
+      engagement_rate: engagementRate,
+      top_gifts: topGifts,
+      status: stream.status
+    };
+
+    res.json(analytics);
+  } catch (error) {
+    console.error('Get analytics error:', error);
+    res.status(500).json({ error: 'Failed to get analytics' });
+  }
+});
+
+// Get activity feed
+app.get('/api/activity', authenticateToken, async (req, res) => {
+  try {
+    const { limit = 100, type } = req.query;
+    
+    const query = type ? { type } : {};
+    
+    const activities = await db.collection('activity_feed')
+      .find(query)
+      .sort({ timestamp: -1 })
+      .limit(parseInt(limit))
+      .toArray();
+
+    res.json(activities);
+  } catch (error) {
+    console.error('Get activity feed error:', error);
+    res.status(500).json({ error: 'Failed to get activity feed' });
+  }
+});
+
+// Get milestones
+app.get('/api/streams/:streamId/milestones', authenticateToken, async (req, res) => {
+  try {
+    const streamId = req.params.streamId;
+    
+    const milestones = await db.collection('milestones')
+      .find({ stream_id: new ObjectId(streamId) })
+      .sort({ achieved_at: 1 })
+      .toArray();
+
+    res.json(milestones);
+  } catch (error) {
+    console.error('Get milestones error:', error);
+    res.status(500).json({ error: 'Failed to get milestones' });
+  }
+});
+
+// Get all milestones for a creator
+app.get('/api/creators/:creatorId/milestones', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+    
+    const milestones = await db.collection('milestones')
+      .find({ creator_id: new ObjectId(creatorId) })
+      .sort({ achieved_at: -1 })
+      .limit(50)
+      .toArray();
+
+    res.json(milestones);
+  } catch (error) {
+    console.error('Get creator milestones error:', error);
+    res.status(500).json({ error: 'Failed to get milestones' });
+  }
+});
+
+// Get follower growth tracking
+app.get('/api/creators/:creatorId/follower-growth', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+    const { days = 30 } = req.query;
+    
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(days));
+    
+    const followers = await db.collection('follower_tracking')
+      .find({ 
+        creator_id: new ObjectId(creatorId),
+        followed_at: { $gte: startDate }
+      })
+      .sort({ followed_at: 1 })
+      .toArray();
+
+    // Group by date
+    const dailyGrowth = {};
+    followers.forEach(f => {
+      const date = f.followed_at.toISOString().split('T')[0];
+      dailyGrowth[date] = (dailyGrowth[date] || 0) + 1;
+    });
+
+    res.json({
+      total_new_followers: followers.length,
+      daily_growth: dailyGrowth,
+      followers: followers
+    });
+  } catch (error) {
+    console.error('Get follower growth error:', error);
+    res.status(500).json({ error: 'Failed to get follower growth' });
+  }
+});
+
+// Get revenue analytics
+app.get('/api/creators/:creatorId/revenue', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+    const { period = 'all' } = req.query; // all, today, week, month
+    
+    let startDate = null;
+    if (period === 'today') {
+      startDate = new Date();
+      startDate.setHours(0, 0, 0, 0);
+    } else if (period === 'week') {
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - 7);
+    } else if (period === 'month') {
+      startDate = new Date();
+      startDate.setMonth(startDate.getMonth() - 1);
+    }
+
+    const matchQuery = { creator_id: new ObjectId(creatorId) };
+    if (startDate) {
+      matchQuery.timestamp = { $gte: startDate };
+    }
+
+    const [totalRevenue, giftBreakdown, topSpenders] = await Promise.all([
+      db.collection('gifts').aggregate([
+        { $match: matchQuery },
+        { $group: { _id: null, total: { $sum: '$total_value' }, count: { $sum: 1 } } }
+      ]).toArray(),
+      db.collection('gifts').aggregate([
+        { $match: matchQuery },
+        { $group: { _id: '$gift_name', count: { $sum: 1 }, revenue: { $sum: '$total_value' } } },
+        { $sort: { revenue: -1 } },
+        { $limit: 10 }
+      ]).toArray(),
+      db.collection('gifts').aggregate([
+        { $match: matchQuery },
+        { $group: { 
+          _id: '$sender_username', 
+          nickname: { $first: '$sender_nickname' },
+          total_spent: { $sum: '$total_value' },
+          gift_count: { $sum: 1 }
+        } },
+        { $sort: { total_spent: -1 } },
+        { $limit: 20 }
+      ]).toArray()
+    ]);
+
+    res.json({
+      period,
+      total_revenue: totalRevenue[0]?.total || 0,
+      total_gifts: totalRevenue[0]?.count || 0,
+      gift_breakdown: giftBreakdown,
+      top_spenders: topSpenders
+    });
+  } catch (error) {
+    console.error('Get revenue analytics error:', error);
+    res.status(500).json({ error: 'Failed to get revenue analytics' });
+  }
+});
+
+// Get chat analytics
+app.get('/api/streams/:streamId/chat-analytics', authenticateToken, async (req, res) => {
+  try {
+    const streamId = req.params.streamId;
+    
+    const [totalChats, uniqueChatters, topChatters, chatTimeline] = await Promise.all([
+      db.collection('chat_messages').countDocuments({ stream_id: new ObjectId(streamId) }),
+      db.collection('chat_messages').distinct('sender_username', { stream_id: new ObjectId(streamId) }),
+      db.collection('chat_messages').aggregate([
+        { $match: { stream_id: new ObjectId(streamId) } },
+        { $group: { 
+          _id: '$sender_username',
+          nickname: { $first: '$sender_nickname' },
+          message_count: { $sum: 1 }
+        } },
+        { $sort: { message_count: -1 } },
+        { $limit: 10 }
+      ]).toArray(),
+      db.collection('chat_messages').aggregate([
+        { $match: { stream_id: new ObjectId(streamId) } },
+        { $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d %H:%M", date: "$timestamp" }
+          },
+          count: { $sum: 1 }
+        } },
+        { $sort: { _id: 1 } }
+      ]).toArray()
+    ]);
+
+    res.json({
+      total_messages: totalChats,
+      unique_chatters: uniqueChatters.length,
+      top_chatters: topChatters,
+      chat_timeline: chatTimeline,
+      average_messages_per_user: totalChats / (uniqueChatters.length || 1)
+    });
+  } catch (error) {
+    console.error('Get chat analytics error:', error);
+    res.status(500).json({ error: 'Failed to get chat analytics' });
+  }
+});
+
+// Get historical comparison
+app.get('/api/creators/:creatorId/historical', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+    const { limit = 10 } = req.query;
+    
+    const streams = await db.collection('live_streams')
+      .find({ creator_id: new ObjectId(creatorId), status: 'ended' })
+      .sort({ start_time: -1 })
+      .limit(parseInt(limit))
+      .toArray();
+
+    const streamIds = streams.map(s => s._id);
+    
+    // Get stats for each stream
+    const streamStats = await Promise.all(streams.map(async (stream) => {
+      const [giftCount, chatCount, uniqueViewers] = await Promise.all([
+        db.collection('gifts').countDocuments({ stream_id: stream._id }),
+        db.collection('chat_messages').countDocuments({ stream_id: stream._id }),
+        db.collection('fans').countDocuments({ last_stream_id: stream._id })
+      ]);
+
+      return {
+        ...stream,
+        total_gifts: giftCount,
+        total_chats: chatCount,
+        unique_viewers: uniqueViewers,
+        duration: Math.floor((stream.end_time - stream.start_time) / 1000 / 60)
+      };
+    }));
+
+    res.json({
+      total_streams: streams.length,
+      streams: streamStats
+    });
+  } catch (error) {
+    console.error('Get historical data error:', error);
+    res.status(500).json({ error: 'Failed to get historical data' });
+  }
+});
+
 // ============= FAN CLUB ROUTES =============
 // Get all fans for a creator
 app.get('/api/creators/:creatorId/fans', authenticateToken, async (req, res) => {
