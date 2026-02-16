@@ -1210,6 +1210,25 @@ async function startMonitoring(creatorId, tiktokUsername) {
   connection.on('share', async (data) => {
     if (!currentStreamId) return;
 
+    // Log share event
+    await db.collection('shares').insertOne({
+      stream_id: currentStreamId,
+      sender_username: data.uniqueId,
+      timestamp: new Date()
+    });
+
+    // Update stream shares count
+    await db.collection('live_streams').updateOne(
+      { _id: currentStreamId },
+      { $inc: { total_shares: 1 } }
+    );
+
+    // Log activity
+    await logActivity('share', {
+      stream_id: currentStreamId.toString(),
+      username: data.uniqueId
+    });
+
     io.emit('new_share', {
       stream_id: currentStreamId.toString(),
       username: data.uniqueId
@@ -1219,6 +1238,22 @@ async function startMonitoring(creatorId, tiktokUsername) {
   // Follow event
   connection.on('follow', async (data) => {
     if (!currentStreamId) return;
+
+    // Track follower
+    await trackFollowerGrowth(new ObjectId(creatorId), currentStreamId, data.uniqueId);
+
+    // Check follower milestones
+    const creator = await db.collection('creators').findOne({ _id: new ObjectId(creatorId) });
+    if (creator && creator.total_followers_gained) {
+      await checkStreamMilestones(currentStreamId, new ObjectId(creatorId), 'followers', creator.total_followers_gained);
+    }
+
+    // Log activity
+    await logActivity('follow', {
+      stream_id: currentStreamId.toString(),
+      username: data.uniqueId,
+      nickname: data.nickname
+    });
 
     io.emit('new_follow', {
       stream_id: currentStreamId.toString(),
