@@ -485,7 +485,7 @@ async function startMonitoring(creatorId, tiktokUsername) {
     );
   });
 
-  // Chat message event
+  // Chat message event - Track engagement
   connection.on('chat', async (data) => {
     if (!currentStreamId) return;
 
@@ -499,6 +499,9 @@ async function startMonitoring(creatorId, tiktokUsername) {
 
     await db.collection('chat_messages').insertOne(chatMessage);
 
+    // Track fan engagement
+    await trackFanEngagement(data.uniqueId, data.nickname, currentStreamId, 'chat', 1);
+
     // Emit to clients
     io.emit('new_chat', {
       stream_id: currentStreamId.toString(),
@@ -506,12 +509,15 @@ async function startMonitoring(creatorId, tiktokUsername) {
     });
   });
 
-  // Gift event
+  // Gift event - Enhanced with fan tracking
   connection.on('gift', async (data) => {
     if (!currentStreamId) return;
 
+    const giftValue = (data.diamondCount || 0) * (data.repeatCount || 1);
+    
     const gift = {
       stream_id: currentStreamId,
+      creator_id: new ObjectId(creatorId),
       sender_username: data.uniqueId,
       sender_nickname: data.nickname,
       gift_id: data.giftId,
@@ -520,17 +526,23 @@ async function startMonitoring(creatorId, tiktokUsername) {
       diamond_count: data.diamondCount || 0,
       repeat_count: data.repeatCount || 1,
       repeat_end: data.repeatEnd || false,
+      total_value: giftValue,
       timestamp: new Date()
     };
 
     await db.collection('gifts').insertOne(gift);
 
     // Update stream total gifts value
-    const giftValue = (gift.diamond_count || 0) * (gift.repeat_count || 1);
     await db.collection('live_streams').updateOne(
       { _id: currentStreamId },
       { $inc: { total_gifts_value: giftValue } }
     );
+
+    // Track fan engagement and update fan tier based on gift value
+    await trackFanEngagement(data.uniqueId, data.nickname, currentStreamId, 'gift', giftValue);
+    
+    // Check and award badges
+    await checkAndAwardBadges(data.uniqueId, creatorId);
 
     // Emit to clients
     io.emit('new_gift', {
@@ -567,9 +579,12 @@ async function startMonitoring(creatorId, tiktokUsername) {
     });
   });
 
-  // Member join event
+  // Member join event - Track for fan club
   connection.on('member', async (data) => {
     if (!currentStreamId) return;
+
+    // Track fan engagement
+    await trackFanEngagement(data.uniqueId, data.nickname, currentStreamId, 'join', 1);
 
     io.emit('member_join', {
       stream_id: currentStreamId.toString(),
@@ -578,9 +593,12 @@ async function startMonitoring(creatorId, tiktokUsername) {
     });
   });
 
-  // Like event
+  // Like event - Track engagement
   connection.on('like', async (data) => {
     if (!currentStreamId) return;
+
+    // Track fan engagement
+    await trackFanEngagement(data.uniqueId, data.nickname, currentStreamId, 'like', data.likeCount || 1);
 
     io.emit('new_like', {
       stream_id: currentStreamId.toString(),
