@@ -978,6 +978,337 @@ app.get('/api/streams/:streamId/video', authenticateToken, async (req, res) => {
   }
 });
 
+// ============= ADVANCED GIFT, SUBSCRIPTION & TIER SYSTEMS =============
+
+// Gift categories and rarity levels
+const GIFT_RARITY = {
+  COMMON: { level: 1, multiplier: 1, color: '#808080', emoji: '🎁' },
+  RARE: { level: 2, multiplier: 1.5, color: '#4CAF50', emoji: '💝' },
+  EPIC: { level: 3, multiplier: 2, color: '#2196F3', emoji: '🎀' },
+  LEGENDARY: { level: 4, multiplier: 3, color: '#9C27B0', emoji: '👑' },
+  MYTHIC: { level: 5, multiplier: 5, color: '#FF9800', emoji: '✨' }
+};
+
+// Subscription tiers
+const SUBSCRIPTION_TIERS = {
+  FREE: { 
+    level: 0, 
+    name: 'Free', 
+    price: 0, 
+    benefits: ['View streams', 'Send messages', 'Basic emojis'],
+    color: '#808080'
+  },
+  BRONZE: { 
+    level: 1, 
+    name: 'Bronze', 
+    price: 4.99, 
+    benefits: ['All Free benefits', 'Bronze badge', 'Custom emojis', '5% gift bonus'],
+    color: '#CD7F32'
+  },
+  SILVER: { 
+    level: 2, 
+    name: 'Silver', 
+    price: 9.99, 
+    benefits: ['All Bronze benefits', 'Silver badge', 'Priority chat', '10% gift bonus', 'Ad-free'],
+    color: '#C0C0C0'
+  },
+  GOLD: { 
+    level: 3, 
+    name: 'Gold', 
+    price: 19.99, 
+    benefits: ['All Silver benefits', 'Gold badge', 'Exclusive emotes', '15% gift bonus', 'Member-only streams'],
+    color: '#FFD700'
+  },
+  PLATINUM: { 
+    level: 4, 
+    name: 'Platinum', 
+    price: 49.99, 
+    benefits: ['All Gold benefits', 'Platinum badge', 'Custom badges', '25% gift bonus', 'Direct messaging', 'Monthly treasure box'],
+    color: '#E5E4E2'
+  },
+  DIAMOND: { 
+    level: 5, 
+    name: 'Diamond', 
+    price: 99.99, 
+    benefits: ['All Platinum benefits', 'Diamond badge', 'VIP lounge access', '50% gift bonus', 'Priority support', 'Weekly treasure boxes', 'Exclusive content'],
+    color: '#b9f2ff'
+  }
+};
+
+// Track gift combos and streaks
+async function trackGiftCombo(username, creatorId, streamId, giftName) {
+  if (!db) return;
+
+  try {
+    const now = new Date();
+    const fiveMinutesAgo = new Date(now - 5 * 60 * 1000);
+
+    // Find active combo
+    const activeCombo = await db.collection('gift_combos').findOne({
+      username,
+      creator_id: creatorId,
+      stream_id: streamId,
+      gift_name: giftName,
+      last_gift_time: { $gte: fiveMinutesAgo },
+      active: true
+    });
+
+    if (activeCombo) {
+      // Update existing combo
+      const newCount = activeCombo.combo_count + 1;
+      await db.collection('gift_combos').updateOne(
+        { _id: activeCombo._id },
+        { 
+          $set: { 
+            combo_count: newCount, 
+            last_gift_time: now,
+            total_value: activeCombo.total_value + activeCombo.gift_value
+          } 
+        }
+      );
+
+      // Check for combo milestones
+      if ([5, 10, 25, 50, 100].includes(newCount)) {
+        io.emit('gift_combo_milestone', {
+          username,
+          gift_name: giftName,
+          combo_count: newCount,
+          stream_id: streamId.toString()
+        });
+      }
+    } else {
+      // Start new combo
+      const giftData = await db.collection('gifts').findOne({
+        sender_username: username,
+        gift_name: giftName
+      });
+
+      await db.collection('gift_combos').insertOne({
+        username,
+        creator_id: creatorId,
+        stream_id: streamId,
+        gift_name: giftName,
+        combo_count: 1,
+        total_value: giftData?.total_value || 0,
+        gift_value: giftData?.total_value || 0,
+        start_time: now,
+        last_gift_time: now,
+        active: true
+      });
+    }
+  } catch (error) {
+    console.error('Error tracking gift combo:', error);
+  }
+}
+
+// Track gift streaks (consecutive days)
+async function trackGiftStreak(username, creatorId) {
+  if (!db) return;
+
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const streak = await db.collection('gift_streaks').findOne({
+      username,
+      creator_id: creatorId
+    });
+
+    if (streak) {
+      const lastGiftDate = new Date(streak.last_gift_date);
+      lastGiftDate.setHours(0, 0, 0, 0);
+
+      if (lastGiftDate.getTime() === yesterday.getTime()) {
+        // Continue streak
+        const newCount = streak.streak_count + 1;
+        await db.collection('gift_streaks').updateOne(
+          { _id: streak._id },
+          { 
+            $set: { 
+              streak_count: newCount, 
+              last_gift_date: today,
+              longest_streak: Math.max(streak.longest_streak || 0, newCount)
+            } 
+          }
+        );
+
+        // Emit streak milestone
+        if ([7, 14, 30, 60, 100, 365].includes(newCount)) {
+          io.emit('gift_streak_milestone', {
+            username,
+            streak_count: newCount,
+            creator_id: creatorId.toString()
+          });
+        }
+      } else if (lastGiftDate.getTime() !== today.getTime()) {
+        // Streak broken, reset
+        await db.collection('gift_streaks').updateOne(
+          { _id: streak._id },
+          { $set: { streak_count: 1, last_gift_date: today } }
+        );
+      }
+    } else {
+      // Start new streak
+      await db.collection('gift_streaks').insertOne({
+        username,
+        creator_id: creatorId,
+        streak_count: 1,
+        longest_streak: 1,
+        last_gift_date: today,
+        created_at: new Date()
+      });
+    }
+  } catch (error) {
+    console.error('Error tracking gift streak:', error);
+  }
+}
+
+// Handle treasure box opening
+async function openTreasureBox(userId, treasureBoxType, creatorId) {
+  if (!db) return null;
+
+  try {
+    // Treasure box rewards based on type
+    const treasureBoxRewards = {
+      BASIC: { diamonds: [10, 50], coins: [20, 100], probability: 0.8 },
+      SILVER: { diamonds: [50, 200], coins: [100, 400], probability: 0.6 },
+      GOLD: { diamonds: [200, 500], coins: [400, 1000], probability: 0.4 },
+      PLATINUM: { diamonds: [500, 1500], coins: [1000, 3000], probability: 0.2 },
+      LEGENDARY: { diamonds: [1500, 5000], coins: [3000, 10000], probability: 0.1 }
+    };
+
+    const boxConfig = treasureBoxRewards[treasureBoxType];
+    if (!boxConfig) return null;
+
+    // Random reward
+    const diamondsWon = Math.floor(
+      Math.random() * (boxConfig.diamonds[1] - boxConfig.diamonds[0]) + boxConfig.diamonds[0]
+    );
+    const coinsWon = diamondsWon * 2;
+
+    const reward = {
+      user_id: userId,
+      creator_id: creatorId,
+      box_type: treasureBoxType,
+      diamonds_won: diamondsWon,
+      coins_won: coinsWon,
+      opened_at: new Date()
+    };
+
+    await db.collection('treasure_box_history').insertOne(reward);
+
+    // Update user rewards
+    await db.collection('user_rewards').updateOne(
+      { user_id: userId },
+      { 
+        $inc: { 
+          total_diamonds_from_boxes: diamondsWon,
+          total_coins_from_boxes: coinsWon,
+          boxes_opened: 1
+        },
+        $setOnInsert: { created_at: new Date() }
+      },
+      { upsert: true }
+    );
+
+    // Emit treasure box reward
+    io.emit('treasure_box_opened', {
+      user_id: userId.toString(),
+      box_type: treasureBoxType,
+      diamonds: diamondsWon,
+      coins: coinsWon
+    });
+
+    return reward;
+  } catch (error) {
+    console.error('Error opening treasure box:', error);
+    return null;
+  }
+}
+
+// Track subscription
+async function manageSubscription(userId, creatorId, tier, duration = 'monthly') {
+  if (!db) return;
+
+  try {
+    const tierConfig = SUBSCRIPTION_TIERS[tier];
+    if (!tierConfig) return;
+
+    const now = new Date();
+    const expiresAt = new Date(now);
+    if (duration === 'monthly') {
+      expiresAt.setMonth(expiresAt.getMonth() + 1);
+    } else if (duration === 'yearly') {
+      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
+      // Yearly gets 2 months free
+      expiresAt.setMonth(expiresAt.getMonth() + 2);
+    }
+
+    const subscription = {
+      user_id: new ObjectId(userId),
+      creator_id: new ObjectId(creatorId),
+      tier,
+      tier_level: tierConfig.level,
+      price: tierConfig.price,
+      duration,
+      start_date: now,
+      expires_at: expiresAt,
+      auto_renew: true,
+      status: 'active'
+    };
+
+    await db.collection('subscriptions').insertOne(subscription);
+
+    // Update creator subscriber count
+    await db.collection('creators').updateOne(
+      { _id: new ObjectId(creatorId) },
+      { $inc: { total_subscribers: 1, [`subscribers_${tier.toLowerCase()}`]: 1 } }
+    );
+
+    // Emit subscription event
+    io.emit('new_subscription', {
+      user_id: userId.toString(),
+      creator_id: creatorId.toString(),
+      tier,
+      tier_level: tierConfig.level
+    });
+
+    return subscription;
+  } catch (error) {
+    console.error('Error managing subscription:', error);
+  }
+}
+
+// Get active subscription benefits
+async function getSubscriptionBenefits(userId, creatorId) {
+  if (!db) return { tier: 'FREE', benefits: SUBSCRIPTION_TIERS.FREE.benefits };
+
+  try {
+    const subscription = await db.collection('subscriptions').findOne({
+      user_id: new ObjectId(userId),
+      creator_id: new ObjectId(creatorId),
+      status: 'active',
+      expires_at: { $gt: new Date() }
+    });
+
+    if (subscription) {
+      return {
+        tier: subscription.tier,
+        benefits: SUBSCRIPTION_TIERS[subscription.tier].benefits,
+        expires_at: subscription.expires_at,
+        gift_bonus: SUBSCRIPTION_TIERS[subscription.tier].benefits.find(b => b.includes('gift bonus'))
+      };
+    }
+
+    return { tier: 'FREE', benefits: SUBSCRIPTION_TIERS.FREE.benefits };
+  } catch (error) {
+    console.error('Error getting subscription benefits:', error);
+    return { tier: 'FREE', benefits: SUBSCRIPTION_TIERS.FREE.benefits };
+  }
+}
+
 // ============= ADVANCED TRACKING & ANALYTICS =============
 
 // Track stream metrics in real-time
