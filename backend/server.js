@@ -314,6 +314,495 @@ app.get('/api/streams/:streamId/gifts', authenticateToken, async (req, res) => {
       .sort({ timestamp: 1 })
       .toArray();
 
+
+// ============= ENHANCED AUTHENTICATION ROUTES =============
+
+// Enable 2FA
+app.post('/api/auth/2fa/enable', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const twoFASecret = generate2FASecret(userId);
+    
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: { two_fa_secret: twoFASecret.secret, two_fa_enabled: false } }
+    );
+
+    res.json({ 
+      secret: twoFASecret.secret,
+      message: 'Scan QR code with authenticator app',
+      qr_code: `otpauth://totp/TikTokMonitor:${req.user.email}?secret=${twoFASecret.secret}`
+    });
+  } catch (error) {
+    console.error('Enable 2FA error:', error);
+    res.status(500).json({ error: 'Failed to enable 2FA' });
+  }
+});
+
+// Verify and activate 2FA
+app.post('/api/auth/2fa/verify', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { code } = req.body;
+
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+    if (!user || !user.two_fa_secret) {
+      return res.status(400).json({ error: '2FA not initialized' });
+    }
+
+    const isValid = verify2FACode(user.two_fa_secret, code);
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid code' });
+    }
+
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: { two_fa_enabled: true } }
+    );
+
+    res.json({ message: '2FA enabled successfully' });
+  } catch (error) {
+    console.error('Verify 2FA error:', error);
+    res.status(500).json({ error: 'Failed to verify 2FA' });
+  }
+});
+
+// Disable 2FA
+app.post('/api/auth/2fa/disable', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { password } = req.body;
+
+    const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+    const validPassword = await bcrypt.compare(password, user.password);
+    
+    if (!validPassword) {
+      return res.status(400).json({ error: 'Invalid password' });
+    }
+
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: { two_fa_enabled: false, two_fa_secret: null } }
+    );
+
+    res.json({ message: '2FA disabled successfully' });
+  } catch (error) {
+    console.error('Disable 2FA error:', error);
+    res.status(500).json({ error: 'Failed to disable 2FA' });
+  }
+});
+
+// Request password reset
+app.post('/api/auth/password-reset/request', async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    const user = await db.collection('users').findOne({ email });
+    if (!user) {
+      // Don't reveal if email exists
+      return res.json({ message: 'If email exists, reset link sent' });
+    }
+
+    const resetToken = generatePasswordResetToken();
+    
+    await db.collection('password_resets').insertOne({
+      user_id: user._id,
+      token: resetToken.token,
+      expires: resetToken.expires,
+      used: false,
+      created_at: new Date()
+    });
+
+    // In production, send email with reset link
+    res.json({ 
+      message: 'Password reset link sent',
+      reset_token: resetToken.token // Only for testing
+    });
+  } catch (error) {
+    console.error('Password reset request error:', error);
+    res.status(500).json({ error: 'Failed to request password reset' });
+  }
+});
+
+// Reset password
+app.post('/api/auth/password-reset/confirm', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    const resetRequest = await db.collection('password_resets').findOne({
+      token,
+      used: false,
+      expires: { $gt: new Date() }
+    });
+
+    if (!resetRequest) {
+      return res.status(400).json({ error: 'Invalid or expired token' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    
+    await db.collection('users').updateOne(
+      { _id: resetRequest.user_id },
+      { $set: { password: hashedPassword } }
+    );
+
+    await db.collection('password_resets').updateOne(
+      { _id: resetRequest._id },
+      { $set: { used: true, used_at: new Date() } }
+    );
+
+    res.json({ message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Password reset error:', error);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
+// ============= ENHANCED CREATOR MANAGEMENT ROUTES =============
+
+// Add creator category/tag
+app.post('/api/creators/:creatorId/tags', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+    const { tags } = req.body;
+
+    await db.collection('creators').updateOne(
+      { _id: new ObjectId(creatorId) },
+      { $addToSet: { tags: { $each: tags } } }
+    );
+
+    res.json({ message: 'Tags added successfully' });
+  } catch (error) {
+    console.error('Add tags error:', error);
+    res.status(500).json({ error: 'Failed to add tags' });
+  }
+});
+
+// Remove creator tag
+app.delete('/api/creators/:creatorId/tags/:tag', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+    const { tag } = req.params;
+
+    await db.collection('creators').updateOne(
+      { _id: new ObjectId(creatorId) },
+      { $pull: { tags: tag } }
+    );
+
+    res.json({ message: 'Tag removed successfully' });
+  } catch (error) {
+    console.error('Remove tag error:', error);
+    res.status(500).json({ error: 'Failed to remove tag' });
+  }
+});
+
+// Favorite/unfavorite creator
+app.post('/api/creators/:creatorId/favorite', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+    const userId = req.user.id;
+
+    await db.collection('user_creators').updateOne(
+      { user_id: new ObjectId(userId), creator_id: new ObjectId(creatorId) },
+      { $set: { is_favorite: true, favorited_at: new Date() } }
+    );
+
+    res.json({ message: 'Creator favorited' });
+  } catch (error) {
+    console.error('Favorite creator error:', error);
+    res.status(500).json({ error: 'Failed to favorite creator' });
+  }
+});
+
+app.delete('/api/creators/:creatorId/favorite', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+    const userId = req.user.id;
+
+    await db.collection('user_creators').updateOne(
+      { user_id: new ObjectId(userId), creator_id: new ObjectId(creatorId) },
+      { $set: { is_favorite: false }, $unset: { favorited_at: '' } }
+    );
+
+    res.json({ message: 'Creator unfavorited' });
+  } catch (error) {
+    console.error('Unfavorite creator error:', error);
+    res.status(500).json({ error: 'Failed to unfavorite creator' });
+  }
+});
+
+// Get favorite creators
+app.get('/api/creators/favorites', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const favorites = await db.collection('user_creators').aggregate([
+      { $match: { user_id: new ObjectId(userId), is_favorite: true } },
+      { 
+        $lookup: {
+          from: 'creators',
+          localField: 'creator_id',
+          foreignField: '_id',
+          as: 'creator'
+        }
+      },
+      { $unwind: '$creator' },
+      { $replaceRoot: { newRoot: '$creator' } }
+    ]).toArray();
+
+    res.json(favorites);
+  } catch (error) {
+    console.error('Get favorites error:', error);
+    res.status(500).json({ error: 'Failed to get favorites' });
+  }
+});
+
+// Add creator note
+app.post('/api/creators/:creatorId/notes', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+    const userId = req.user.id;
+    const { note } = req.body;
+
+    const noteDoc = {
+      user_id: new ObjectId(userId),
+      creator_id: new ObjectId(creatorId),
+      note,
+      created_at: new Date(),
+      updated_at: new Date()
+    };
+
+    await db.collection('creator_notes').insertOne(noteDoc);
+
+    res.json(noteDoc);
+  } catch (error) {
+    console.error('Add note error:', error);
+    res.status(500).json({ error: 'Failed to add note' });
+  }
+});
+
+// Get creator notes
+app.get('/api/creators/:creatorId/notes', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+    const userId = req.user.id;
+
+    const notes = await db.collection('creator_notes')
+      .find({ user_id: new ObjectId(userId), creator_id: new ObjectId(creatorId) })
+      .sort({ created_at: -1 })
+      .toArray();
+
+    res.json(notes);
+  } catch (error) {
+    console.error('Get notes error:', error);
+    res.status(500).json({ error: 'Failed to get notes' });
+  }
+});
+
+// Update creator note
+app.put('/api/creators/notes/:noteId', authenticateToken, async (req, res) => {
+  try {
+    const { noteId } = req.params;
+    const { note } = req.body;
+
+    await db.collection('creator_notes').updateOne(
+      { _id: new ObjectId(noteId) },
+      { $set: { note, updated_at: new Date() } }
+    );
+
+    res.json({ message: 'Note updated' });
+  } catch (error) {
+    console.error('Update note error:', error);
+    res.status(500).json({ error: 'Failed to update note' });
+  }
+});
+
+// Delete creator note
+app.delete('/api/creators/notes/:noteId', authenticateToken, async (req, res) => {
+  try {
+    const { noteId } = req.params;
+
+    await db.collection('creator_notes').deleteOne({ _id: new ObjectId(noteId) });
+
+    res.json({ message: 'Note deleted' });
+  } catch (error) {
+    console.error('Delete note error:', error);
+    res.status(500).json({ error: 'Failed to delete note' });
+  }
+});
+
+// Get creator performance score
+app.get('/api/creators/:creatorId/score', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+    
+    const score = await calculateCreatorScore(creatorId);
+    
+    const creator = await db.collection('creators').findOne({ _id: new ObjectId(creatorId) });
+
+    res.json({
+      creator_id: creatorId,
+      performance_score: score,
+      score_updated_at: creator?.score_updated_at || new Date(),
+      breakdown: {
+        streams: 'Based on stream count',
+        revenue: 'Based on total diamonds',
+        viewers: 'Based on average viewers',
+        growth: 'Based on follower growth'
+      }
+    });
+  } catch (error) {
+    console.error('Get score error:', error);
+    res.status(500).json({ error: 'Failed to get score' });
+  }
+});
+
+// Compare creators
+app.post('/api/creators/compare', authenticateToken, async (req, res) => {
+  try {
+    const { creatorIds } = req.body;
+
+    const creators = await db.collection('creators')
+      .find({ _id: { $in: creatorIds.map(id => new ObjectId(id)) } })
+      .toArray();
+
+    const comparisons = await Promise.all(creators.map(async (creator) => {
+      const [streams, revenue, avgViewers, followers] = await Promise.all([
+        db.collection('live_streams').countDocuments({ creator_id: creator._id }),
+        db.collection('gifts').aggregate([
+          { $match: { creator_id: creator._id } },
+          { $group: { _id: null, total: { $sum: '$total_value' } } }
+        ]).toArray(),
+        db.collection('live_streams').aggregate([
+          { $match: { creator_id: creator._id } },
+          { $group: { _id: null, avg: { $avg: '$peak_viewers' } } }
+        ]).toArray(),
+        db.collection('follower_tracking').countDocuments({ creator_id: creator._id })
+      ]);
+
+      return {
+        creator_id: creator._id,
+        tiktok_username: creator.tiktok_username,
+        total_streams: streams,
+        total_revenue: revenue[0]?.total || 0,
+        avg_viewers: Math.round(avgViewers[0]?.avg || 0),
+        followers_gained: followers,
+        performance_score: creator.performance_score || 0
+      };
+    }));
+
+    res.json({
+      comparison: comparisons,
+      winner: comparisons.reduce((max, c) => c.performance_score > max.performance_score ? c : max, comparisons[0])
+    });
+  } catch (error) {
+    console.error('Compare creators error:', error);
+    res.status(500).json({ error: 'Failed to compare creators' });
+  }
+});
+
+// Revenue forecasting
+app.get('/api/creators/:creatorId/forecast', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+    const { days } = req.query;
+
+    const forecast = await forecastRevenue(creatorId, parseInt(days) || 30);
+
+    if (!forecast) {
+      return res.status(404).json({ error: 'Insufficient data for forecast' });
+    }
+
+    res.json(forecast);
+  } catch (error) {
+    console.error('Forecast error:', error);
+    res.status(500).json({ error: 'Failed to generate forecast' });
+  }
+});
+
+// Gift pattern analysis
+app.get('/api/creators/:creatorId/gift-patterns', authenticateToken, async (req, res) => {
+  try {
+    const creatorId = req.params.creatorId;
+
+    const [hourlyPattern, dailyPattern, topGiftTimes] = await Promise.all([
+      db.collection('gifts').aggregate([
+        { $match: { creator_id: new ObjectId(creatorId) } },
+        { $group: {
+          _id: { $hour: '$timestamp' },
+          count: { $sum: 1 },
+          value: { $sum: '$total_value' }
+        } },
+        { $sort: { _id: 1 } }
+      ]).toArray(),
+      db.collection('gifts').aggregate([
+        { $match: { creator_id: new ObjectId(creatorId) } },
+        { $group: {
+          _id: { $dayOfWeek: '$timestamp' },
+          count: { $sum: 1 },
+          value: { $sum: '$total_value' }
+        } },
+        { $sort: { _id: 1 } }
+      ]).toArray(),
+      db.collection('gifts').aggregate([
+        { $match: { creator_id: new ObjectId(creatorId) } },
+        { $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d %H:00", date: "$timestamp" } },
+          count: { $sum: 1 },
+          value: { $sum: '$total_value' }
+        } },
+        { $sort: { value: -1 } },
+        { $limit: 10 }
+      ]).toArray()
+    ]);
+
+    const bestHour = hourlyPattern.reduce((max, h) => h.value > max.value ? h : max, hourlyPattern[0] || {});
+    const bestDay = dailyPattern.reduce((max, d) => d.value > max.value ? d : max, dailyPattern[0] || {});
+
+    res.json({
+      hourly_pattern: hourlyPattern,
+      daily_pattern: dailyPattern,
+      best_hour_to_stream: bestHour._id,
+      best_day_to_stream: bestDay._id,
+      top_gift_times: topGiftTimes
+    });
+  } catch (error) {
+    console.error('Gift pattern analysis error:', error);
+    res.status(500).json({ error: 'Failed to analyze gift patterns' });
+  }
+});
+
+// ROI Calculator
+app.post('/api/roi/calculate', authenticateToken, async (req, res) => {
+  try {
+    const { investment, period, creatorId } = req.body;
+
+    const revenue = await db.collection('gifts').aggregate([
+      { 
+        $match: { 
+          creator_id: new ObjectId(creatorId),
+          timestamp: { $gte: new Date(period.start), $lte: new Date(period.end) }
+        }
+      },
+      { $group: { _id: null, total: { $sum: '$total_value' } } }
+    ]).toArray();
+
+    const totalRevenue = revenue[0]?.total || 0;
+    const roi = ((totalRevenue - investment) / investment) * 100;
+
+    res.json({
+      investment,
+      revenue: totalRevenue,
+      profit: totalRevenue - investment,
+      roi: Math.round(roi),
+      period
+    });
+  } catch (error) {
+    console.error('ROI calculation error:', error);
+    res.status(500).json({ error: 'Failed to calculate ROI' });
+  }
+});
+
     res.json(gifts);
   } catch (error) {
     console.error('Get gifts error:', error);
