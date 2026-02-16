@@ -1492,6 +1492,128 @@ app.get('/api/streams/:streamId/video', authenticateToken, async (req, res) => {
   }
 });
 
+// ============= ENHANCED AUTHENTICATION & USER MANAGEMENT =============
+
+// Generate 2FA secret
+function generate2FASecret(userId) {
+  const secret = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  return { userId, secret, enabled: false };
+}
+
+// Verify 2FA code
+function verify2FACode(secret, code) {
+  // In production, use authenticator library like speakeasy
+  const validCode = Math.floor(Math.random() * 900000) + 100000; // Simulated 6-digit code
+  return code === secret.slice(0, 6); // Simplified verification
+}
+
+// Password reset token generation
+function generatePasswordResetToken() {
+  return {
+    token: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+    expires: new Date(Date.now() + 3600000) // 1 hour
+  };
+}
+
+// Creator performance scoring
+async function calculateCreatorScore(creatorId) {
+  if (!db) return 0;
+
+  try {
+    const [streams, totalRevenue, avgViewers, followerGrowth] = await Promise.all([
+      db.collection('live_streams').countDocuments({ creator_id: new ObjectId(creatorId) }),
+      db.collection('gifts').aggregate([
+        { $match: { creator_id: new ObjectId(creatorId) } },
+        { $group: { _id: null, total: { $sum: '$total_value' } } }
+      ]).toArray(),
+      db.collection('live_streams').aggregate([
+        { $match: { creator_id: new ObjectId(creatorId) } },
+        { $group: { _id: null, avg: { $avg: '$peak_viewers' } } }
+      ]).toArray(),
+      db.collection('follower_tracking').countDocuments({ creator_id: new ObjectId(creatorId) })
+    ]);
+
+    const revenue = totalRevenue[0]?.total || 0;
+    const viewers = avgViewers[0]?.avg || 0;
+
+    // Score formula (0-100)
+    const streamScore = Math.min((streams / 10) * 20, 20);
+    const revenueScore = Math.min((revenue / 10000) * 30, 30);
+    const viewerScore = Math.min((viewers / 1000) * 30, 30);
+    const growthScore = Math.min((followerGrowth / 100) * 20, 20);
+
+    const totalScore = streamScore + revenueScore + viewerScore + growthScore;
+
+    await db.collection('creators').updateOne(
+      { _id: new ObjectId(creatorId) },
+      { $set: { performance_score: Math.round(totalScore), score_updated_at: new Date() } }
+    );
+
+    return Math.round(totalScore);
+  } catch (error) {
+    console.error('Error calculating creator score:', error);
+    return 0;
+  }
+}
+
+// Revenue forecasting
+async function forecastRevenue(creatorId, days = 30) {
+  if (!db) return null;
+
+  try {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const historicalRevenue = await db.collection('gifts').aggregate([
+      { 
+        $match: { 
+          creator_id: new ObjectId(creatorId),
+          timestamp: { $gte: startDate }
+        }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } },
+          daily_revenue: { $sum: '$total_value' }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]).toArray();
+
+    if (historicalRevenue.length === 0) return null;
+
+    // Simple linear regression for forecasting
+    const revenues = historicalRevenue.map(r => r.daily_revenue);
+    const avgRevenue = revenues.reduce((a, b) => a + b, 0) / revenues.length;
+    
+    // Calculate trend (increasing/decreasing)
+    const recentAvg = revenues.slice(-7).reduce((a, b) => a + b, 0) / Math.min(7, revenues.length);
+    const trend = recentAvg > avgRevenue ? 'increasing' : 'decreasing';
+    const trendPercentage = ((recentAvg - avgRevenue) / avgRevenue) * 100;
+
+    // Forecast next 7 days
+    const forecast = [];
+    for (let i = 1; i <= 7; i++) {
+      const projectedRevenue = avgRevenue * (1 + (trendPercentage / 100) * i);
+      forecast.push({
+        day: i,
+        projected_revenue: Math.round(projectedRevenue)
+      });
+    }
+
+    return {
+      historical_avg: Math.round(avgRevenue),
+      recent_avg: Math.round(recentAvg),
+      trend,
+      trend_percentage: Math.round(trendPercentage),
+      forecast
+    };
+  } catch (error) {
+    console.error('Error forecasting revenue:', error);
+    return null;
+  }
+}
+
 // ============= STREAM QUALITY & HEALTH MONITORING =============
 
 // Track stream health metrics
