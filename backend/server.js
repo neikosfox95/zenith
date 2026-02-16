@@ -1985,17 +1985,40 @@ app.get('/api/streams/:streamId/video', authenticateToken, async (req, res) => {
 
 // ============= ENHANCED AUTHENTICATION & USER MANAGEMENT =============
 
-// Generate 2FA secret
-function generate2FASecret(userId) {
-  const secret = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-  return { userId, secret, enabled: false };
+// Generate 2FA secret using speakeasy (Google Authenticator compatible)
+function generate2FASecret(userId, userEmail) {
+  const secret = speakeasy.generateSecret({
+    name: `TikTok Monitor (${userEmail})`,
+    issuer: 'TikTok Live Monitor',
+    length: 32
+  });
+  
+  return {
+    userId,
+    secret: secret.base32, // Base32 encoded secret for Google Authenticator
+    otpauthUrl: secret.otpauth_url // URL for QR code
+  };
 }
 
-// Verify 2FA code
-function verify2FACode(secret, code) {
-  // In production, use authenticator library like speakeasy
-  const validCode = Math.floor(Math.random() * 900000) + 100000; // Simulated 6-digit code
-  return code === secret.slice(0, 6); // Simplified verification
+// Verify 2FA code using speakeasy (Google Authenticator)
+function verify2FACode(secret, token) {
+  return speakeasy.totp.verify({
+    secret: secret,
+    encoding: 'base32',
+    token: token,
+    window: 2 // Allow 2 time steps (60 seconds) tolerance
+  });
+}
+
+// Generate QR code for Google Authenticator
+async function generateQRCode(otpauthUrl) {
+  try {
+    const qrCodeDataUrl = await QRCode.toDataURL(otpauthUrl);
+    return qrCodeDataUrl;
+  } catch (error) {
+    console.error('Error generating QR code:', error);
+    return null;
+  }
 }
 
 // Password reset token generation
