@@ -292,16 +292,17 @@ def test_authentication_required_endpoints():
     
     results = []
     for endpoint in protected_endpoints:
-        response = make_request("GET", endpoint)
-        
-        if response and response.status_code == 401:
-            log_success(f"Authentication properly required for {endpoint}")
-            results.append(True)
-        elif response:
-            log_error(f"Authentication not required for {endpoint} - Status: {response.status_code}")
-            results.append(False)
-        else:
-            log_error(f"Could not test authentication for {endpoint}")
+        try:
+            response = requests.get(endpoint, timeout=5)
+            
+            if response.status_code == 401:
+                log_success(f"Authentication properly required for {endpoint}")
+                results.append(True)
+            else:
+                log_error(f"Authentication not required for {endpoint} - Status: {response.status_code}")
+                results.append(False)
+        except Exception as e:
+            log_error(f"Could not test authentication for {endpoint}: {e}")
             results.append(False)
     
     return all(results)
