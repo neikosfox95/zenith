@@ -388,6 +388,165 @@ app.get('/api/streams/:streamId/video', authenticateToken, async (req, res) => {
   }
 });
 
+// ============= FAN CLUB & BADGES SYSTEM =============
+// Fan tiers based on total diamonds spent
+const FAN_TIERS = {
+  CASUAL: { min: 0, max: 99, name: 'Casual Fan', color: '#808080' },
+  SUPPORTER: { min: 100, max: 499, name: 'Supporter', color: '#4CAF50' },
+  DEDICATED: { min: 500, max: 1999, name: 'Dedicated Fan', color: '#2196F3' },
+  SUPER_FAN: { min: 2000, max: 9999, name: 'Super Fan', color: '#9C27B0' },
+  ULTRA_FAN: { min: 10000, max: 49999, name: 'Ultra Fan', color: '#FF9800' },
+  MEGA_FAN: { min: 50000, max: Infinity, name: 'Mega Fan', color: '#F44336' }
+};
+
+// Badge definitions
+const BADGE_DEFINITIONS = [
+  { id: 'first_gift', name: 'First Gift', description: 'Sent their first gift', icon: '🎁', condition: { type: 'gift_count', value: 1 } },
+  { id: 'generous', name: 'Generous', description: 'Sent 10 gifts', icon: '💎', condition: { type: 'gift_count', value: 10 } },
+  { id: 'big_spender', name: 'Big Spender', description: 'Spent 1000 diamonds', icon: '💰', condition: { type: 'total_diamonds', value: 1000 } },
+  { id: 'chatterbox', name: 'Chatterbox', description: 'Sent 50 messages', icon: '💬', condition: { type: 'chat_count', value: 50 } },
+  { id: 'loyal', name: 'Loyal Fan', description: 'Attended 10 streams', icon: '⭐', condition: { type: 'stream_count', value: 10 } },
+  { id: 'early_bird', name: 'Early Bird', description: 'Joined 5 streams in first minute', icon: '🐦', condition: { type: 'early_joins', value: 5 } },
+  { id: 'whale', name: 'Whale', description: 'Spent 10,000 diamonds', icon: '🐋', condition: { type: 'total_diamonds', value: 10000 } }
+];
+
+// Track fan engagement across all activities
+async function trackFanEngagement(username, nickname, streamId, activityType, value) {
+  if (!db) return;
+
+  try {
+    const creatorId = (await db.collection('live_streams').findOne({ _id: streamId }))?.creator_id;
+    if (!creatorId) return;
+
+    // Update or create fan profile
+    const updateData = {
+      username,
+      nickname,
+      last_seen: new Date(),
+      last_stream_id: streamId
+    };
+
+    // Increment specific counters based on activity
+    const incrementData = {};
+    if (activityType === 'gift') {
+      incrementData.total_gifts = 1;
+      incrementData.total_diamonds = value;
+    } else if (activityType === 'chat') {
+      incrementData.chat_count = value;
+    } else if (activityType === 'like') {
+      incrementData.like_count = value;
+    } else if (activityType === 'join') {
+      incrementData.stream_joins = 1;
+    }
+
+    await db.collection('fans').updateOne(
+      { username, creator_id: creatorId },
+      {
+        $set: updateData,
+        $inc: incrementData,
+        $setOnInsert: {
+          creator_id: creatorId,
+          created_at: new Date(),
+          total_gifts: 0,
+          total_diamonds: 0,
+          chat_count: 0,
+          like_count: 0,
+          stream_joins: 0,
+          tier: 'CASUAL'
+        }
+      },
+      { upsert: true }
+    );
+
+    // Update fan tier based on total diamonds
+    const fan = await db.collection('fans').findOne({ username, creator_id: creatorId });
+    if (fan) {
+      const newTier = calculateFanTier(fan.total_diamonds || 0);
+      if (newTier !== fan.tier) {
+        await db.collection('fans').updateOne(
+          { _id: fan._id },
+          { $set: { tier: newTier, tier_updated_at: new Date() } }
+        );
+
+        // Emit tier upgrade event
+        io.emit('fan_tier_upgrade', {
+          username,
+          nickname,
+          old_tier: fan.tier,
+          new_tier: newTier,
+          total_diamonds: fan.total_diamonds
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error tracking fan engagement:', error);
+  }
+}
+
+function calculateFanTier(totalDiamonds) {
+  for (const [tierKey, tierData] of Object.entries(FAN_TIERS)) {
+    if (totalDiamonds >= tierData.min && totalDiamonds <= tierData.max) {
+      return tierKey;
+    }
+  }
+  return 'CASUAL';
+}
+
+// Check and award badges based on fan activity
+async function checkAndAwardBadges(username, creatorId) {
+  if (!db) return;
+
+  try {
+    const fan = await db.collection('fans').findOne({ username, creator_id: creatorId });
+    if (!fan) return;
+
+    const currentBadges = fan.badges || [];
+
+    for (const badge of BADGE_DEFINITIONS) {
+      // Skip if already has badge
+      if (currentBadges.includes(badge.id)) continue;
+
+      let earned = false;
+      
+      // Check badge conditions
+      if (badge.condition.type === 'gift_count' && fan.total_gifts >= badge.condition.value) {
+        earned = true;
+      } else if (badge.condition.type === 'total_diamonds' && fan.total_diamonds >= badge.condition.value) {
+        earned = true;
+      } else if (badge.condition.type === 'chat_count' && fan.chat_count >= badge.condition.value) {
+        earned = true;
+      } else if (badge.condition.type === 'stream_count' && fan.stream_joins >= badge.condition.value) {
+        earned = true;
+      }
+
+      if (earned) {
+        await db.collection('fans').updateOne(
+          { _id: fan._id },
+          { 
+            $addToSet: { badges: badge.id },
+            $push: { 
+              badge_history: {
+                badge_id: badge.id,
+                earned_at: new Date()
+              }
+            }
+          }
+        );
+
+        // Emit badge earned event
+        io.emit('badge_earned', {
+          username,
+          nickname: fan.nickname,
+          badge: badge,
+          creator_id: creatorId.toString()
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error checking badges:', error);
+  }
+}
+
 // ============= TIKTOK MONITORING FUNCTIONS =============
 async function startMonitoring(creatorId, tiktokUsername) {
   // If already monitoring, skip
