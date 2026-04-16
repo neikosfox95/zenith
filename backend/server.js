@@ -18,6 +18,9 @@ import nodemailer from 'nodemailer';
 import cron from 'node-cron';
 import archiver from 'archiver';
 import { createObjectCsvWriter } from 'csv-writer';
+import { setupPhase3Routes } from './phase3_routes.js';
+import { setupPhase4Routes } from './phase4_routes.js';
+import { setupPhase5Routes } from './phase5_routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -918,13 +921,6 @@ app.post('/api/roi/calculate', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('ROI calculation error:', error);
     res.status(500).json({ error: 'Failed to calculate ROI' });
-  }
-});
-
-    res.json(gifts);
-  } catch (error) {
-    console.error('Get gifts error:', error);
-    res.status(500).json({ error: 'Failed to get gifts' });
   }
 });
 
@@ -3900,9 +3896,10 @@ io.on('connection', (socket) => {
   });
 });
 
-// ============= PHASE 3+ ROUTES SETUP =============
-import { setupPhase3Routes } from './phase3_routes.js';
+// ============= PHASE 3, 4 & 5 ROUTES SETUP =============
 setupPhase3Routes(app, db, io, authenticateToken, sendEmailNotification, sendPushNotification, triggerWebhook, checkAlertRules, exportToCSV, generateReport, backupData, logAuditEvent, hasPermission, ObjectId);
+setupPhase4Routes(app, db, io, authenticateToken, ObjectId);
+setupPhase5Routes(app, db, io, authenticateToken, ObjectId);
 
 // ============= STARTUP =============
 const PORT = process.env.PORT || 8001;
