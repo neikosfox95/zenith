@@ -61,13 +61,16 @@ TEXT_MODELS = {
     'doubao-2.0-mini': ('bytedance', 'doubao-seed-2.0-mini'),  # Lightweight efficiency
 }
 
-# ============= IMAGE GENERATION MODELS (26 models) =============
+# ============= IMAGE GENERATION MODELS (29 models) =============
 
 IMAGE_MODELS = {
-    # OpenAI (3 variants)
-    'gpt-image-1.5': ('openai', 'gpt-image-1.5'),  # 4x faster, highest quality
-    'gpt-image-1': ('openai', 'gpt-image-1'),  # Standard
-    'gpt-image-1-mini': ('openai', 'gpt-image-1-mini'),  # Cheapest
+    # OpenAI (6 variants)
+    'gpt-image-1.5': ('openai', 'gpt-image-1.5'),  # 4x faster, highest quality, flagship
+    'gpt-image-1': ('openai', 'gpt-image-1'),  # Standard, GPT-4 Turbo reasoning
+    'gpt-image-1-mini': ('openai', 'gpt-image-1-mini'),  # Cheapest, GPT-5 architecture
+    'gpt-image-2': ('openai', 'gpt-image-2'),  # LEAKED: Native 2048x2048, 4K, character consistency
+    'gpt-image-2-turbo': ('openai', 'gpt-image-2-turbo'),  # LEAKED: <3s generation, batch editing
+    'dall-e-3': ('openai', 'dall-e-3'),  # Legacy (deprecated May 2026), higher resolution support
     
     # Google (2 variants)
     'nano-banana-2': ('gemini', 'gemini-3.1-flash-image-preview'),  # Gemini 3.1 Flash Image
@@ -95,6 +98,12 @@ IMAGE_MODELS = {
     'seedream-4.5': ('bytedance', 'seedream-4.5'),  # 4K, text rendering, multi-image consistency
     'seedream-5.0-lite': ('bytedance', 'seedream-5.0-lite'),  # Multimodal with deep thinking
     'seedream-5.0': ('bytedance', 'seedream-5.0'),  # Full version with web search
+    
+    # Midjourney (4 variants - competitors mentioned)
+    'midjourney-v7': ('midjourney', 'midjourney-v7'),  # V7
+    'midjourney-v8': ('midjourney', 'midjourney-v8'),  # Latest V8
+    'midjourney-niji-6': ('midjourney', 'niji-6'),  # Anime style
+    'midjourney-personalized': ('midjourney', 'midjourney-personalized'),  # Style learning
 }
 
 # ============= VOICE/AUDIO MODELS (7 models) =============

@@ -81,6 +81,33 @@ export function setupPhase6Routes(app, db, io, authenticateToken, ObjectId) {
           best_for: 'High-volume generation, prototyping'
         },
         {
+          id: 'gpt-image-2',
+          name: 'GPT Image 2',
+          provider: 'OpenAI',
+          speed: 'Standard',
+          quality: 'Advanced (LEAKED)',
+          cost: 'Premium',
+          best_for: 'Native 2048x2048/4K, character consistency, region-based prompting'
+        },
+        {
+          id: 'gpt-image-2-turbo',
+          name: 'GPT Image 2 Turbo',
+          provider: 'OpenAI',
+          speed: 'Ultra Fast (<3s)',
+          quality: 'Advanced (LEAKED)',
+          cost: 'Medium',
+          best_for: 'Rapid 4K generation, batch editing, video frames'
+        },
+        {
+          id: 'dall-e-3',
+          name: 'DALL-E 3',
+          provider: 'OpenAI',
+          speed: 'Standard',
+          quality: 'High',
+          cost: 'Medium',
+          best_for: 'Legacy support (deprecated May 2026), higher resolution'
+        },
+        {
           id: 'nano-banana-2',
           name: 'Nano Banana 2',
           provider: 'Google',
@@ -243,6 +270,43 @@ export function setupPhase6Routes(app, db, io, authenticateToken, ObjectId) {
           quality: 'Advanced',
           cost: 'Premium',
           best_for: 'Real-time web search integration, contextually accurate current events'
+        },
+        // Midjourney (4 variants)
+        {
+          id: 'midjourney-v7',
+          name: 'Midjourney v7',
+          provider: 'Midjourney',
+          speed: 'Standard',
+          quality: 'Artistic',
+          cost: 'Medium',
+          best_for: 'Artistic composition, aesthetic images'
+        },
+        {
+          id: 'midjourney-v8',
+          name: 'Midjourney v8',
+          provider: 'Midjourney',
+          speed: 'Standard',
+          quality: 'Advanced Artistic',
+          cost: 'Premium',
+          best_for: 'Latest artistic quality, photorealism + artistic style'
+        },
+        {
+          id: 'midjourney-niji-6',
+          name: 'Midjourney Niji 6',
+          provider: 'Midjourney',
+          speed: 'Fast',
+          quality: 'Anime/Manga Style',
+          cost: 'Medium',
+          best_for: 'Anime and manga style images'
+        },
+        {
+          id: 'midjourney-personalized',
+          name: 'Midjourney Personalized',
+          provider: 'Midjourney',
+          speed: 'Standard',
+          quality: 'Custom Style',
+          cost: 'Premium',
+          best_for: 'Personalized style learning, consistent aesthetics'
         }
       ],
       default: 'nano-banana-2',
