@@ -14,6 +14,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
+import nodemailer from 'nodemailer';
+import cron from 'node-cron';
+import archiver from 'archiver';
+import { createObjectCsvWriter } from 'csv-writer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -2141,6 +2145,345 @@ function generatePasswordResetToken() {
   };
 }
 
+// ============= NOTIFICATION & ALERT SYSTEM =============
+
+// Email notification system
+const emailTransporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: process.env.SMTP_PORT || 587,
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER || 'noreply@tiktokmonitor.com',
+    pass: process.env.SMTP_PASS || 'password'
+  }
+});
+
+// Send email notification
+async function sendEmailNotification(to, subject, html) {
+  try {
+    const info = await emailTransporter.sendMail({
+      from: '"TikTok Live Monitor" <noreply@tiktokmonitor.com>',
+      to,
+      subject,
+      html
+    });
+    console.log('Email sent:', info.messageId);
+    return true;
+  } catch (error) {
+    console.error('Email error:', error);
+    return false;
+  }
+}
+
+// Push notification system
+async function sendPushNotification(userId, title, body, data = {}) {
+  if (!db) return;
+
+  try {
+    const notification = {
+      user_id: new ObjectId(userId),
+      title,
+      body,
+      data,
+      read: false,
+      created_at: new Date()
+    };
+
+    await db.collection('notifications').insertOne(notification);
+
+    // Emit real-time notification
+    io.to(`user_${userId}`).emit('notification', notification);
+
+    return notification;
+  } catch (error) {
+    console.error('Push notification error:', error);
+  }
+}
+
+// Webhook system
+async function triggerWebhook(event, data) {
+  if (!db) return;
+
+  try {
+    const webhooks = await db.collection('webhooks')
+      .find({ events: event, active: true })
+      .toArray();
+
+    for (const webhook of webhooks) {
+      try {
+        const response = await fetch(webhook.url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Webhook-Secret': webhook.secret
+          },
+          body: JSON.stringify({
+            event,
+            data,
+            timestamp: new Date().toISOString()
+          })
+        });
+
+        // Log webhook delivery
+        await db.collection('webhook_logs').insertOne({
+          webhook_id: webhook._id,
+          event,
+          status: response.status,
+          response_time: Date.now(),
+          delivered_at: new Date()
+        });
+      } catch (error) {
+        console.error(`Webhook delivery failed for ${webhook.url}:`, error);
+      }
+    }
+  } catch (error) {
+    console.error('Trigger webhook error:', error);
+  }
+}
+
+// Alert rules engine
+async function checkAlertRules(metricType, value, streamId, creatorId) {
+  if (!db) return;
+
+  try {
+    const rules = await db.collection('alert_rules')
+      .find({ metric: metricType, active: true })
+      .toArray();
+
+    for (const rule of rules) {
+      let triggered = false;
+
+      if (rule.condition === 'greater_than' && value > rule.threshold) {
+        triggered = true;
+      } else if (rule.condition === 'less_than' && value < rule.threshold) {
+        triggered = true;
+      } else if (rule.condition === 'equals' && value === rule.threshold) {
+        triggered = true;
+      }
+
+      if (triggered) {
+        // Send notification
+        const users = await db.collection('user_creators')
+          .find({ creator_id: new ObjectId(creatorId) })
+          .toArray();
+
+        for (const userCreator of users) {
+          await sendPushNotification(
+            userCreator.user_id,
+            `Alert: ${rule.name}`,
+            `${metricType} reached ${value}`,
+            { rule_id: rule._id, stream_id: streamId }
+          );
+        }
+
+        // Log alert trigger
+        await db.collection('alert_history').insertOne({
+          rule_id: rule._id,
+          metric: metricType,
+          value,
+          threshold: rule.threshold,
+          stream_id: streamId,
+          creator_id: creatorId,
+          triggered_at: new Date()
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Check alert rules error:', error);
+  }
+}
+
+// ============= EXPORT & REPORTING SYSTEM =============
+
+// Export data to CSV
+async function exportToCSV(collection, query, fields, filename) {
+  try {
+    const data = await db.collection(collection).find(query).toArray();
+
+    const csvWriter = createObjectCsvWriter({
+      path: `/tmp/${filename}`,
+      header: fields.map(f => ({ id: f, title: f }))
+    });
+
+    await csvWriter.writeRecords(data);
+
+    return `/tmp/${filename}`;
+  } catch (error) {
+    console.error('Export CSV error:', error);
+    return null;
+  }
+}
+
+// Generate report
+async function generateReport(creatorId, startDate, endDate, reportType) {
+  if (!db) return null;
+
+  try {
+    const query = {
+      creator_id: new ObjectId(creatorId),
+      timestamp: { $gte: new Date(startDate), $lte: new Date(endDate) }
+    };
+
+    const report = {
+      creator_id: creatorId,
+      report_type: reportType,
+      start_date: startDate,
+      end_date: endDate,
+      generated_at: new Date()
+    };
+
+    if (reportType === 'revenue') {
+      const revenue = await db.collection('gifts').aggregate([
+        { $match: query },
+        { 
+          $group: {
+            _id: null,
+            total_diamonds: { $sum: '$total_value' },
+            total_coins: { $sum: '$coin_value' },
+            total_gifts: { $sum: 1 }
+          }
+        }
+      ]).toArray();
+
+      report.data = revenue[0] || { total_diamonds: 0, total_coins: 0, total_gifts: 0 };
+    } else if (reportType === 'engagement') {
+      const [gifts, chats, streams] = await Promise.all([
+        db.collection('gifts').countDocuments(query),
+        db.collection('chat_messages').countDocuments(query),
+        db.collection('live_streams').countDocuments({
+          creator_id: new ObjectId(creatorId),
+          start_time: { $gte: new Date(startDate), $lte: new Date(endDate) }
+        })
+      ]);
+
+      report.data = { total_gifts: gifts, total_chats: chats, total_streams: streams };
+    }
+
+    // Save report
+    const result = await db.collection('reports').insertOne(report);
+    report._id = result.insertedId;
+
+    return report;
+  } catch (error) {
+    console.error('Generate report error:', error);
+    return null;
+  }
+}
+
+// Backup data
+async function backupData() {
+  try {
+    const backupDir = `/tmp/backup_${Date.now()}`;
+    fs.mkdirSync(backupDir, { recursive: true });
+
+    const collections = ['users', 'creators', 'live_streams', 'gifts', 'fans', 'subscriptions'];
+
+    for (const collection of collections) {
+      const data = await db.collection(collection).find().toArray();
+      fs.writeFileSync(
+        `${backupDir}/${collection}.json`,
+        JSON.stringify(data, null, 2)
+      );
+    }
+
+    // Create archive
+    const output = fs.createWriteStream(`/tmp/backup_${Date.now()}.zip`);
+    const archive = archiver('zip', { zlib: { level: 9 } });
+
+    return new Promise((resolve, reject) => {
+      output.on('close', () => {
+        resolve(`/tmp/backup_${Date.now()}.zip`);
+      });
+
+      archive.on('error', (err) => {
+        reject(err);
+      });
+
+      archive.pipe(output);
+      archive.directory(backupDir, false);
+      archive.finalize();
+    });
+  } catch (error) {
+    console.error('Backup error:', error);
+    return null;
+  }
+}
+
+// ============= AUTOMATION & SCHEDULING =============
+
+// Schedule automated tasks
+function setupAutomation() {
+  // Daily backup at 2 AM
+  cron.schedule('0 2 * * *', async () => {
+    console.log('Running daily backup...');
+    await backupData();
+  });
+
+  // Hourly analytics update
+  cron.schedule('0 * * * *', async () => {
+    console.log('Updating analytics...');
+    const creators = await db.collection('creators').find().toArray();
+    for (const creator of creators) {
+      await calculateCreatorScore(creator._id);
+    }
+  });
+
+  // Daily report generation
+  cron.schedule('0 0 * * *', async () => {
+    console.log('Generating daily reports...');
+    const creators = await db.collection('creators').find().toArray();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    for (const creator of creators) {
+      await generateReport(
+        creator._id,
+        yesterday.toISOString(),
+        new Date().toISOString(),
+        'revenue'
+      );
+    }
+  });
+
+  console.log('Automation tasks scheduled');
+}
+
+// ============= TEAM COLLABORATION SYSTEM =============
+
+// Role-based access control
+const ROLES = {
+  ADMIN: { level: 100, permissions: ['*'] },
+  MANAGER: { level: 50, permissions: ['read', 'write', 'manage_creators'] },
+  ANALYST: { level: 30, permissions: ['read', 'export'] },
+  VIEWER: { level: 10, permissions: ['read'] }
+};
+
+function hasPermission(userRole, requiredPermission) {
+  const role = ROLES[userRole];
+  if (!role) return false;
+  
+  return role.permissions.includes('*') || role.permissions.includes(requiredPermission);
+}
+
+// Audit log system
+async function logAuditEvent(userId, action, resource, details = {}) {
+  if (!db) return;
+
+  try {
+    await db.collection('audit_logs').insertOne({
+      user_id: new ObjectId(userId),
+      action,
+      resource,
+      details,
+      ip_address: details.ip || 'unknown',
+      user_agent: details.userAgent || 'unknown',
+      timestamp: new Date()
+    });
+  } catch (error) {
+    console.error('Audit log error:', error);
+  }
+}
+
 // Creator performance scoring
 async function calculateCreatorScore(creatorId) {
   if (!db) return 0;
@@ -3557,11 +3900,18 @@ io.on('connection', (socket) => {
   });
 });
 
+// ============= PHASE 3+ ROUTES SETUP =============
+import { setupPhase3Routes } from './phase3_routes.js';
+setupPhase3Routes(app, db, io, authenticateToken, sendEmailNotification, sendPushNotification, triggerWebhook, checkAlertRules, exportToCSV, generateReport, backupData, logAuditEvent, hasPermission, ObjectId);
+
 // ============= STARTUP =============
 const PORT = process.env.PORT || 8001;
 
 httpServer.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
+  
+  // Initialize automation tasks
+  setupAutomation();
 });
 
 // Graceful shutdown
