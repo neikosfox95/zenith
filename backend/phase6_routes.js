@@ -1,0 +1,374 @@
+// ============= PHASE 6: ADVANCED MEDIA INTELLIGENCE ROUTES =============
+// Image, Voice/Audio, and Video Generation with Multiple AI Models
+
+import { spawn } from 'child_process';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Helper to call Python AI service
+async function callEnhancedAIService(method, data) {
+  return new Promise((resolve, reject) => {
+    const aiServicePath = join(__dirname, 'ai_service_enhanced.py');
+    const env = { ...process.env };
+    const python = spawn('/root/.venv/bin/python3', [aiServicePath], { env });
+    
+    let output = '';
+    let errorOutput = '';
+    
+    python.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+    
+    python.stderr.on('data', (data) => {
+      errorOutput += data.toString();
+    });
+    
+    python.on('close', (code) => {
+      if (code !== 0 && !output) {
+        reject(new Error(`AI Service error: ${errorOutput}`));
+      } else {
+        try {
+          const result = JSON.parse(output);
+          resolve(result);
+        } catch (e) {
+          resolve({ result: output.trim() });
+        }
+      }
+    });
+    
+    python.stdin.write(JSON.stringify({ method, data }));
+    python.stdin.end();
+  });
+}
+
+export function setupPhase6Routes(app, db, io, authenticateToken, ObjectId) {
+  console.log('Setting up Phase 6 routes...');
+
+  // ============= IMAGE GENERATION =============
+  
+  // Get available image models
+  app.get('/api/media/image/models', authenticateToken, (req, res) => {
+    res.json({
+      models: [
+        {
+          id: 'gpt-image-1.5',
+          name: 'GPT Image 1.5',
+          provider: 'OpenAI',
+          speed: '4x faster',
+          quality: 'Highest',
+          cost: 'Medium',
+          best_for: 'Professional photography, photorealism'
+        },
+        {
+          id: 'gpt-image-1',
+          name: 'GPT Image 1',
+          provider: 'OpenAI',
+          speed: 'Standard',
+          quality: 'High',
+          cost: 'Medium',
+          best_for: 'General purpose image generation'
+        },
+        {
+          id: 'gpt-image-1-mini',
+          name: 'GPT Image Mini',
+          provider: 'OpenAI',
+          speed: 'Fastest',
+          quality: 'Good',
+          cost: 'Lowest ($0.005/image)',
+          best_for: 'High-volume generation, prototyping'
+        },
+        {
+          id: 'nano-banana-2',
+          name: 'Nano Banana 2',
+          provider: 'Google',
+          speed: '1-3s per image',
+          quality: 'High fidelity',
+          cost: 'Low',
+          best_for: 'Text rendering, world knowledge, photorealism'
+        },
+        {
+          id: 'nano-banana-pro',
+          name: 'Nano Banana Pro',
+          provider: 'Google',
+          speed: 'Slower',
+          quality: 'Studio quality',
+          cost: 'Premium',
+          best_for: 'Complex editing, detail precision'
+        },
+        {
+          id: 'grok-imagine-quality',
+          name: 'Grok Imagine Quality',
+          provider: 'xAI',
+          speed: 'Slow',
+          quality: 'Premium (4 images)',
+          cost: 'Medium',
+          best_for: 'Volumetric lighting, fine reflections, realistic textures'
+        },
+        {
+          id: 'grok-imagine-speed',
+          name: 'Grok Imagine Speed',
+          provider: 'xAI',
+          speed: 'Very Fast',
+          quality: 'Good',
+          cost: 'Low',
+          best_for: 'Rapid iteration, testing, exploration'
+        }
+      ],
+      default: 'nano-banana-2',
+      resolutions: ['512x512', '1024x1024', '1024x1792', '1792x1024', '2048x2048', '4096x4096'],
+      aspect_ratios: ['1:1', '4:3', '16:9', '9:16', '4:1', '1:8']
+    });
+  });
+
+  // Generate images
+  app.post('/api/media/image/generate', authenticateToken, async (req, res) => {
+    try {
+      const { prompt, model = 'nano-banana-2', size = '1024x1024', num_images = 1, quality = 'standard' } = req.body;
+      
+      if (!prompt || prompt.trim().length === 0) {
+        return res.status(400).json({ error: 'Prompt is required' });
+      }
+      
+      const result = await callEnhancedAIService('generate_image', {
+        prompt,
+        model,
+        size,
+        num_images,
+        quality
+      });
+      
+      if (result.error) {
+        return res.status(500).json({ error: result.error });
+      }
+      
+      res.json({
+        ...result,
+        generated_at: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Image generation error:', error);
+      res.status(500).json({ error: 'Failed to generate images' });
+    }
+  });
+
+  // ============= VOICE/AUDIO PROCESSING =============
+  
+  // Get available voice/audio models
+  app.get('/api/media/audio/models', authenticateToken, (req, res) => {
+    res.json({
+      models: [
+        {
+          id: 'whisper',
+          name: 'Whisper (GPT-4o Transcribe)',
+          provider: 'OpenAI',
+          features: ['Transcription', 'Translation', '50+ languages'],
+          best_for: 'General transcription'
+        },
+        {
+          id: 'gemini-audio',
+          name: 'Gemini Audio API',
+          provider: 'Google',
+          features: ['Transcription', 'Audio analysis'],
+          best_for: 'Multimodal audio tasks'
+        },
+        {
+          id: 'fish-audio-instant',
+          name: 'Fish Audio Instant',
+          provider: 'Fish Audio',
+          features: ['Voice cloning', '10s sample', '<30s processing', '8 languages'],
+          best_for: 'Quick voice cloning, prototyping'
+        },
+        {
+          id: 'fish-audio-hq',
+          name: 'Fish Audio HQ',
+          provider: 'Fish Audio',
+          features: ['Voice cloning', '1-3min sample', '5min processing', 'Better prosody'],
+          best_for: 'Podcast quality, audiobooks'
+        },
+        {
+          id: 'voicebox-2.0',
+          name: 'VoiceBox 2.0',
+          provider: 'Meta',
+          features: ['Voice cloning', '50+ languages', '2.5x faster', 'Emotion control'],
+          best_for: 'Multilingual voice generation'
+        }
+      ],
+      default: 'whisper',
+      supported_formats: ['mp3', 'wav', 'm4a', 'ogg', 'flac'],
+      max_file_size: '25MB'
+    });
+  });
+
+  // Transcribe audio
+  app.post('/api/media/audio/transcribe', authenticateToken, async (req, res) => {
+    try {
+      const { audio_file, model = 'whisper', language = 'en' } = req.body;
+      
+      const result = await callEnhancedAIService('transcribe_audio', {
+        audio_file,
+        model,
+        language
+      });
+      
+      if (result.error) {
+        return res.status(500).json({ error: result.error });
+      }
+      
+      res.json({
+        ...result,
+        transcribed_at: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Transcription error:', error);
+      res.status(500).json({ error: 'Failed to transcribe audio' });
+    }
+  });
+
+  // Clone voice
+  app.post('/api/media/audio/clone-voice', authenticateToken, async (req, res) => {
+    try {
+      const { audio_sample, text, model = 'fish-audio-instant', emotion = 'neutral' } = req.body;
+      
+      const result = await callEnhancedAIService('clone_voice', {
+        audio_sample,
+        text,
+        model,
+        emotion
+      });
+      
+      if (result.error) {
+        return res.status(500).json({ error: result.error });
+      }
+      
+      res.json({
+        ...result,
+        cloned_at: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Voice cloning error:', error);
+      res.status(500).json({ error: 'Failed to clone voice' });
+    }
+  });
+
+  // ============= VIDEO GENERATION =============
+  
+  // Get available video models
+  app.get('/api/media/video/models', authenticateToken, (req, res) => {
+    res.json({
+      models: [
+        {
+          id: 'sora-2-pro',
+          name: 'Sora 2 Pro',
+          provider: 'OpenAI',
+          max_duration: '60s',
+          resolutions: ['720p', '1080p'],
+          features: ['Text-to-video', 'High quality'],
+          best_for: 'Long-form video generation'
+        },
+        {
+          id: 'veo-3.1',
+          name: 'Veo 3.1',
+          provider: 'Google',
+          max_duration: '8s',
+          resolutions: ['720p', '1080p', '4K'],
+          features: ['Highest fidelity', 'Native audio', 'Cinematic controls', 'Reference images'],
+          best_for: 'Premium quality, production use'
+        },
+        {
+          id: 'veo-3.1-fast',
+          name: 'Veo 3.1 Fast',
+          provider: 'Google',
+          max_duration: '8s',
+          resolutions: ['720p', '1080p', '4K'],
+          features: ['Faster generation', 'Native audio'],
+          best_for: 'Quick turnaround, testing'
+        },
+        {
+          id: 'veo-3.1-lite',
+          name: 'Veo 3.1 Lite',
+          provider: 'Google',
+          max_duration: '8s',
+          resolutions: ['720p', '1080p'],
+          features: ['Cost-effective (<50% price)', 'High volume'],
+          best_for: 'Scale, high-volume apps'
+        },
+        {
+          id: 'grok-imagine-video-quality',
+          name: 'Grok Video Quality',
+          provider: 'xAI',
+          max_duration: '10-15s',
+          resolutions: ['480p', '720p'],
+          features: ['Quality mode', 'Native audio', 'Camera controls'],
+          best_for: 'High-fidelity short clips'
+        },
+        {
+          id: 'grok-imagine-video-speed',
+          name: 'Grok Video Speed',
+          provider: 'xAI',
+          max_duration: '10-15s',
+          resolutions: ['480p', '720p'],
+          features: ['Fast generation', 'Native audio'],
+          best_for: 'Rapid iteration, exploration'
+        }
+      ],
+      default: 'veo-3.1-fast',
+      aspect_ratios: ['16:9', '9:16', '1:1', '4:3'],
+      frame_rates: ['24fps', '30fps']
+    });
+  });
+
+  // Generate video
+  app.post('/api/media/video/generate', authenticateToken, async (req, res) => {
+    try {
+      const { prompt, model = 'veo-3.1-fast', duration = 8, resolution = '720p', aspect_ratio = '16:9' } = req.body;
+      
+      if (!prompt || prompt.trim().length === 0) {
+        return res.status(400).json({ error: 'Prompt is required' });
+      }
+      
+      const result = await callEnhancedAIService('generate_video', {
+        prompt,
+        model,
+        duration,
+        resolution,
+        aspect_ratio
+      });
+      
+      if (result.error) {
+        return res.status(500).json({ error: result.error });
+      }
+      
+      res.json({
+        ...result,
+        initiated_at: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Video generation error:', error);
+      res.status(500).json({ error: 'Failed to generate video' });
+    }
+  });
+
+  // Get video status
+  app.get('/api/media/video/status/:jobId', authenticateToken, async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      
+      // Simulate status check (would actually query job status)
+      res.json({
+        job_id: jobId,
+        status: 'completed',  // queued, processing, completed, failed
+        progress: 100,
+        url: `https://example.com/videos/${jobId}.mp4`,
+        estimated_time_remaining: 0
+      });
+    } catch (error) {
+      console.error('Status check error:', error);
+      res.status(500).json({ error: 'Failed to check video status' });
+    }
+  });
+
+  console.log('✅ Phase 6 (Advanced Media Intelligence) routes loaded');
+}
