@@ -61,7 +61,7 @@ TEXT_MODELS = {
     'doubao-2.0-mini': ('bytedance', 'doubao-seed-2.0-mini'),  # Lightweight efficiency
 }
 
-# ============= IMAGE GENERATION MODELS (38 models) =============
+# ============= IMAGE GENERATION MODELS (48 models) =============
 
 IMAGE_MODELS = {
     # OpenAI (6 variants)
@@ -106,11 +106,25 @@ IMAGE_MODELS = {
     'seedream-5.0-lite': ('bytedance', 'seedream-5.0-lite'),  # Multimodal with deep thinking
     'seedream-5.0': ('bytedance', 'seedream-5.0'),  # Full version with web search
     
-    # Midjourney (4 variants - competitors mentioned)
+    # Midjourney (4 variants)
     'midjourney-v7': ('midjourney', 'midjourney-v7'),  # V7
     'midjourney-v8': ('midjourney', 'midjourney-v8'),  # Latest V8
     'midjourney-niji-6': ('midjourney', 'niji-6'),  # Anime style
     'midjourney-personalized': ('midjourney', 'midjourney-personalized'),  # Style learning
+    
+    # Stable Diffusion (6 variants)
+    'sdxl-base': ('stability', 'sd-xl-base-1.0'),  # 3.5B, 1024x1024+, high quality
+    'sdxl-turbo': ('stability', 'sdxl-turbo'),  # 1-4 steps, real-time
+    'sdxl-lightning': ('stability', 'sdxl-lightning'),  # 1-8 steps, ultra-fast
+    'sd-3.5-large': ('stability', 'sd-3.5-large'),  # 1MP, superior quality
+    'sd-3.5-turbo': ('stability', 'sd-3.5-turbo'),  # 4-step fast
+    'sd-3.5-medium': ('stability', 'sd-3.5-medium'),  # 2.5B, consumer hardware
+    
+    # Flux (Black Forest Labs) (4 variants)
+    'flux-1-pro': ('flux', 'flux-1-pro'),  # Highest quality, API-only
+    'flux-1-dev': ('flux', 'flux-1-dev'),  # 12B, high detail, open weights
+    'flux-1-schnell': ('flux', 'flux-1-schnell'),  # 4 steps, Apache 2.0
+    'flux-2-dev': ('flux', 'flux-2-dev'),  # 32B open-weights, gen/edit
 }
 
 # ============= VOICE/AUDIO MODELS (7 models) =============
@@ -125,7 +139,7 @@ VOICE_MODELS = {
     'gemini-tts': ('gemini', 'gemini-3.1-flash-tts-preview'),  # New TTS
 }
 
-# ============= VIDEO GENERATION MODELS (66 models) =============
+# ============= VIDEO GENERATION MODELS (79 models) =============
 
 VIDEO_MODELS = {
     # OpenAI
@@ -212,6 +226,24 @@ VIDEO_MODELS = {
     'qwen-2.5-vl-video': ('qwen', 'qwen2.5-vl-video'),  # Long video understanding (>1hr)
     'qwen-3.5-omni-video': ('qwen', 'qwen3.5-omni-video'),  # 30min video at 1 FPS
     'qwen-video-understanding': ('qwen', 'qwen-video-understanding'),  # Event localization
+    
+    # Pika Labs (5 variants)
+    'pika-2.5': ('pika', 'pika-2.5'),  # Sharper visuals, smoother camera, VFX
+    'pika-2.2': ('pika', 'pika-2.2'),  # Stable outputs, 1080p, keyframe control
+    'pika-2.0': ('pika', 'pika-2.0'),  # Scene Ingredients, character tracking
+    'pika-turbo': ('pika', 'pika-turbo'),  # Fast generations
+    'pika-pro': ('pika', 'pika-pro'),  # Advanced models, extended features
+    
+    # Haiper & Hailuo (3 variants)
+    'haiper': ('haiper', 'haiper-2.0'),  # Beginner-friendly, quick projects
+    'hailuo-2.3': ('hailuo', 'hailuo-minimax-2.3'),  # 1080p, NCR architecture, fastest
+    'hailuo-2.3-pro': ('hailuo', 'hailuo-minimax-2.3-pro'),  # 1080p Pro tier
+    
+    # Stability AI Video (4 variants)
+    'stable-video-3d': ('stability', 'sv3d'),  # Orbital videos, 3D meshes
+    'stable-video-4d': ('stability', 'sv4d-2.0'),  # Multi-view dynamic videos
+    'stable-virtual-camera': ('stability', 'stable-virtual-camera'),  # 3D videos with custom camera paths
+    'stable-video-diffusion': ('stability', 'stable-video-diffusion'),  # Image-to-video base
 }
 
 
