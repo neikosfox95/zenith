@@ -107,6 +107,34 @@ export function setupPhase6Routes(app, db, io, authenticateToken, ObjectId) {
           cost: 'Medium',
           best_for: 'Legacy support (deprecated May 2026), higher resolution'
         },
+        // Microsoft MAI Image (3 variants)
+        {
+          id: 'mai-image-2',
+          name: 'MAI Image 2',
+          provider: 'Microsoft',
+          speed: 'Standard',
+          quality: '#3 on Arena.ai',
+          cost: 'Competitive',
+          best_for: 'Natural lighting, accurate skin tones, texture detail, clear in-image text'
+        },
+        {
+          id: 'mai-image-2-pro',
+          name: 'MAI Image 2 Pro',
+          provider: 'Microsoft',
+          speed: 'Slower',
+          quality: 'Enhanced detail',
+          cost: 'Premium',
+          best_for: 'Professional photography, detailed scenes, commercial use'
+        },
+        {
+          id: 'azure-gpt-image-1.5',
+          name: 'Azure GPT Image 1.5',
+          provider: 'Microsoft Azure',
+          speed: '4x faster',
+          quality: 'Highest',
+          cost: 'Enterprise',
+          best_for: 'Azure-hosted enterprise image generation with GPT Image 1.5'
+        },
         {
           id: 'nano-banana-2',
           name: 'Nano Banana 2',
@@ -459,6 +487,28 @@ export function setupPhase6Routes(app, db, io, authenticateToken, ObjectId) {
           resolutions: ['720p', '1080p'],
           features: ['Text-to-video', 'High quality'],
           best_for: 'Long-form video generation'
+        },
+        {
+          id: 'veo-3.1',
+        },
+        // Microsoft Copilot Video (2 variants)
+        {
+          id: 'microsoft-sora-2-copilot',
+          name: 'Microsoft 365 Copilot Sora 2',
+          provider: 'Microsoft',
+          max_duration: '12s',
+          resolutions: ['720p'],
+          features: ['Synchronized audio', 'Enterprise integration', 'M365 Copilot Create', 'OneDrive/SharePoint storage'],
+          best_for: 'Enterprise video generation with Microsoft 365 integration'
+        },
+        {
+          id: 'azure-sora-2-enhanced',
+          name: 'Azure Sora 2 Enhanced',
+          provider: 'Microsoft Azure',
+          max_duration: '15s',
+          resolutions: ['720p', '1080p'],
+          features: ['Enhanced fidelity', 'Azure AI Foundry', 'Enterprise security', 'Compliance features'],
+          best_for: 'Azure-hosted video generation with enhanced quality'
         },
         {
           id: 'veo-3.1',

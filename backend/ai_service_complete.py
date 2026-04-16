@@ -61,7 +61,7 @@ TEXT_MODELS = {
     'doubao-2.0-mini': ('bytedance', 'doubao-seed-2.0-mini'),  # Lightweight efficiency
 }
 
-# ============= IMAGE GENERATION MODELS (29 models) =============
+# ============= IMAGE GENERATION MODELS (36 models) =============
 
 IMAGE_MODELS = {
     # OpenAI (6 variants)
@@ -71,6 +71,11 @@ IMAGE_MODELS = {
     'gpt-image-2': ('openai', 'gpt-image-2'),  # LEAKED: Native 2048x2048, 4K, character consistency
     'gpt-image-2-turbo': ('openai', 'gpt-image-2-turbo'),  # LEAKED: <3s generation, batch editing
     'dall-e-3': ('openai', 'dall-e-3'),  # Legacy (deprecated May 2026), higher resolution support
+    
+    # Microsoft (3 variants)
+    'mai-image-2': ('microsoft', 'mai-image-2'),  # #3 on Arena.ai, Microsoft's proprietary model
+    'mai-image-2-pro': ('microsoft', 'mai-image-2-pro'),  # Enhanced version with better detail
+    'azure-gpt-image-1.5': ('microsoft', 'azure-gpt-image-1.5'),  # Azure-hosted GPT Image 1.5
     
     # Google (2 variants)
     'nano-banana-2': ('gemini', 'gemini-3.1-flash-image-preview'),  # Gemini 3.1 Flash Image
@@ -118,11 +123,15 @@ VOICE_MODELS = {
     'gemini-tts': ('gemini', 'gemini-3.1-flash-tts-preview'),  # New TTS
 }
 
-# ============= VIDEO GENERATION MODELS (24 models) =============
+# ============= VIDEO GENERATION MODELS (26 models) =============
 
 VIDEO_MODELS = {
     # OpenAI
     'sora-2-pro': ('openai', 'sora-2-pro'),
+    
+    # Microsoft Copilot Video (2 variants)
+    'microsoft-sora-2-copilot': ('microsoft', 'microsoft-365-copilot-sora-2'),  # Sora 2 in M365 Copilot
+    'azure-sora-2-enhanced': ('microsoft', 'azure-sora-2-enhanced-fidelity'),  # Azure AI Foundry enhanced
     
     # Google Veo (3 variants)
     'veo-3.1': ('gemini', 'veo-3.1-generate-preview'),  # 4K, highest fidelity
