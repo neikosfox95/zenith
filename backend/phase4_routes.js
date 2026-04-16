@@ -3,10 +3,53 @@
 import natural from 'natural';
 import Sentiment from 'sentiment';
 import compromise from 'compromise';
+import { spawn } from 'child_process';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const sentiment = new Sentiment();
 const TfIdf = natural.TfIdf;
 const tfidf = new TfIdf();
+
+// Helper to call Python AI service
+async function callAIService(method, data) {
+  return new Promise((resolve, reject) => {
+    const aiServicePath = join(__dirname, 'ai_service_cli.py');
+    const python = spawn('/root/.venv/bin/python3', [aiServicePath]);
+    
+    let output = '';
+    let errorOutput = '';
+    
+    python.stdout.on('data', (data) => {
+      output += data.toString();
+    });
+    
+    python.stderr.on('data', (data) => {
+      errorOutput += data.toString();
+    });
+    
+    python.on('close', (code) => {
+      if (code !== 0 && !output) {
+        reject(new Error(`AI Service error: ${errorOutput}`));
+      } else {
+        try {
+          const result = JSON.parse(output);
+          resolve(result);
+        } catch (e) {
+          // If parsing fails, return raw output
+          resolve({ result: output.trim() });
+        }
+      }
+    });
+    
+    // Send data to Python script via stdin
+    python.stdin.write(JSON.stringify({ method, data }));
+    python.stdin.end();
+  });
+}
 
 export function setupPhase4Routes(app, db, io, authenticateToken, ObjectId) {
 
@@ -188,7 +231,7 @@ async function generateRecommendations(userId, type = 'creators') {
 // Get recommendations API
 app.get('/api/ai/recommendations', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
     const { type = 'creators' } = req.query;
     
     const recommendations = await generateRecommendations(userId, type);
@@ -436,6 +479,135 @@ app.get('/api/ai/insights/:creatorId', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Insights error:', error);
     res.status(500).json({ error: 'Failed to generate insights' });
+  }
+});
+
+// ============= GEMINI-POWERED AI FEATURES =============
+
+// Generate AI-powered stream summary using Gemini
+app.post('/api/ai/stream-summary', authenticateToken, async (req, res) => {
+  try {
+    const { streamId } = req.body;
+    
+    const stream = await db.collection('live_streams').findOne({ _id: new ObjectId(streamId) });
+    if (!stream) {
+      return res.status(404).json({ error: 'Stream not found' });
+    }
+    
+    const [giftCount, chatCount] = await Promise.all([
+      db.collection('gifts').countDocuments({ stream_id: new ObjectId(streamId) }),
+      db.collection('chat_messages').countDocuments({ stream_id: new ObjectId(streamId) })
+    ]);
+    
+    const duration = stream.end_time ? 
+      Math.floor((stream.end_time - stream.start_time) / 1000 / 60) : 
+      Math.floor((new Date() - stream.start_time) / 1000 / 60);
+    
+    const streamData = {
+      stream_id: streamId,
+      duration,
+      peak_viewers: stream.peak_viewers || 0,
+      total_gifts: giftCount,
+      total_revenue: stream.total_gifts_value || 0,
+      total_chats: chatCount
+    };
+    
+    // Call Python AI service for Gemini-powered summary
+    const result = await callAIService('generate_stream_summary', streamData);
+    
+    res.json({ 
+      summary: result.summary || result.result,
+      metrics: streamData,
+      generated_by: 'Gemini 3 Flash'
+    });
+  } catch (error) {
+    console.error('AI Summary error:', error);
+    res.status(500).json({ error: 'Failed to generate AI summary' });
+  }
+});
+
+// AI-powered chat sentiment analysis using Gemini
+app.post('/api/ai/analyze-sentiment', authenticateToken, async (req, res) => {
+  try {
+    const { streamId } = req.body;
+    
+    const messages = await db.collection('chat_messages')
+      .find({ stream_id: new ObjectId(streamId) })
+      .limit(100)
+      .toArray();
+    
+    if (messages.length === 0) {
+      return res.json({
+        overall: 'neutral',
+        score: 0,
+        analysis: 'No messages to analyze',
+        message_count: 0
+      });
+    }
+    
+    const messageTexts = messages.map(m => m.message);
+    
+    // Call Python AI service for Gemini-powered sentiment analysis
+    const result = await callAIService('analyze_sentiment', { messages: messageTexts });
+    
+    res.json({
+      ...result,
+      message_count: messages.length,
+      generated_by: 'Gemini 3 Flash'
+    });
+  } catch (error) {
+    console.error('Sentiment analysis error:', error);
+    res.status(500).json({ error: 'Failed to analyze sentiment' });
+  }
+});
+
+// AI content recommendations using Gemini
+app.post('/api/ai/recommendations', authenticateToken, async (req, res) => {
+  try {
+    const { creatorId } = req.body;
+    
+    const [streams, performance, giftPatterns] = await Promise.all([
+      db.collection('live_streams')
+        .find({ creator_id: new ObjectId(creatorId) })
+        .sort({ start_time: -1 })
+        .limit(10)
+        .toArray(),
+      db.collection('creators').findOne({ _id: new ObjectId(creatorId) }),
+      db.collection('gifts').aggregate([
+        { $match: { creator_id: new ObjectId(creatorId) } },
+        { $group: {
+          _id: { $hour: '$timestamp' },
+          total: { $sum: '$total_value' }
+        } },
+        { $sort: { total: -1 } },
+        { $limit: 1 }
+      ]).toArray()
+    ]);
+    
+    const avgViewers = streams.reduce((sum, s) => sum + (s.peak_viewers || 0), 0) / (streams.length || 1);
+    const trend = streams.length >= 3 && streams[0].peak_viewers > avgViewers ? 'increasing' : 'stable';
+    const bestTime = giftPatterns[0]?._id || 'N/A';
+    
+    const creatorData = {
+      creator_id: creatorId,
+      avg_viewers: Math.round(avgViewers),
+      total_streams: streams.length,
+      engagement_rate: performance?.engagement_rate || 0,
+      best_time: `${bestTime}:00`,
+      trend
+    };
+    
+    // Call Python AI service for Gemini-powered recommendations
+    const result = await callAIService('generate_content_recommendations', creatorData);
+    
+    res.json({
+      recommendations: result.recommendations || result.result,
+      based_on: creatorData,
+      generated_by: 'Gemini 3 Flash'
+    });
+  } catch (error) {
+    console.error('Recommendations error:', error);
+    res.status(500).json({ error: 'Failed to generate recommendations' });
   }
 });
 

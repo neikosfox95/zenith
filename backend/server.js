@@ -58,6 +58,12 @@ async function connectDB() {
     await db.collection('users').createIndex({ email: 1 }, { unique: true });
     await db.collection('creators').createIndex({ tiktok_username: 1 });
     await db.collection('user_creators').createIndex({ user_id: 1, creator_id: 1 });
+    
+    // Setup Phase routes after DB connection
+    setupPhase3Routes(app, db, io, authenticateToken, sendEmailNotification, sendPushNotification, triggerWebhook, checkAlertRules, exportToCSV, generateReport, backupData, logAuditEvent, hasPermission, ObjectId);
+    setupPhase4Routes(app, db, io, authenticateToken, ObjectId);
+    setupPhase5Routes(app, db, io, authenticateToken, ObjectId);
+    
   } catch (error) {
     console.error('MongoDB connection error:', error);
   }
@@ -323,6 +329,12 @@ app.get('/api/streams/:streamId/gifts', authenticateToken, async (req, res) => {
       .sort({ timestamp: 1 })
       .toArray();
 
+    res.json(gifts);
+  } catch (error) {
+    console.error('Get gifts error:', error);
+    res.status(500).json({ error: 'Failed to get gifts' });
+  }
+});
 
 // ============= ENHANCED AUTHENTICATION ROUTES =============
 
@@ -3895,11 +3907,6 @@ io.on('connection', (socket) => {
     console.log('Client disconnected:', socket.id);
   });
 });
-
-// ============= PHASE 3, 4 & 5 ROUTES SETUP =============
-setupPhase3Routes(app, db, io, authenticateToken, sendEmailNotification, sendPushNotification, triggerWebhook, checkAlertRules, exportToCSV, generateReport, backupData, logAuditEvent, hasPermission, ObjectId);
-setupPhase4Routes(app, db, io, authenticateToken, ObjectId);
-setupPhase5Routes(app, db, io, authenticateToken, ObjectId);
 
 // ============= STARTUP =============
 const PORT = process.env.PORT || 8001;

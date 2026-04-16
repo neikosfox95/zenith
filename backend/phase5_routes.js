@@ -149,7 +149,7 @@ app.get('/api/i18n/languages', (req, res) => {
 // Get branding settings
 app.get('/api/branding', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
     
     const branding = await db.collection('branding').findOne({
       user_id: new ObjectId(userId)
@@ -171,7 +171,7 @@ app.get('/api/branding', authenticateToken, async (req, res) => {
 // Update branding
 app.put('/api/branding', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
     const branding = req.body;
 
     await db.collection('branding').updateOne(
@@ -193,7 +193,7 @@ const rateLimits = new Map();
 
 function rateLimit(maxRequests = 100, windowMs = 60000) {
   return (req, res, next) => {
-    const key = req.user ? req.user.id : req.ip;
+    const key = req.userId ? req.userId : req.ip;
     const now = Date.now();
     
     if (!rateLimits.has(key)) {
@@ -280,7 +280,7 @@ app.get('/api/jobs/:jobId', authenticateToken, async (req, res) => {
 // API key management
 app.post('/api/api-keys/generate', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
     const { name, permissions = [] } = req.body;
 
     const apiKey = {
@@ -310,7 +310,7 @@ app.post('/api/api-keys/generate', authenticateToken, async (req, res) => {
 // List API keys
 app.get('/api/api-keys', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
 
     const keys = await db.collection('api_keys')
       .find({ user_id: new ObjectId(userId) })
@@ -346,7 +346,7 @@ app.delete('/api/api-keys/:keyId', authenticateToken, async (req, res) => {
 // GDPR data export
 app.get('/api/compliance/export-data', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
 
     const userData = {
       user: await db.collection('users').findOne({ _id: new ObjectId(userId) }),
@@ -366,7 +366,7 @@ app.get('/api/compliance/export-data', authenticateToken, async (req, res) => {
 // Delete user data (GDPR right to be forgotten)
 app.delete('/api/compliance/delete-account', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
     const { confirm } = req.body;
 
     if (confirm !== 'DELETE') {
@@ -487,7 +487,7 @@ app.get('/api/integrations/marketplace', cache(3600), (req, res) => {
 // Connect integration
 app.post('/api/integrations/connect', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.userId;
     const { integration_id, config } = req.body;
 
     const integration = {
