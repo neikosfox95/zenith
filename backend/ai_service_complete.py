@@ -61,7 +61,7 @@ TEXT_MODELS = {
     'doubao-2.0-mini': ('bytedance', 'doubao-seed-2.0-mini'),  # Lightweight efficiency
 }
 
-# ============= IMAGE GENERATION MODELS (36 models) =============
+# ============= IMAGE GENERATION MODELS (38 models) =============
 
 IMAGE_MODELS = {
     # OpenAI (6 variants)
@@ -81,10 +81,12 @@ IMAGE_MODELS = {
     'nano-banana-2': ('gemini', 'gemini-3.1-flash-image-preview'),  # Gemini 3.1 Flash Image
     'nano-banana-pro': ('gemini', 'gemini-3-pro-image'),  # Studio quality
     
-    # xAI Grok Imagine (3 modes)
-    'grok-imagine-quality': ('xai', 'grok-imagine-quality'),  # 4 images, volumetric
-    'grok-imagine-speed': ('xai', 'grok-imagine-speed'),  # Fast
-    'grok-imagine-pro': ('xai', 'grok-imagine-pro'),  # 1080p (upcoming)
+    # xAI Grok Imagine (5 modes)
+    'grok-imagine-quality': ('xai', 'grok-imagine-quality'),  # 4 images, volumetric lighting
+    'grok-imagine-speed': ('xai', 'grok-imagine-speed'),  # Fast generation
+    'grok-imagine-pro': ('xai', 'grok-imagine-pro'),  # 1080p highest quality
+    'grok-2-image': ('xai', 'grok-2-image-1212'),  # Grok 2 Image ($0.07/image)
+    'grok-imagine-hd': ('xai', 'grok-imagine-hd'),  # HD quality variant
     
     # KLING 3.0 Image Models (9 variants)
     'kling-v3': ('kling', 'kling-v3-image'),  # KLING v3 Standard
@@ -123,7 +125,7 @@ VOICE_MODELS = {
     'gemini-tts': ('gemini', 'gemini-3.1-flash-tts-preview'),  # New TTS
 }
 
-# ============= VIDEO GENERATION MODELS (26 models) =============
+# ============= VIDEO GENERATION MODELS (32 models) =============
 
 VIDEO_MODELS = {
     # OpenAI
@@ -138,9 +140,15 @@ VIDEO_MODELS = {
     'veo-3.1-fast': ('gemini', 'veo-3.1-fast-generate-preview'),  # Faster
     'veo-3.1-lite': ('gemini', 'veo-3.1-lite-generate-preview'),  # Cost-effective
     
-    # xAI Grok Video (2 modes)
-    'grok-imagine-video-quality': ('xai', 'grok-imagine-video-quality'),  # 720p
-    'grok-imagine-video-speed': ('xai', 'grok-imagine-video-speed'),  # Fast
+    # xAI Grok Imagine Video (8 modes)
+    'grok-imagine-video-quality': ('xai', 'grok-imagine-video-quality'),  # 720p quality mode
+    'grok-imagine-video-speed': ('xai', 'grok-imagine-video-speed'),  # Fast generation
+    'grok-imagine-video': ('xai', 'grok-imagine-video'),  # Standard video generation
+    'grok-imagine-video-text': ('xai', 'grok-imagine-video-text-to-video'),  # Text-to-video
+    'grok-imagine-video-image': ('xai', 'grok-imagine-video-image-to-video'),  # Image-to-video
+    'grok-imagine-video-reference': ('xai', 'grok-imagine-video-reference-to-video'),  # Multi-reference (up to 7 images)
+    'grok-imagine-video-edit': ('xai', 'grok-imagine-video-edit'),  # Video editing
+    'grok-imagine-video-extend': ('xai', 'grok-imagine-video-extend-from-frame'),  # 15s extended clips
     
     # KLING 3.0 Complete Suite (15 variants)
     'kling-v3': ('kling', 'kling-v3-video'),  # KLING v3 Standard
