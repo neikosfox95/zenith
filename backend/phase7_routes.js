@@ -113,30 +113,102 @@ export function setupPhase7Routes(app, db, io, authenticateToken, ObjectId) {
           best_for: 'Code generation & review'
         },
         
-        // DeepSeek Coder
+        // DeepSeek Coder (12 variants - ALL VERSIONS)
         {
           id: 'deepseek-coder-v3',
-          name: 'DeepSeek Coder V3',
+          name: 'DeepSeek Coder V3 671B',
           provider: 'DeepSeek',
-          description: '671B parameters MoE model',
+          description: '671B parameters MoE model - Latest flagship',
           languages: '80+ languages',
-          best_for: 'Enterprise-scale projects'
+          best_for: 'Enterprise-scale projects, complex architecture'
+        },
+        {
+          id: 'deepseek-coder-v3-base',
+          name: 'DeepSeek Coder V3 Base',
+          provider: 'DeepSeek',
+          description: 'V3 base model without instruction tuning',
+          languages: '80+ languages',
+          best_for: 'Fine-tuning, research'
         },
         {
           id: 'deepseek-coder-v2',
-          name: 'DeepSeek Coder V2',
+          name: 'DeepSeek Coder V2 236B',
           provider: 'DeepSeek',
-          description: '236B parameters',
+          description: '236B parameters - Previous flagship',
           languages: '80+ languages',
-          best_for: 'Complex codebases'
+          best_for: 'Complex codebases, production systems'
         },
         {
           id: 'deepseek-coder-v2-lite',
-          name: 'DeepSeek Coder V2 Lite',
+          name: 'DeepSeek Coder V2 Lite 16B',
           provider: 'DeepSeek',
-          description: '16B lightweight model',
+          description: '16B lightweight model - Fast & efficient',
           languages: '80+ languages',
-          best_for: 'Fast development'
+          best_for: 'Fast development, prototyping'
+        },
+        {
+          id: 'deepseek-coder-v2-instruct',
+          name: 'DeepSeek Coder V2 Instruct',
+          provider: 'DeepSeek',
+          description: 'V2 instruction-tuned for better following',
+          languages: '80+ languages',
+          best_for: 'Task-specific coding, detailed instructions'
+        },
+        {
+          id: 'deepseek-coder-v2-base',
+          name: 'DeepSeek Coder V2 Base',
+          provider: 'DeepSeek',
+          description: 'V2 base model',
+          languages: '80+ languages',
+          best_for: 'Customization, fine-tuning'
+        },
+        {
+          id: 'deepseek-coder-33b',
+          name: 'DeepSeek Coder 33B',
+          provider: 'DeepSeek',
+          description: '33B balanced model',
+          languages: '80+ languages',
+          best_for: 'General development, good balance'
+        },
+        {
+          id: 'deepseek-coder-6.7b',
+          name: 'DeepSeek Coder 6.7B',
+          provider: 'DeepSeek',
+          description: '6.7B efficient model',
+          languages: '80+ languages',
+          best_for: 'Local development, quick tasks'
+        },
+        {
+          id: 'deepseek-coder-1.3b',
+          name: 'DeepSeek Coder 1.3B',
+          provider: 'DeepSeek',
+          description: '1.3B tiny model for edge devices',
+          languages: '80+ languages',
+          best_for: 'Edge computing, mobile development'
+        },
+        {
+          id: 'deepseek-coder-fill',
+          name: 'DeepSeek Coder Fill-in-Middle',
+          provider: 'DeepSeek',
+          description: 'Specialized for code completion',
+          languages: '80+ languages',
+          best_for: 'IDE integration, autocomplete'
+        },
+        {
+          id: 'deepseek-coder-instruct',
+          name: 'DeepSeek Coder Instruct',
+          provider: 'DeepSeek',
+          description: 'Latest instruction-tuned version',
+          languages: '80+ languages',
+          best_for: 'Following complex coding instructions'
+        },
+        {
+          id: 'deepseek-coder-base',
+          name: 'DeepSeek Coder Base',
+          provider: 'DeepSeek',
+          description: 'Base model for fine-tuning',
+          languages: '80+ languages',
+          best_for: 'Research, custom training'
         },
         
         // StarCoder

@@ -91,6 +91,36 @@ TEXT_MODELS = {
     'command-r-plus': ('cohere', 'command-r-plus'),  # Enhanced retrieval
     'command-r-08-2024': ('cohere', 'command-r-08-2024'),  # Latest stable
     'command-light': ('cohere', 'command-light'),  # Fast, efficient
+    
+    # DeepSeek V3 (6 variants)
+    'deepseek-v3': ('deepseek', 'deepseek-chat'),  # Latest flagship, 685B MoE
+    'deepseek-v3-base': ('deepseek', 'deepseek-v3-base'),  # Base model without instruction tuning
+    'deepseek-v3-instruct': ('deepseek', 'deepseek-v3-instruct'),  # Instruction-tuned
+    'deepseek-v3-chat': ('deepseek', 'deepseek-v3-chat'),  # Conversational variant
+    'deepseek-v3-32k': ('deepseek', 'deepseek-v3-32k-context'),  # Extended context 32K
+    'deepseek-v3-128k': ('deepseek', 'deepseek-v3-128k-context'),  # Extended context 128K
+    
+    # DeepSeek V2.5 (4 variants)
+    'deepseek-v2.5': ('deepseek', 'deepseek-v2.5'),  # 236B MoE
+    'deepseek-v2.5-instruct': ('deepseek', 'deepseek-v2.5-instruct'),  # Instruction-tuned
+    'deepseek-v2.5-chat': ('deepseek', 'deepseek-v2.5-chat'),  # Chat optimized
+    'deepseek-v2.5-128k': ('deepseek', 'deepseek-v2.5-128k'),  # Long context
+    
+    # DeepSeek V2 (4 variants)
+    'deepseek-v2': ('deepseek', 'deepseek-v2'),  # 236B parameters
+    'deepseek-v2-lite': ('deepseek', 'deepseek-v2-lite-16b'),  # 16B lightweight
+    'deepseek-v2-base': ('deepseek', 'deepseek-v2-base'),  # Base model
+    'deepseek-v2-instruct': ('deepseek', 'deepseek-v2-instruct'),  # Instruction variant
+    
+    # DeepSeek-R1 Reasoning Models (8 variants)
+    'deepseek-r1': ('deepseek', 'deepseek-r1'),  # Flagship reasoning model, 671B
+    'deepseek-r1-distill-qwen-32b': ('deepseek', 'deepseek-r1-distill-qwen-32b'),  # Distilled to Qwen 32B
+    'deepseek-r1-distill-qwen-14b': ('deepseek', 'deepseek-r1-distill-qwen-14b'),  # Distilled to Qwen 14B
+    'deepseek-r1-distill-qwen-7b': ('deepseek', 'deepseek-r1-distill-qwen-7b'),  # Distilled to Qwen 7B
+    'deepseek-r1-distill-qwen-1.5b': ('deepseek', 'deepseek-r1-distill-qwen-1.5b'),  # Distilled to Qwen 1.5B
+    'deepseek-r1-distill-llama-70b': ('deepseek', 'deepseek-r1-distill-llama-70b'),  # Distilled to Llama 70B
+    'deepseek-r1-distill-llama-8b': ('deepseek', 'deepseek-r1-distill-llama-8b'),  # Distilled to Llama 8B
+    'deepseek-r1-zero': ('deepseek', 'deepseek-r1-zero'),  # R1-Zero pure RL variant
 }
 
 # ============= CODING-SPECIFIC MODELS (25+ models) =============
@@ -109,12 +139,19 @@ CODING_MODELS = {
     'claude-4.5-sonnet-code': ('anthropic', 'claude-sonnet-4-5-code'),  # Previous gen
     'claude-code-specialist': ('anthropic', 'claude-code-specialist'),  # Pure coding
     
-    # DeepSeek Coder (5 variants)
+    # DeepSeek Coder (12 variants)
     'deepseek-coder-v3': ('deepseek', 'deepseek-coder-v3-671b'),  # 671B parameters, MoE
+    'deepseek-coder-v3-base': ('deepseek', 'deepseek-coder-v3-base'),  # Base without tuning
     'deepseek-coder-v2': ('deepseek', 'deepseek-coder-v2-236b'),  # 236B parameters
-    'deepseek-coder-v2-lite': ('deepseek', 'deepseek-coder-v2-16b'),  # Lightweight
-    'deepseek-coder-instruct': ('deepseek', 'deepseek-coder-instruct'),  # Instruction-tuned
+    'deepseek-coder-v2-lite': ('deepseek', 'deepseek-coder-v2-16b'),  # Lightweight 16B
+    'deepseek-coder-v2-instruct': ('deepseek', 'deepseek-coder-v2-instruct'),  # V2 instruction-tuned
+    'deepseek-coder-v2-base': ('deepseek', 'deepseek-coder-v2-base'),  # V2 base
+    'deepseek-coder-instruct': ('deepseek', 'deepseek-coder-instruct'),  # Latest instruction-tuned
     'deepseek-coder-base': ('deepseek', 'deepseek-coder-base'),  # Base model
+    'deepseek-coder-33b': ('deepseek', 'deepseek-coder-33b-instruct'),  # 33B variant
+    'deepseek-coder-6.7b': ('deepseek', 'deepseek-coder-6.7b-instruct'),  # 6.7B variant
+    'deepseek-coder-1.3b': ('deepseek', 'deepseek-coder-1.3b-instruct'),  # 1.3B tiny variant
+    'deepseek-coder-fill': ('deepseek', 'deepseek-coder-fill-in-middle'),  # Fill-in-the-middle specialist
     
     # StarCoder (4 variants)
     'starcoder2-15b': ('huggingface', 'starcoder2-15b'),  # Latest gen
