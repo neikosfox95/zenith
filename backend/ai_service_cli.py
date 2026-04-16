@@ -8,14 +8,12 @@ import os
 import json
 import sys
 import asyncio
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+# Get API key from environment or use default
+EMERGENT_LLM_KEY = os.getenv('EMERGENT_LLM_KEY', 'sk-emergent-3A6Ba8062AfA8B036E')
 
 try:
     from emergentintegrations.llm.chat import LlmChat, UserMessage
-    EMERGENT_LLM_KEY = os.getenv('EMERGENT_LLM_KEY')
 except ImportError:
     print(json.dumps({"error": "emergentintegrations not installed"}))
     sys.exit(1)
