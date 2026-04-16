@@ -63,6 +63,15 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="media"
+        options={{
+          title: 'Media AI',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="color-palette" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="enterprise"
         options={{
           title: 'Enterprise',

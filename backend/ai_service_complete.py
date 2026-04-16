@@ -8,6 +8,7 @@ import os
 import json
 import sys
 import asyncio
+from typing import Dict, Any
 
 EMERGENT_LLM_KEY = os.getenv('EMERGENT_LLM_KEY', 'sk-emergent-3A6Ba8062AfA8B036E')
 

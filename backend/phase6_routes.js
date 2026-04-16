@@ -11,7 +11,7 @@ const __dirname = dirname(__filename);
 // Helper to call Python AI service
 async function callEnhancedAIService(method, data) {
   return new Promise((resolve, reject) => {
-    const aiServicePath = join(__dirname, 'ai_service_enhanced.py');
+    const aiServicePath = join(__dirname, 'ai_service_complete.py');
     const env = { ...process.env };
     const python = spawn('/root/.venv/bin/python3', [aiServicePath], { env });
     
