@@ -115,6 +115,88 @@ export function setupPhase6Routes(app, db, io, authenticateToken, ObjectId) {
           quality: 'Good',
           cost: 'Low',
           best_for: 'Rapid iteration, testing, exploration'
+        },
+        // KLING 3.0 Complete Image Suite (9 models)
+        {
+          id: 'kling-v3',
+          name: 'KLING v3',
+          provider: 'KLING AI',
+          speed: 'Standard',
+          quality: 'High',
+          cost: 'Medium',
+          best_for: 'General image generation'
+        },
+        {
+          id: 'kling-v3-omni',
+          name: 'KLING v3 Omni',
+          provider: 'KLING AI',
+          speed: 'Standard',
+          quality: 'Highest',
+          cost: 'High',
+          best_for: 'Multi-image combination, advanced composition'
+        },
+        {
+          id: 'kling-image-o1',
+          name: 'KLING Image O1',
+          provider: 'KLING AI',
+          speed: 'Slower',
+          quality: 'Highest (Reasoning)',
+          cost: 'Premium',
+          best_for: 'Complex scenes requiring advanced reasoning'
+        },
+        {
+          id: 'kling-omni-human',
+          name: 'KLING Omni Human',
+          provider: 'KLING AI',
+          speed: 'Standard',
+          quality: 'High',
+          cost: 'Medium',
+          best_for: 'Human consistency, character generation'
+        },
+        {
+          id: 'kling-image-to-image',
+          name: 'KLING Image-to-Image',
+          provider: 'KLING AI',
+          speed: 'Fast',
+          quality: 'High',
+          cost: 'Low',
+          best_for: 'Reference-based generation, style transfer'
+        },
+        {
+          id: 'kling-image-extend',
+          name: 'KLING Image Extend',
+          provider: 'KLING AI',
+          speed: 'Fast',
+          quality: 'High',
+          cost: 'Low',
+          best_for: 'Image expansion, outpainting'
+        },
+        {
+          id: 'kling-multi-shot',
+          name: 'KLING Multi-Shot',
+          provider: 'KLING AI',
+          speed: 'Standard',
+          quality: 'High',
+          cost: 'Medium',
+          best_for: 'AI Multi-Shot storyboards (2-9 images)'
+        },
+        {
+          id: 'kling-virtual-tryon',
+          name: 'KLING Virtual Try-On',
+          provider: 'KLING AI',
+          speed: 'Fast',
+          quality: 'High',
+          cost: 'Medium',
+          best_for: 'Virtual clothing try-on'
+        },
+        {
+          id: 'kling-4k',
+          name: 'KLING 4K',
+          provider: 'KLING AI',
+          speed: 'Slow',
+          quality: 'Ultra HD (4K)',
+          cost: 'High',
+          best_for: 'Ultra high definition, professional use'
         }
       ],
       default: 'nano-banana-2',
@@ -312,6 +394,142 @@ export function setupPhase6Routes(app, db, io, authenticateToken, ObjectId) {
           resolutions: ['480p', '720p'],
           features: ['Fast generation', 'Native audio'],
           best_for: 'Rapid iteration, exploration'
+        },
+        // KLING 3.0 Complete Video Suite (15 models)
+        {
+          id: 'kling-v3',
+          name: 'KLING v3',
+          provider: 'KLING AI',
+          max_duration: '15s',
+          resolutions: ['720p', '1080p', '4K'],
+          features: ['Text-to-video', 'Standard quality'],
+          best_for: 'General video generation'
+        },
+        {
+          id: 'kling-v2-6',
+          name: 'KLING v2.6',
+          provider: 'KLING AI',
+          max_duration: '10s',
+          resolutions: ['720p', '1080p'],
+          features: ['Previous gen', 'Stable'],
+          best_for: 'Legacy compatibility'
+        },
+        {
+          id: 'kling-v3-omni',
+          name: 'KLING v3 Omni',
+          provider: 'KLING AI',
+          max_duration: '15s',
+          resolutions: ['4K'],
+          features: ['Multi-image to video', 'Omni Skills', 'Multilingual audio'],
+          best_for: 'Complex multi-shot videos'
+        },
+        {
+          id: 'kling-video-o1',
+          name: 'KLING Video O1',
+          provider: 'KLING AI',
+          max_duration: '15s',
+          resolutions: ['4K'],
+          features: ['Advanced reasoning', 'Complex scenes', 'Narrative control'],
+          best_for: 'Story-driven content'
+        },
+        {
+          id: 'kling-omni-human',
+          name: 'KLING Omni Human',
+          provider: 'KLING AI',
+          max_duration: '15s',
+          resolutions: ['4K'],
+          features: ['Human consistency', 'Lip-sync', 'Multi-person'],
+          best_for: 'Character-focused videos'
+        },
+        {
+          id: 'kling-text-to-video',
+          name: 'KLING Text-to-Video',
+          provider: 'KLING AI',
+          max_duration: '15s',
+          resolutions: ['1080p', '4K'],
+          features: ['Text input', 'Standard generation'],
+          best_for: 'Simple prompt-based videos'
+        },
+        {
+          id: 'kling-image-to-video',
+          name: 'KLING Image-to-Video',
+          provider: 'KLING AI',
+          max_duration: '10s',
+          resolutions: ['1080p', '4K'],
+          features: ['Single image animation', 'Camera movement'],
+          best_for: 'Animating still images'
+        },
+        {
+          id: 'kling-multi-image-to-video',
+          name: 'KLING Reference Video',
+          provider: 'KLING AI',
+          max_duration: '15s',
+          resolutions: ['4K'],
+          features: ['Multi-image reference', 'Shot transitions'],
+          best_for: 'Reference-based storytelling'
+        },
+        {
+          id: 'kling-motion-control',
+          name: 'KLING Motion Sync',
+          provider: 'KLING AI',
+          max_duration: '10s',
+          resolutions: ['4K'],
+          features: ['Motion control', 'Camera movement', 'Precise animation'],
+          best_for: 'Controlled camera and object motion'
+        },
+        {
+          id: 'kling-multi-elements',
+          name: 'KLING Multi-Elements',
+          provider: 'KLING AI',
+          max_duration: '15s',
+          resolutions: ['4K'],
+          features: ['Character + scene elements', 'Complex composition'],
+          best_for: 'Multi-element scene composition'
+        },
+        {
+          id: 'kling-video-extend',
+          name: 'KLING Video Extend',
+          provider: 'KLING AI',
+          max_duration: '30s',
+          resolutions: ['1080p', '4K'],
+          features: ['Video extension', 'Seamless continuation'],
+          best_for: 'Extending existing videos'
+        },
+        {
+          id: 'kling-lip-sync',
+          name: 'KLING Lip Sync',
+          provider: 'KLING AI',
+          max_duration: '15s',
+          resolutions: ['4K'],
+          features: ['Audio-video sync', 'Facial animation', 'Natural speech'],
+          best_for: 'Talking head videos with accurate lip sync'
+        },
+        {
+          id: 'kling-avatar',
+          name: 'KLING Avatar',
+          provider: 'KLING AI',
+          max_duration: '10s',
+          resolutions: ['1080p', '4K'],
+          features: ['Digital human', 'Consistent character', 'AI presenter'],
+          best_for: 'Virtual avatar generation'
+        },
+        {
+          id: 'kling-video-effects',
+          name: 'KLING Video Effects',
+          provider: 'KLING AI',
+          max_duration: '15s',
+          resolutions: ['4K'],
+          features: ['Effect templates', 'Visual enhancements', 'Post-processing'],
+          best_for: 'Applying visual effects to videos'
+        },
+        {
+          id: 'kling-image-recognize',
+          name: 'KLING Image Recognize',
+          provider: 'KLING AI',
+          max_duration: 'N/A',
+          resolutions: ['N/A'],
+          features: ['Image analysis', 'Scene understanding', 'Metadata extraction'],
+          best_for: 'Image recognition and analysis'
         }
       ],
       default: 'veo-3.1-fast',

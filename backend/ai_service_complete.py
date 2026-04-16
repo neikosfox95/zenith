@@ -55,7 +55,7 @@ TEXT_MODELS = {
     'grok-4.20-heavy': ('xai', 'grok-4.20-heavy'),  # 16-agent system
 }
 
-# ============= IMAGE GENERATION MODELS (11 models) =============
+# ============= IMAGE GENERATION MODELS (17 models) =============
 
 IMAGE_MODELS = {
     # OpenAI (3 variants)
@@ -72,10 +72,16 @@ IMAGE_MODELS = {
     'grok-imagine-speed': ('xai', 'grok-imagine-speed'),  # Fast
     'grok-imagine-pro': ('xai', 'grok-imagine-pro'),  # 1080p (upcoming)
     
-    # Additional providers
-    'kling-skills-image': ('kling', 'kling-skills-image'),  # KLING Skills
-    'kling-omni-image': ('kling', 'kling-omni-image'),  # KLING Omni
-    'kling-omni-human': ('kling', 'kling-omni-human-image'),  # KLING Omni Human
+    # KLING 3.0 Image Models (9 variants)
+    'kling-v3': ('kling', 'kling-v3-image'),  # KLING v3 Standard
+    'kling-v3-omni': ('kling', 'kling-v3-omni-image'),  # KLING O3 Omni - Multi-image combination
+    'kling-image-o1': ('kling', 'kling-image-o1'),  # KLING Image O1 - Advanced reasoning
+    'kling-omni-human': ('kling', 'kling-omni-human-image'),  # KLING Omni Human - Human consistency
+    'kling-image-to-image': ('kling', 'kling-image-to-image'),  # Reference-based generation
+    'kling-image-extend': ('kling', 'kling-image-extend'),  # Image expansion/outpainting
+    'kling-multi-shot': ('kling', 'kling-multi-shot'),  # AI Multi-Shot (2-9 images)
+    'kling-virtual-tryon': ('kling', 'kling-virtual-tryon'),  # Virtual Try-On
+    'kling-4k': ('kling', 'kling-4k-image'),  # 4K High Definition
 }
 
 # ============= VOICE/AUDIO MODELS (7 models) =============
@@ -90,7 +96,7 @@ VOICE_MODELS = {
     'gemini-tts': ('gemini', 'gemini-3.1-flash-tts-preview'),  # New TTS
 }
 
-# ============= VIDEO GENERATION MODELS (11 models) =============
+# ============= VIDEO GENERATION MODELS (21 models) =============
 
 VIDEO_MODELS = {
     # OpenAI
@@ -105,12 +111,22 @@ VIDEO_MODELS = {
     'grok-imagine-video-quality': ('xai', 'grok-imagine-video-quality'),  # 720p
     'grok-imagine-video-speed': ('xai', 'grok-imagine-video-speed'),  # Fast
     
-    # KLING 3.0 (5 variants)
-    'kling-3.0-pro': ('kling', 'kling-3.0-pro'),  # Cinematic
-    'kling-3.0-omni': ('kling', 'kling-o3-omni'),  # Kling O3 Omni 3.0
-    'kling-3.0-skills': ('kling', 'kling-3.0-skills'),  # Omni Skills
-    'kling-3.0-omni-human': ('kling', 'kling-o3-omni-human'),  # Human-focused
-    'kling-image-to-video': ('kling', 'kling-o3-image-to-video'),  # Reference-based
+    # KLING 3.0 Complete Suite (15 variants)
+    'kling-v3': ('kling', 'kling-v3-video'),  # KLING v3 Standard
+    'kling-v2-6': ('kling', 'kling-v2-6-video'),  # KLING v2.6
+    'kling-v3-omni': ('kling', 'kling-v3-omni-video'),  # Kling O3 Omni 3.0 - Multi-image to video
+    'kling-video-o1': ('kling', 'kling-video-o1'),  # KLING Video O1 - Advanced reasoning
+    'kling-omni-human': ('kling', 'kling-omni-human-video'),  # Omni Human - Human consistency
+    'kling-text-to-video': ('kling', 'kling-text-to-video'),  # Text to Video
+    'kling-image-to-video': ('kling', 'kling-image-to-video'),  # Image to Video
+    'kling-multi-image-to-video': ('kling', 'kling-multi-image-to-video'),  # Reference to Video
+    'kling-motion-control': ('kling', 'kling-motion-control'),  # Motion Control/Motion Sync
+    'kling-multi-elements': ('kling', 'kling-multi-elements-to-video'),  # Multi-elements to video
+    'kling-video-extend': ('kling', 'kling-video-extend'),  # Extend Video
+    'kling-lip-sync': ('kling', 'kling-lip-sync'),  # Lip Sync
+    'kling-avatar': ('kling', 'kling-avatar'),  # Avatar generation
+    'kling-video-effects': ('kling', 'kling-video-effects'),  # Video Effects (NEW)
+    'kling-image-recognize': ('kling', 'kling-image-recognize'),  # Image Recognition
 }
 
 
@@ -261,15 +277,21 @@ def get_model_capabilities(model_id: str, category: str) -> Dict[str, Any]:
         'nano-banana-2': {'max_res': '4K', 'features': ['Text rendering', 'World knowledge', 'Photorealism']},
         'nano-banana-pro': {'max_res': '4K', 'features': ['Studio quality', 'Complex editing', 'Identity consistency']},
         'grok-imagine-quality': {'max_res': '1080p', 'features': ['4 images', 'Volumetric lighting', 'Fine reflections']},
+        'kling-v3-omni': {'max_res': '4K', 'features': ['Multi-image combination', 'Omni Skills', 'Advanced composition']},
         'kling-omni-human': {'max_res': '4K', 'features': ['Human consistency', 'Multi-character', 'Realistic expressions']},
+        'kling-4k': {'max_res': '4K', 'features': ['Ultra HD', 'High fidelity', 'Professional quality']},
+        'kling-multi-shot': {'max_res': '2K', 'features': ['2-9 images', 'Storyboard', 'Multi-panel']},
         
         # Video capabilities
         'veo-3.1': {'max_duration': 8, 'max_res': '4K', 'features': ['Native audio', 'Cinematic controls', 'Reference images']},
         'veo-3.1-fast': {'max_duration': 8, 'max_res': '4K', 'features': ['Faster generation', 'Native audio']},
         'veo-3.1-lite': {'max_duration': 8, 'max_res': '1080p', 'features': ['Cost-effective', 'High volume']},
-        'kling-3.0-omni': {'max_duration': 15, 'max_res': '4K', 'features': ['Multi-shot', 'Omni Skills', 'Multilingual audio']},
-        'kling-3.0-omni-human': {'max_duration': 15, 'max_res': '4K', 'features': ['Human consistency', 'Lip-sync', 'Multi-person']},
-        'kling-3.0-skills': {'max_duration': 15, 'max_res': '4K', 'features': ['Storyboard tool', 'Shot control', 'Transitions']},
+        'kling-v3-omni': {'max_duration': 15, 'max_res': '4K', 'features': ['Multi-shot', 'Omni Skills', 'Multilingual audio']},
+        'kling-omni-human': {'max_duration': 15, 'max_res': '4K', 'features': ['Human consistency', 'Lip-sync', 'Multi-person']},
+        'kling-video-o1': {'max_duration': 15, 'max_res': '4K', 'features': ['Advanced reasoning', 'Complex scenes', 'Narrative control']},
+        'kling-motion-control': {'max_duration': 10, 'max_res': '4K', 'features': ['Motion sync', 'Camera controls', 'Precise movement']},
+        'kling-lip-sync': {'max_duration': 15, 'max_res': '4K', 'features': ['Audio-video sync', 'Facial animation', 'Natural speech']},
+        'kling-avatar': {'max_duration': 10, 'max_res': '4K', 'features': ['Digital human', 'Consistent character', 'Talking head']},
         'grok-imagine-video-quality': {'max_duration': 15, 'max_res': '720p', 'features': ['Quality mode', 'Native audio', 'Camera controls']},
         'sora-2-pro': {'max_duration': 60, 'max_res': '1080p', 'features': ['Longest duration', 'High quality']},
     }
