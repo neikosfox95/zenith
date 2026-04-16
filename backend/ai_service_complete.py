@@ -125,7 +125,7 @@ VOICE_MODELS = {
     'gemini-tts': ('gemini', 'gemini-3.1-flash-tts-preview'),  # New TTS
 }
 
-# ============= VIDEO GENERATION MODELS (32 models) =============
+# ============= VIDEO GENERATION MODELS (66 models) =============
 
 VIDEO_MODELS = {
     # OpenAI
@@ -171,6 +171,47 @@ VIDEO_MODELS = {
     'seedance-1.0': ('bytedance', 'seedance-1.0'),  # Multi-shot 1080p video
     'seedance-1.5-pro': ('bytedance', 'doubao-seedance-1-5-pro'),  # Joint audio-video, cinematic
     'seedance-2.0': ('bytedance', 'seedance-2.0'),  # Multimodal (text/image/audio/video), 2K, 15s
+    
+    # Runway Gen-4 & Gen-3 (8 variants)
+    'runway-gen-4': ('runway', 'gen-4'),  # 60s, 4K, superior character consistency
+    'runway-gen-4-turbo': ('runway', 'gen-4-turbo'),  # 5-10s in 30s, 720p
+    'runway-gen-4-image': ('runway', 'gen-4-image'),  # Image-to-image refine
+    'runway-gen-4-aleph': ('runway', 'gen-4-aleph'),  # Video-to-video extend/edit
+    'runway-gen-3-alpha': ('runway', 'gen-3-alpha'),  # 10s, expressive characters
+    'runway-gen-3-turbo': ('runway', 'gen-3-turbo'),  # Fast Gen-3
+    'runway-gen-3-custom': ('runway', 'gen-3-custom'),  # Enterprise customization
+    'runway-gen-2': ('runway', 'gen-2'),  # Legacy
+    
+    # Lightricks LTX (6 variants)
+    'ltx-2.3-pro': ('ltx', 'ltx-2.3-pro'),  # 20s, 4K/50fps, all features
+    'ltx-2.3-fast': ('ltx', 'ltx-2.3-fast'),  # Speed-optimized
+    'ltx-2.3-text-to-video': ('ltx', 'ltx-2.3-text-to-video'),  # T2V
+    'ltx-2.3-image-to-video': ('ltx', 'ltx-2.3-image-to-video'),  # I2V
+    'ltx-2.3-audio-to-video': ('ltx', 'ltx-2.3-audio-to-video'),  # Audio sync
+    'ltx-2': ('ltx', 'ltx-2'),  # Previous gen
+    
+    # Pixverse (7 variants)
+    'pixverse-v6': ('pixverse', 'pixverse-v6'),  # Native audio, 20+ camera controls
+    'pixverse-v5.6': ('pixverse', 'pixverse-v5.6'),  # Multi-character (3), 4K, 15s
+    'pixverse-v5': ('pixverse', 'pixverse-v5'),  # HD, lip-sync
+    'pixverse-v4.5': ('pixverse', 'pixverse-v4.5'),  # Enhanced quality
+    'pixverse-v4': ('pixverse', 'pixverse-v4'),  # Foundation
+    'pixverse-r1': ('pixverse', 'pixverse-r1'),  # Real-time world model (infinite streaming)
+    'pixverse-v3': ('pixverse', 'pixverse-v3'),  # Legacy
+    
+    # Luma Dream Machine (4 variants)
+    'luma-ray3': ('luma', 'luma-ray3'),  # Reasoning-driven, 4K HDR, 4x faster
+    'luma-ray3.14': ('luma', 'luma-ray3.14'),  # 3x lower cost, improved
+    'luma-ray2': ('luma', 'luma-ray2'),  # Next-gen, cinematic
+    'luma-dream-machine': ('luma', 'luma-dream-machine-base'),  # Base interface
+    
+    # HappyHorse (1 variant)
+    'happyhorse-1.0': ('happyhorse', 'happyhorse-1.0'),  # 15B params, 1080p, native audio, lip-sync
+    
+    # Qwen Video (3 variants)
+    'qwen-2.5-vl-video': ('qwen', 'qwen2.5-vl-video'),  # Long video understanding (>1hr)
+    'qwen-3.5-omni-video': ('qwen', 'qwen3.5-omni-video'),  # 30min video at 1 FPS
+    'qwen-video-understanding': ('qwen', 'qwen-video-understanding'),  # Event localization
 }
 
 
