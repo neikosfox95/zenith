@@ -19,7 +19,7 @@ except ImportError:
     sys.exit(1)
 
 
-# ============= TEXT GENERATION MODELS (26 models) =============
+# ============= TEXT GENERATION MODELS (30 models) =============
 
 TEXT_MODELS = {
     # Gemini 3.x (7 variants)
@@ -53,9 +53,15 @@ TEXT_MODELS = {
     'grok-4.20': ('xai', 'grok-4.20-reasoning'),  # 4-agent system
     'grok-4.20-agents-4': ('xai', 'grok-4.20-multi-agent'),  # 4 agents explicit
     'grok-4.20-heavy': ('xai', 'grok-4.20-heavy'),  # 16-agent system
+    
+    # ByteDance Doubao 2.0 (4 variants)
+    'doubao-2.0-pro': ('bytedance', 'doubao-seed-2.0-pro'),  # Most capable, complex reasoning
+    'doubao-2.0-code': ('bytedance', 'doubao-seed-2.0-code'),  # Specialized for code
+    'doubao-2.0-lite': ('bytedance', 'doubao-seed-2.0-lite'),  # Mid-tier balanced
+    'doubao-2.0-mini': ('bytedance', 'doubao-seed-2.0-mini'),  # Lightweight efficiency
 }
 
-# ============= IMAGE GENERATION MODELS (17 models) =============
+# ============= IMAGE GENERATION MODELS (26 models) =============
 
 IMAGE_MODELS = {
     # OpenAI (3 variants)
@@ -82,6 +88,13 @@ IMAGE_MODELS = {
     'kling-multi-shot': ('kling', 'kling-multi-shot'),  # AI Multi-Shot (2-9 images)
     'kling-virtual-tryon': ('kling', 'kling-virtual-tryon'),  # Virtual Try-On
     'kling-4k': ('kling', 'kling-4k-image'),  # 4K High Definition
+    
+    # ByteDance Seedream (5 variants)
+    'seedream-3.0': ('bytedance', 'seedream-3.0'),  # Foundational image generation
+    'seedream-4.0': ('bytedance', 'seedream-4.0'),  # Efficient DiT, 2K in 1.4s
+    'seedream-4.5': ('bytedance', 'seedream-4.5'),  # 4K, text rendering, multi-image consistency
+    'seedream-5.0-lite': ('bytedance', 'seedream-5.0-lite'),  # Multimodal with deep thinking
+    'seedream-5.0': ('bytedance', 'seedream-5.0'),  # Full version with web search
 }
 
 # ============= VOICE/AUDIO MODELS (7 models) =============
@@ -96,7 +109,7 @@ VOICE_MODELS = {
     'gemini-tts': ('gemini', 'gemini-3.1-flash-tts-preview'),  # New TTS
 }
 
-# ============= VIDEO GENERATION MODELS (21 models) =============
+# ============= VIDEO GENERATION MODELS (24 models) =============
 
 VIDEO_MODELS = {
     # OpenAI
@@ -127,6 +140,11 @@ VIDEO_MODELS = {
     'kling-avatar': ('kling', 'kling-avatar'),  # Avatar generation
     'kling-video-effects': ('kling', 'kling-video-effects'),  # Video Effects (NEW)
     'kling-image-recognize': ('kling', 'kling-image-recognize'),  # Image Recognition
+    
+    # ByteDance Seedance (3 variants)
+    'seedance-1.0': ('bytedance', 'seedance-1.0'),  # Multi-shot 1080p video
+    'seedance-1.5-pro': ('bytedance', 'doubao-seedance-1-5-pro'),  # Joint audio-video, cinematic
+    'seedance-2.0': ('bytedance', 'seedance-2.0'),  # Multimodal (text/image/audio/video), 2K, 15s
 }
 
 

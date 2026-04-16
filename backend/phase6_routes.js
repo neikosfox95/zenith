@@ -197,6 +197,52 @@ export function setupPhase6Routes(app, db, io, authenticateToken, ObjectId) {
           quality: 'Ultra HD (4K)',
           cost: 'High',
           best_for: 'Ultra high definition, professional use'
+        },
+        // ByteDance Seedream Complete Suite (5 models)
+        {
+          id: 'seedream-3.0',
+          name: 'Seedream 3.0',
+          provider: 'ByteDance',
+          speed: 'Standard',
+          quality: 'Foundational',
+          cost: 'Low',
+          best_for: 'Basic image generation'
+        },
+        {
+          id: 'seedream-4.0',
+          name: 'Seedream 4.0',
+          provider: 'ByteDance',
+          speed: 'Ultra Fast (1.4s)',
+          quality: '2K',
+          cost: 'Medium',
+          best_for: 'Efficient DiT architecture, rapid 2K generation'
+        },
+        {
+          id: 'seedream-4.5',
+          name: 'Seedream 4.5',
+          provider: 'ByteDance',
+          speed: 'Standard',
+          quality: '4K',
+          cost: 'High',
+          best_for: 'Text rendering, multi-image consistency, professional composition'
+        },
+        {
+          id: 'seedream-5.0-lite',
+          name: 'Seedream 5.0 Lite',
+          provider: 'ByteDance',
+          speed: 'Fast',
+          quality: 'Multimodal',
+          cost: 'Medium',
+          best_for: 'Deep thinking, multimodal generation'
+        },
+        {
+          id: 'seedream-5.0',
+          name: 'Seedream 5.0',
+          provider: 'ByteDance',
+          speed: 'Standard',
+          quality: 'Advanced',
+          cost: 'Premium',
+          best_for: 'Real-time web search integration, contextually accurate current events'
         }
       ],
       default: 'nano-banana-2',
@@ -530,6 +576,34 @@ export function setupPhase6Routes(app, db, io, authenticateToken, ObjectId) {
           resolutions: ['N/A'],
           features: ['Image analysis', 'Scene understanding', 'Metadata extraction'],
           best_for: 'Image recognition and analysis'
+        },
+        // ByteDance Seedance Complete Suite (3 models)
+        {
+          id: 'seedance-1.0',
+          name: 'Seedance 1.0',
+          provider: 'ByteDance',
+          max_duration: '15s',
+          resolutions: ['1080p'],
+          features: ['Multi-shot generation', 'Text & image input', 'Cinematic aesthetics'],
+          best_for: 'Multi-shot video storytelling'
+        },
+        {
+          id: 'seedance-1.5-pro',
+          name: 'Seedance 1.5 Pro',
+          provider: 'ByteDance',
+          max_duration: '15s',
+          resolutions: ['1080p'],
+          features: ['Native audio-video', 'Lip-sync', 'Emotion alignment', 'Film-grade cinematography'],
+          best_for: 'Professional filmmaking with synchronized audio'
+        },
+        {
+          id: 'seedance-2.0',
+          name: 'Seedance 2.0',
+          provider: 'ByteDance',
+          max_duration: '15s',
+          resolutions: ['2K'],
+          features: ['Multimodal (text/image/audio/video)', '12 file inputs', 'Dual-channel audio', 'Video editing', 'Character replacement'],
+          best_for: 'Advanced multimodal video generation with complex inputs'
         }
       ],
       default: 'veo-3.1-fast',
