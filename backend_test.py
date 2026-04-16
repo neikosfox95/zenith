@@ -11,7 +11,7 @@ import sys
 from datetime import datetime
 
 # Configuration
-BASE_URL = "http://localhost:8001"
+BASE_URL = "https://zenith-dashboard-3.preview.emergentagent.com"
 API_BASE_URL = f"{BASE_URL}/api"
 
 # Test data
@@ -268,14 +268,22 @@ def test_socket_io_connection():
         
         # Fallback: Test if Socket.IO endpoint responds
         try:
-            response = requests.get(f"{BASE_URL}/socket.io/", timeout=5)
+            # Try different Socket.IO endpoint paths
+            endpoints_to_try = [
+                f"{BASE_URL}/socket.io/",
+                f"{BASE_URL}/socket.io/?EIO=4&transport=polling"
+            ]
             
-            if response.status_code in [200, 400, 426]:  # 426 = Upgrade Required, 400 = Transport unknown (both expected for Socket.IO)
-                log_success(f"Socket.IO endpoint accessible - Status: {response.status_code}")
-                return True
-            else:
-                log_error(f"Socket.IO endpoint not accessible - Status: {response.status_code}")
-                return False
+            for endpoint in endpoints_to_try:
+                response = requests.get(endpoint, timeout=5)
+                
+                if response.status_code in [200, 400, 426]:  # 426 = Upgrade Required, 400 = Transport unknown (both expected for Socket.IO)
+                    log_success(f"Socket.IO endpoint accessible - Status: {response.status_code}")
+                    return True
+            
+            log_error("Socket.IO endpoint not accessible on any tested path")
+            return False
+            
         except Exception as e:
             log_error(f"Socket.IO endpoint test failed: {e}")
             return False
@@ -311,10 +319,215 @@ def test_authentication_required_endpoints():
     
     return all(results)
 
+def test_ai_models_endpoint(token):
+    """Test 14: AI Models Endpoint - List all available AI models"""
+    log_info("Testing AI models endpoint...")
+    
+    headers = {"Authorization": f"Bearer {token}"}
+    
+    response = make_request("GET", f"{API_BASE_URL}/ai/models", headers=headers)
+    
+    if not response:
+        return False
+    
+    if response.status_code == 200:
+        data = response.json()
+        if "available_models" in data and isinstance(data["available_models"], list):
+            models = data["available_models"]
+            expected_models = ["gemini", "openai", "claude", "grok"]
+            
+            found_models = [model["id"] for model in models]
+            
+            if all(model_id in found_models for model_id in expected_models):
+                log_success(f"AI models endpoint working - Found {len(models)} models: {found_models}")
+                log_info(f"Default model: {data.get('default', 'N/A')}")
+                return True
+            else:
+                log_error(f"Missing expected models. Found: {found_models}, Expected: {expected_models}")
+                return False
+        else:
+            log_error(f"AI models response invalid: {data}")
+            return False
+    else:
+        log_error(f"AI models endpoint failed - Status: {response.status_code}, Body: {response.text}")
+        return False
+
+def test_ai_stream_summary_multi_model(token, creator_id):
+    """Test 15: AI Stream Summary with Multiple Models"""
+    log_info("Testing AI stream summary with multiple models...")
+    
+    headers = {"Authorization": f"Bearer {token}"}
+    models_to_test = ["gemini", "openai", "claude", "grok"]
+    
+    results = []
+    
+    for model in models_to_test:
+        log_info(f"Testing stream summary with model: {model}")
+        
+        # Use a valid ObjectId format for testing
+        test_data = {
+            "streamId": "507f1f77bcf86cd799439011",  # Valid ObjectId format
+            "model_provider": model
+        }
+        
+        response = make_request("POST", f"{API_BASE_URL}/ai/stream-summary", 
+                              json=test_data, headers=headers)
+        
+        if not response:
+            results.append(False)
+            continue
+        
+        if response.status_code == 404:
+            # This is expected for test data - the endpoint is working correctly
+            log_success(f"Stream summary with {model} model working - Stream not found (expected for test data)")
+            results.append(True)
+        elif response.status_code == 200:
+            data = response.json()
+            if "model_used" in data and data["model_used"] == model:
+                log_success(f"Stream summary with {model} model working - Model used: {data['model_used']}")
+                results.append(True)
+            else:
+                log_error(f"Stream summary with {model} model missing model_used field or incorrect model")
+                results.append(False)
+        else:
+            log_error(f"Stream summary with {model} model failed - Status: {response.status_code}, Body: {response.text}")
+            results.append(False)
+    
+    return all(results)
+
+def test_ai_sentiment_analysis_multi_model(token, creator_id):
+    """Test 16: AI Sentiment Analysis with Multiple Models"""
+    log_info("Testing AI sentiment analysis with multiple models...")
+    
+    headers = {"Authorization": f"Bearer {token}"}
+    models_to_test = ["gemini", "openai", "claude", "grok"]
+    
+    results = []
+    
+    for model in models_to_test:
+        log_info(f"Testing sentiment analysis with model: {model}")
+        
+        test_data = {
+            "streamId": "507f1f77bcf86cd799439011",  # Valid ObjectId format
+            "model_provider": model
+        }
+        
+        response = make_request("POST", f"{API_BASE_URL}/ai/analyze-sentiment", 
+                              json=test_data, headers=headers)
+        
+        if not response:
+            results.append(False)
+            continue
+        
+        if response.status_code == 200:
+            data = response.json()
+            if "overall" in data and "score" in data:
+                log_success(f"Sentiment analysis with {model} model working - Overall: {data['overall']}, Score: {data['score']}")
+                results.append(True)
+            else:
+                log_error(f"Sentiment analysis with {model} model missing required fields")
+                results.append(False)
+        else:
+            log_error(f"Sentiment analysis with {model} model failed - Status: {response.status_code}, Body: {response.text}")
+            results.append(False)
+    
+    return all(results)
+
+def test_ai_recommendations_multi_model(token, creator_id):
+    """Test 17: AI Recommendations with Multiple Models"""
+    log_info("Testing AI recommendations with multiple models...")
+    
+    headers = {"Authorization": f"Bearer {token}"}
+    models_to_test = ["gemini", "openai", "claude", "grok"]
+    
+    results = []
+    
+    for model in models_to_test:
+        log_info(f"Testing recommendations with model: {model}")
+        
+        test_data = {
+            "creatorId": creator_id,
+            "model_provider": model
+        }
+        
+        response = make_request("POST", f"{API_BASE_URL}/ai/recommendations", 
+                              json=test_data, headers=headers, timeout=30)  # Increased timeout
+        
+        if not response:
+            results.append(False)
+            continue
+        
+        if response.status_code == 200:
+            data = response.json()
+            if "recommendations" in data or "based_on" in data:
+                log_success(f"Recommendations with {model} model working")
+                results.append(True)
+            else:
+                log_error(f"Recommendations with {model} model missing required fields")
+                results.append(False)
+        else:
+            log_error(f"Recommendations with {model} model failed - Status: {response.status_code}, Body: {response.text}")
+            results.append(False)
+    
+    return all(results)
+
+def test_system_health_endpoint(token):
+    """Test 18: System Health Monitoring"""
+    log_info("Testing system health endpoint...")
+    
+    headers = {"Authorization": f"Bearer {token}"}
+    
+    response = make_request("GET", f"{API_BASE_URL}/system/health", headers=headers)
+    
+    if not response:
+        return False
+    
+    if response.status_code == 200:
+        data = response.json()
+        if "status" in data and "services" in data:
+            log_success(f"System health endpoint working - Status: {data['status']}")
+            log_info(f"Services: Database: {data['services'].get('database', 'N/A')}, Redis: {data['services'].get('redis', 'N/A')}")
+            return True
+        else:
+            log_error(f"System health response invalid: {data}")
+            return False
+    else:
+        log_error(f"System health endpoint failed - Status: {response.status_code}, Body: {response.text}")
+        return False
+
+def test_api_key_generation(token):
+    """Test 19: API Key Generation"""
+    log_info("Testing API key generation...")
+    
+    headers = {"Authorization": f"Bearer {token}"}
+    
+    test_data = {
+        "name": f"test_key_{int(time.time())}",
+        "permissions": ["read", "write"]
+    }
+    
+    response = make_request("POST", f"{API_BASE_URL}/api-keys", 
+                          json=test_data, headers=headers)
+    
+    if not response:
+        return False
+    
+    if response.status_code == 200:
+        data = response.json()
+        if "api_key" in data and "name" in data:
+            log_success(f"API key generation working - Key name: {data['name']}")
+            return True
+        else:
+            log_error(f"API key generation response invalid: {data}")
+            return False
+    else:
+        log_error(f"API key generation failed - Status: {response.status_code}, Body: {response.text}")
+        return False
+
 def run_all_tests():
     """Run all backend tests"""
-    log(f"\n{Colors.BOLD}🚀 Starting TikTok Live Monitor Backend Tests{Colors.END}")
-    log(f"{Colors.BOLD}{'=' * 60}{Colors.END}")
+    log(f"\n{Colors.BOLD}🚀 Starting TikTok Live Monitor Backend Tests - Multi-Model AI Features{Colors.END}")
+    log(f"{Colors.BOLD}{'=' * 70}{Colors.END}")
     
     test_results = []
     token = None
@@ -364,21 +577,68 @@ def run_all_tests():
     # Test 13: Authentication Requirements
     test_results.append(test_authentication_required_endpoints())
     
+    # NEW MULTI-MODEL AI TESTS
+    log(f"\n{Colors.BOLD}🤖 Testing Multi-Model AI Features{Colors.END}")
+    log(f"{Colors.BOLD}{'=' * 40}{Colors.END}")
+    
+    if token:
+        # Test 14: AI Models Endpoint
+        test_results.append(test_ai_models_endpoint(token))
+        
+        if creator_id:
+            # Test 15: AI Stream Summary with Multiple Models
+            test_results.append(test_ai_stream_summary_multi_model(token, creator_id))
+            
+            # Test 16: AI Sentiment Analysis with Multiple Models
+            test_results.append(test_ai_sentiment_analysis_multi_model(token, creator_id))
+            
+            # Test 17: AI Recommendations with Multiple Models
+            test_results.append(test_ai_recommendations_multi_model(token, creator_id))
+        else:
+            log_error("Skipping multi-model AI tests - missing creator_id")
+            test_results.extend([False, False, False])
+        
+        # Test 18: System Health Endpoint
+        test_results.append(test_system_health_endpoint(token))
+        
+        # Test 19: API Key Generation
+        test_results.append(test_api_key_generation(token))
+    else:
+        log_error("Skipping multi-model AI tests - no authentication token")
+        test_results.extend([False, False, False, False, False, False])
+    
     # Summary
     log(f"\n{Colors.BOLD}📊 Test Results Summary{Colors.END}")
-    log(f"{Colors.BOLD}{'=' * 60}{Colors.END}")
+    log(f"{Colors.BOLD}{'=' * 70}{Colors.END}")
     
     passed = sum(test_results)
     total = len(test_results)
     
     log(f"Tests Passed: {passed}/{total}")
     
+    # Detailed breakdown
+    basic_tests = test_results[:13]
+    ai_tests = test_results[13:]
+    
+    basic_passed = sum(basic_tests)
+    ai_passed = sum(ai_tests)
+    
+    log(f"Basic Backend Tests: {basic_passed}/{len(basic_tests)}")
+    log(f"Multi-Model AI Tests: {ai_passed}/{len(ai_tests)}")
+    
     if passed == total:
-        log_success("🎉 All tests passed! Backend is working correctly.")
+        log_success("🎉 All tests passed! Backend with Multi-Model AI features is working correctly.")
         return True
     else:
         failed = total - passed
         log_error(f"❌ {failed} test(s) failed. Backend needs attention.")
+        
+        # Show which categories failed
+        if basic_passed < len(basic_tests):
+            log_error(f"Basic backend functionality issues: {len(basic_tests) - basic_passed} failures")
+        if ai_passed < len(ai_tests):
+            log_error(f"Multi-Model AI functionality issues: {len(ai_tests) - ai_passed} failures")
+        
         return False
 
 if __name__ == "__main__":

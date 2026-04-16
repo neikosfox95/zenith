@@ -484,10 +484,29 @@ app.get('/api/ai/insights/:creatorId', authenticateToken, async (req, res) => {
 
 // ============= GEMINI-POWERED AI FEATURES =============
 
-// Generate AI-powered stream summary using Gemini
+// Get available AI models
+app.get('/api/ai/models', authenticateToken, (req, res) => {
+  res.json({
+    available_models: [
+      { id: 'gemini', name: 'Gemini 3 Flash', provider: 'Google', best_for: 'Speed & Efficiency', cost: 'Low' },
+      { id: 'openai', name: 'GPT-5.2', provider: 'OpenAI', best_for: 'Reasoning & Creativity', cost: 'Medium' },
+      { id: 'claude', name: 'Claude Opus 4.5', provider: 'Anthropic', best_for: 'Analysis & Context', cost: 'High' },
+      { id: 'grok', name: 'Grok 4.20', provider: 'xAI', best_for: 'Real-time & Web Search', cost: 'Medium' }
+    ],
+    default: 'gemini',
+    recommendations: {
+      stream_summary: 'gemini',
+      sentiment_analysis: 'claude',
+      content_recommendations: 'openai',
+      general: 'grok'
+    }
+  });
+});
+
+// Generate AI-powered stream summary using selected model
 app.post('/api/ai/stream-summary', authenticateToken, async (req, res) => {
   try {
-    const { streamId } = req.body;
+    const { streamId, model_provider = 'gemini' } = req.body;
     
     const stream = await db.collection('live_streams').findOne({ _id: new ObjectId(streamId) });
     if (!stream) {
@@ -509,7 +528,8 @@ app.post('/api/ai/stream-summary', authenticateToken, async (req, res) => {
       peak_viewers: stream.peak_viewers || 0,
       total_gifts: giftCount,
       total_revenue: stream.total_gifts_value || 0,
-      total_chats: chatCount
+      total_chats: chatCount,
+      model_provider
     };
     
     // Call Python AI service for Gemini-powered summary
@@ -518,7 +538,8 @@ app.post('/api/ai/stream-summary', authenticateToken, async (req, res) => {
     res.json({ 
       summary: result.summary || result.result,
       metrics: streamData,
-      generated_by: 'Gemini 3 Flash'
+      model_used: model_provider,
+      generated_by: `AI Model: ${model_provider}`
     });
   } catch (error) {
     console.error('AI Summary error:', error);

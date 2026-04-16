@@ -20,13 +20,27 @@ except ImportError:
 
 
 async def generate_stream_summary(stream_data):
-    """Generate AI summary of a live stream using Gemini"""
+    """Generate AI summary of a live stream - supports multiple models"""
     try:
+        # Get model preference or default to Gemini
+        model_provider = stream_data.get('model_provider', 'gemini')
+        model_name = stream_data.get('model_name', 'gemini-3-flash-preview')
+        
+        # Model mapping for different providers
+        model_configs = {
+            'gemini': ('gemini', 'gemini-3-flash-preview'),
+            'openai': ('openai', 'gpt-5.2'),
+            'claude': ('anthropic', 'claude-opus-4-5-20251101'),
+            'grok': ('xai', 'grok-4.20-reasoning')
+        }
+        
+        provider, model = model_configs.get(model_provider, ('gemini', 'gemini-3-flash-preview'))
+        
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=f"stream-summary-{stream_data.get('stream_id', 'unknown')}",
             system_message="You are an expert analyst for TikTok live streams. Provide concise, insightful summaries in 2-3 sentences."
-        ).with_model("gemini", "gemini-3-flash-preview")
+        ).with_model(provider, model)
         
         prompt = f"""Analyze this TikTok live stream and provide a brief summary:
 
@@ -46,17 +60,26 @@ Provide 2-3 sentences highlighting key metrics and performance."""
 
 
 async def analyze_sentiment(data):
-    """Analyze sentiment of chat messages using Gemini"""
+    """Analyze sentiment of chat messages - supports multiple models"""
     messages = data.get('messages', [])
     if not messages:
         return {"overall": "neutral", "score": 0, "analysis": "No messages"}
     
     try:
+        model_provider = data.get('model_provider', 'claude')  # Claude excels at sentiment
+        model_configs = {
+            'gemini': ('gemini', 'gemini-3-flash-preview'),
+            'openai': ('openai', 'gpt-5.2'),
+            'claude': ('anthropic', 'claude-opus-4-5-20251101'),
+            'grok': ('xai', 'grok-4.20-reasoning')
+        }
+        provider, model = model_configs.get(model_provider, ('anthropic', 'claude-opus-4-5-20251101'))
+        
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id="sentiment-analysis",
             system_message="Analyze sentiment and respond with ONLY valid JSON."
-        ).with_model("gemini", "gemini-3-flash-preview")
+        ).with_model(provider, model)
         
         sample = messages[:30]
         messages_text = "\n".join([f"- {msg}" for msg in sample])
@@ -78,13 +101,22 @@ Respond ONLY with JSON (no markdown):
 
 
 async def generate_content_recommendations(creator_data):
-    """Generate content recommendations using Gemini"""
+    """Generate content recommendations - supports multiple models"""
     try:
+        model_provider = creator_data.get('model_provider', 'openai')  # GPT-5.2 excels at creative content
+        model_configs = {
+            'gemini': ('gemini', 'gemini-3-flash-preview'),
+            'openai': ('openai', 'gpt-5.2'),
+            'claude': ('anthropic', 'claude-opus-4-5-20251101'),
+            'grok': ('xai', 'grok-4.20-reasoning')
+        }
+        provider, model = model_configs.get(model_provider, ('openai', 'gpt-5.2'))
+        
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
             session_id=f"recommendations-{creator_data.get('creator_id', 'unknown')}",
             system_message="You are a TikTok growth strategist. Provide 3 specific, actionable content ideas."
-        ).with_model("gemini", "gemini-3-flash-preview")
+        ).with_model(provider, model)
         
         prompt = f"""Based on this creator's data, suggest 3 specific content ideas:
 
