@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
+import { TikTokColors } from '../../src/constants/tiktokTheme';
 
 export default function TabsLayout() {
   const { theme } = useTheme();
@@ -9,12 +10,20 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: theme.primary,
-        tabBarInactiveTintColor: theme.textSecondary,
+        tabBarActiveTintColor: TikTokColors.pink,
+        tabBarInactiveTintColor: TikTokColors.textSecondary,
         tabBarStyle: {
-          backgroundColor: theme.surface,
-          borderTopColor: theme.border,
+          backgroundColor: TikTokColors.background,
+          borderTopColor: TikTokColors.border,
+          borderTopWidth: 1,
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8
         },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          fontWeight: '600'
+        }
       }}
     >
       <Tabs.Screen
@@ -59,6 +68,15 @@ export default function TabsLayout() {
           title: 'AI Studio',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="sparkles" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="code"
+        options={{
+          title: 'Code AI',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="code-slash" size={size} color={color} />
           ),
         }}
       />

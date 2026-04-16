@@ -59,6 +59,91 @@ TEXT_MODELS = {
     'doubao-2.0-code': ('bytedance', 'doubao-seed-2.0-code'),  # Specialized for code
     'doubao-2.0-lite': ('bytedance', 'doubao-seed-2.0-lite'),  # Mid-tier balanced
     'doubao-2.0-mini': ('bytedance', 'doubao-seed-2.0-mini'),  # Lightweight efficiency
+    
+    # Qwen Text Models (6 variants)
+    'qwen-2.5-turbo': ('qwen', 'qwen-2.5-turbo'),  # Fast, efficient
+    'qwen-2.5-plus': ('qwen', 'qwen-2.5-plus'),  # Enhanced capabilities
+    'qwen-2.5-max': ('qwen', 'qwen-2.5-max'),  # Maximum performance
+    'qwen-3.5-omni': ('qwen', 'qwen-3.5-omni'),  # Multimodal flagship
+    'qwen-3.5-turbo': ('qwen', 'qwen-3.5-turbo'),  # Fast multimodal
+    'qwen-3.5-coder': ('qwen', 'qwen-3.5-coder'),  # Code specialist
+    
+    # Meta Llama 3.x (8 variants)
+    'llama-3.1-8b': ('meta', 'llama-3.1-8b-instruct'),  # Lightweight
+    'llama-3.1-70b': ('meta', 'llama-3.1-70b-instruct'),  # Flagship
+    'llama-3.1-405b': ('meta', 'llama-3.1-405b-instruct'),  # Most capable open model
+    'llama-3.2-1b': ('meta', 'llama-3.2-1b-instruct'),  # Tiny, on-device
+    'llama-3.2-3b': ('meta', 'llama-3.2-3b-instruct'),  # Small, efficient
+    'llama-3.2-11b-vision': ('meta', 'llama-3.2-11b-vision-instruct'),  # Multimodal
+    'llama-3.2-90b-vision': ('meta', 'llama-3.2-90b-vision-instruct'),  # Advanced multimodal
+    'llama-3.3-70b': ('meta', 'llama-3.3-70b-instruct'),  # Latest flagship
+    
+    # Mistral (6 variants)
+    'mistral-small': ('mistral', 'mistral-small-latest'),  # Lightweight, cost-effective
+    'mistral-medium': ('mistral', 'mistral-medium-latest'),  # Balanced
+    'mistral-large': ('mistral', 'mistral-large-latest'),  # Flagship, 128k context
+    'mistral-large-2': ('mistral', 'mistral-large-2'),  # Enhanced flagship
+    'mixtral-8x7b': ('mistral', 'mixtral-8x7b-instruct'),  # MoE architecture
+    'mixtral-8x22b': ('mistral', 'mixtral-8x22b-instruct'),  # Large MoE
+    
+    # Cohere (4 variants)
+    'command-r': ('cohere', 'command-r'),  # General purpose
+    'command-r-plus': ('cohere', 'command-r-plus'),  # Enhanced retrieval
+    'command-r-08-2024': ('cohere', 'command-r-08-2024'),  # Latest stable
+    'command-light': ('cohere', 'command-light'),  # Fast, efficient
+}
+
+# ============= CODING-SPECIFIC MODELS (25+ models) =============
+
+CODING_MODELS = {
+    # OpenAI Codex (5 variants)
+    'codex-gpt-5.2': ('openai', 'gpt-5.2-code'),  # Flagship code model
+    'codex-gpt-4o': ('openai', 'gpt-4o-code'),  # Multimodal code
+    'codex-gpt-4-turbo': ('openai', 'gpt-4-turbo-code'),  # Fast coding
+    'codex-o3': ('openai', 'o3-code'),  # Reasoning for code
+    'codex-o3-mini': ('openai', 'o3-mini-code'),  # Efficient reasoning
+    
+    # Claude Code (4 variants)
+    'claude-4.6-opus-code': ('anthropic', 'claude-opus-4-6-code'),  # Most intelligent for code
+    'claude-4.6-sonnet-code': ('anthropic', 'claude-sonnet-4-6-code'),  # Balanced coding
+    'claude-4.5-sonnet-code': ('anthropic', 'claude-sonnet-4-5-code'),  # Previous gen
+    'claude-code-specialist': ('anthropic', 'claude-code-specialist'),  # Pure coding
+    
+    # DeepSeek Coder (5 variants)
+    'deepseek-coder-v3': ('deepseek', 'deepseek-coder-v3-671b'),  # 671B parameters, MoE
+    'deepseek-coder-v2': ('deepseek', 'deepseek-coder-v2-236b'),  # 236B parameters
+    'deepseek-coder-v2-lite': ('deepseek', 'deepseek-coder-v2-16b'),  # Lightweight
+    'deepseek-coder-instruct': ('deepseek', 'deepseek-coder-instruct'),  # Instruction-tuned
+    'deepseek-coder-base': ('deepseek', 'deepseek-coder-base'),  # Base model
+    
+    # StarCoder (4 variants)
+    'starcoder2-15b': ('huggingface', 'starcoder2-15b'),  # Latest gen
+    'starcoder2-7b': ('huggingface', 'starcoder2-7b'),  # Efficient
+    'starcoder2-3b': ('huggingface', 'starcoder2-3b'),  # Lightweight
+    'starcoder-base': ('huggingface', 'starcoder-base'),  # Original
+    
+    # Code Llama (4 variants)
+    'codellama-70b': ('meta', 'codellama-70b-instruct'),  # Flagship
+    'codellama-34b': ('meta', 'codellama-34b-instruct'),  # Balanced
+    'codellama-13b': ('meta', 'codellama-13b-instruct'),  # Efficient
+    'codellama-7b': ('meta', 'codellama-7b-instruct'),  # Lightweight
+    
+    # Microsoft Copilot Code (3 variants)
+    'copilot-gpt-4o': ('microsoft', 'github-copilot-gpt-4o'),  # Enterprise
+    'copilot-claude': ('microsoft', 'github-copilot-claude'),  # Claude integration
+    'copilot-preview': ('microsoft', 'github-copilot-preview'),  # Latest features
+    
+    # Replit AI (2 variants)
+    'replit-code-v1.5': ('replit', 'replit-code-v1.5-3b'),  # Latest
+    'replit-ghostwriter': ('replit', 'replit-ghostwriter'),  # Classic
+    
+    # Qwen Coder (2 variants)
+    'qwen-coder-3.5': ('qwen', 'qwen-3.5-coder-32b'),  # Flagship coder
+    'qwen-coder-turbo': ('qwen', 'qwen-coder-turbo'),  # Fast coding
+    
+    # Gemini Code (2 variants)
+    'gemini-3-code': ('gemini', 'gemini-3-pro-code'),  # Gemini for code
+    'gemini-code-flash': ('gemini', 'gemini-3-flash-code'),  # Fast coding
 }
 
 # ============= IMAGE GENERATION MODELS (48 models) =============
@@ -387,6 +472,50 @@ async def generate_video(data: Dict[str, Any]) -> Dict[str, Any]:
         return {"error": str(e)}
 
 
+async def generate_code(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Generate code using coding-specific models"""
+    try:
+        prompt = data.get('prompt', '')
+        model_id = data.get('model', 'codex-gpt-5.2')
+        language = data.get('language', 'python')
+        task = data.get('task', 'generate')  # generate, fix, explain, optimize
+        
+        if model_id not in CODING_MODELS:
+            return {"error": f"Unknown coding model: {model_id}"}
+        
+        provider, model_name = CODING_MODELS[model_id]
+        
+        # Create system message based on task
+        system_messages = {
+            'generate': f"You are an expert {language} programmer. Generate clean, efficient, well-documented code.",
+            'fix': f"You are an expert {language} debugger. Fix bugs and explain the issue.",
+            'explain': f"You are an expert {language} code reviewer. Explain code clearly and concisely.",
+            'optimize': f"You are an expert {language} performance engineer. Optimize code for efficiency."
+        }
+        
+        system_message = system_messages.get(task, system_messages['generate'])
+        
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"code-gen-{model_id}",
+            system_message=system_message
+        ).with_model(provider, model_name)
+        
+        message = UserMessage(text=prompt)
+        response = await chat.send_message(message)
+        
+        return {
+            "code": response.strip(),
+            "model": model_id,
+            "provider": provider,
+            "language": language,
+            "task": task,
+            "model_name": model_name
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 def get_model_capabilities(model_id: str, category: str) -> Dict[str, Any]:
     """Get capabilities for specific model"""
     capabilities = {
@@ -538,6 +667,8 @@ async def main():
             result = await clone_voice(data)
         elif method == 'generate_video':
             result = await generate_video(data)
+        elif method == 'generate_code':
+            result = await generate_code(data)
         else:
             result = {"error": f"Unknown method: {method}"}
         
