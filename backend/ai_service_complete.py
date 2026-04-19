@@ -50,11 +50,15 @@ TEXT_MODELS = {
     'claude-4.5-haiku': ('anthropic', 'claude-haiku-4-5'),  # Fastest, near-frontier
     'claude-mythos': ('anthropic', 'claude-mythos-preview'),  # Preview
     
-    # Grok (4 variants + agents)
+    # Grok (8 variants + agents) - EXPANDED
     'grok-4.3': ('xai', 'grok-4.3-multimodal'),  # NEW: Multimodal flagship (text, vision, audio)
+    'grok-4.3-vision': ('xai', 'grok-4.3-vision'),  # Vision specialist
+    'grok-4.3-code': ('xai', 'grok-4.3-code'),  # Coding specialist
+    'grok-4.3-turbo': ('xai', 'grok-4.3-turbo'),  # Faster variant
     'grok-4.20': ('xai', 'grok-4.20-reasoning'),  # 4-agent system
     'grok-4.20-agents-4': ('xai', 'grok-4.20-multi-agent'),  # 4 agents explicit
     'grok-4.20-heavy': ('xai', 'grok-4.20-heavy'),  # 16-agent system
+    'grok-4.20-ultra': ('xai', 'grok-4.20-ultra'),  # Maximum capability
     
     # ByteDance Doubao 2.0 (4 variants)
     'doubao-2.0-pro': ('bytedance', 'doubao-seed-2.0-pro'),  # Most capable, complex reasoning
@@ -123,6 +127,78 @@ TEXT_MODELS = {
     'deepseek-r1-distill-llama-70b': ('deepseek', 'deepseek-r1-distill-llama-70b'),  # Distilled to Llama 70B
     'deepseek-r1-distill-llama-8b': ('deepseek', 'deepseek-r1-distill-llama-8b'),  # Distilled to Llama 8B
     'deepseek-r1-zero': ('deepseek', 'deepseek-r1-zero'),  # R1-Zero pure RL variant
+    
+    # NEW 2025 MODELS - OpenAI GPT-5 Series (8 variants)
+    'gpt-5.2': ('openai', 'gpt-5.2'),  # Flagship, 2T parameters
+    'gpt-5.2-turbo': ('openai', 'gpt-5.2-turbo'),  # Faster variant
+    'gpt-5.2-preview': ('openai', 'gpt-5.2-preview'),  # Preview access
+    'gpt-5.1': ('openai', 'gpt-5.1'),  # Previous generation
+    'gpt-5-mini': ('openai', 'gpt-5-mini'),  # Lightweight
+    'gpt-5-nano': ('openai', 'gpt-5-nano'),  # On-device
+    'o4': ('openai', 'o4'),  # Reasoning model
+    'o4-mini': ('openai', 'o4-mini'),  # Efficient reasoning
+    
+    # NEW 2025 - Alibaba Qwen 4 Series (6 variants)
+    'qwen-4-max': ('qwen', 'qwen-4-max'),  # Flagship 2025
+    'qwen-4-turbo': ('qwen', 'qwen-4-turbo'),  # Fast variant
+    'qwen-4-plus': ('qwen', 'qwen-4-plus'),  # Enhanced
+    'qwen-4-omni': ('qwen', 'qwen-4-omni'),  # Multimodal
+    'qwen-4-coder': ('qwen', 'qwen-4-coder'),  # Code specialist
+    'qwen-4-math': ('qwen', 'qwen-4-math'),  # Math specialist
+    
+    # NEW 2025 - Google PaLM 3 Series (5 variants)
+    'palm-3-ultra': ('google', 'palm-3-ultra'),  # Flagship
+    'palm-3-pro': ('google', 'palm-3-pro'),  # Balanced
+    'palm-3-lite': ('google', 'palm-3-lite'),  # Lightweight
+    'palm-3-instruct': ('google', 'palm-3-instruct'),  # Instruction-tuned
+    'palm-3-chat': ('google', 'palm-3-chat'),  # Conversational
+    
+    # NEW 2025 - Meta Llama 4 Series (7 variants)
+    'llama-4-8b': ('meta', 'llama-4-8b-instruct'),  # Small
+    'llama-4-70b': ('meta', 'llama-4-70b-instruct'),  # Medium
+    'llama-4-405b': ('meta', 'llama-4-405b-instruct'),  # Large
+    'llama-4-1t': ('meta', 'llama-4-1t-instruct'),  # Massive 1 trillion
+    'llama-4-vision': ('meta', 'llama-4-vision-instruct'),  # Multimodal
+    'llama-4-code': ('meta', 'llama-4-code-instruct'),  # Code
+    'llama-4-guard': ('meta', 'llama-4-guard'),  # Safety model
+    
+    # NEW 2025 - Anthropic Claude 5 Series (6 variants)
+    'claude-5-opus': ('anthropic', 'claude-opus-5'),  # Next gen flagship
+    'claude-5-sonnet': ('anthropic', 'claude-sonnet-5'),  # Balanced
+    'claude-5-haiku': ('anthropic', 'claude-haiku-5'),  # Fast
+    'claude-5-extended': ('anthropic', 'claude-5-extended'),  # 2M context
+    'claude-5-math': ('anthropic', 'claude-5-math'),  # Math reasoning
+    'claude-5-code': ('anthropic', 'claude-5-code'),  # Coding specialist
+    
+    # NEW 2025 - Mistral 3 Series (5 variants)
+    'mistral-3-large': ('mistral', 'mistral-3-large'),  # Next gen
+    'mistral-3-medium': ('mistral', 'mistral-3-medium'),  # Balanced
+    'mistral-3-small': ('mistral', 'mistral-3-small'),  # Efficient
+    'mixtral-16x22b': ('mistral', 'mixtral-16x22b'),  # Large MoE
+    'mistral-3-instruct': ('mistral', 'mistral-3-instruct'),  # Instruction
+    
+    # NEW 2025 - Cohere Command 3 (4 variants)
+    'command-3': ('cohere', 'command-3'),  # Latest flagship
+    'command-3-light': ('cohere', 'command-3-light'),  # Lightweight
+    'command-3-nightly': ('cohere', 'command-3-nightly'),  # Experimental
+    'command-3-embed': ('cohere', 'command-3-embed'),  # Embeddings
+    
+    # NEW 2025 - Inflection Pi 3 (3 variants)
+    'pi-3': ('inflection', 'pi-3'),  # Personal intelligence
+    'pi-3-pro': ('inflection', 'pi-3-pro'),  # Enhanced
+    'pi-3-lite': ('inflection', 'pi-3-lite'),  # Lightweight
+    
+    # NEW 2025 - Stability AI LM 2 (4 variants)
+    'stablelm-2-12b': ('stability', 'stablelm-2-12b'),  # Open source
+    'stablelm-2-24b': ('stability', 'stablelm-2-24b'),  # Medium
+    'stablelm-2-48b': ('stability', 'stablelm-2-48b'),  # Large
+    'stablelm-2-code': ('stability', 'stablelm-2-code'),  # Coding
+    
+    # NEW 2025 - Baichuan 3 Series (4 variants)
+    'baichuan-3-13b': ('baichuan', 'baichuan-3-13b'),  # Chinese-English
+    'baichuan-3-53b': ('baichuan', 'baichuan-3-53b'),  # Large
+    'baichuan-3-turbo': ('baichuan', 'baichuan-3-turbo'),  # Fast
+    'baichuan-3-chat': ('baichuan', 'baichuan-3-chat'),  # Chat optimized
 }
 
 # ============= CODING-SPECIFIC MODELS (25+ models) =============
