@@ -339,7 +339,7 @@ export function setupPhase8Routes(app, db, io, authenticateToken, ObjectId) {
 
       const voiceProfile = {
         _id: new ObjectId(),
-        user_id: req.user.userId,
+        user_id: req.userId,
         name,
         reference_audio_urls,
         description,
@@ -369,7 +369,7 @@ export function setupPhase8Routes(app, db, io, authenticateToken, ObjectId) {
   app.get('/api/voice/profiles', authenticateToken, async (req, res) => {
     try {
       const profiles = await db.collection('voice_profiles')
-        .find({ user_id: req.user.userId })
+        .find({ user_id: req.userId })
         .sort({ created_at: -1 })
         .toArray();
 
@@ -399,7 +399,7 @@ export function setupPhase8Routes(app, db, io, authenticateToken, ObjectId) {
       
       const result = await db.collection('voice_profiles').deleteOne({
         _id: new ObjectId(voiceId),
-        user_id: req.user.userId
+        user_id: req.userId
       });
 
       if (result.deletedCount === 0) {
