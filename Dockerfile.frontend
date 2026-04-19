@@ -1,0 +1,15 @@
+# Dockerfile for Frontend
+FROM node:20-alpine
+
+WORKDIR /app/frontend
+
+# Copy frontend files
+COPY frontend/package*.json ./
+RUN npm install
+
+COPY frontend/ ./
+
+# Expose port
+EXPOSE 3000
+
+CMD ["npm", "start"]

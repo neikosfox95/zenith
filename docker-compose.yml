@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7
+    container_name: tiktok-mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: tiktok_monitor
+
+  # Redis (for job queue)
+  redis:
+    image: redis:7-alpine
+    container_name: tiktok-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  # MinIO (S3-compatible storage)
+  minio:
+    image: minio/minio
+    container_name: tiktok-minio
+    restart: always
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: tiktok-backend
+    restart: always
+    ports:
+      - "8001:8001"
+    depends_on:
+      - mongodb
+      - redis
+      - minio
+    environment:
+      - NODE_ENV=production
+      - MONGO_URL=mongodb://mongodb:27017
+      - DB_NAME=tiktok_monitor
+      - JWT_SECRET=${JWT_SECRET}
+      - EMERGENT_LLM_KEY=${EMERGENT_LLM_KEY}
+      - TIKTOOL_API_KEY=${TIKTOOL_API_KEY}
+      - HUGGINGFACE_API_KEY=${HUGGINGFACE_API_KEY}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+    volumes:
+      - ./backend:/app/backend
+      - ./models:/app/models
+      - ./storage:/app/storage
+
+  # Frontend (Expo)
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: tiktok-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - EXPO_PUBLIC_BACKEND_URL=http://backend:8001
+    volumes:
+      - ./frontend:/app/frontend
+
+volumes:
+  mongodb_data:
+  redis_data:
+  minio_data:

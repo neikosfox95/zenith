@@ -1,0 +1,22 @@
+# Dockerfile for Backend
+FROM node:20-alpine
+
+WORKDIR /app/backend
+
+# Install Python and dependencies
+RUN apk add --no-cache python3 py3-pip
+
+# Copy backend files
+COPY backend/package*.json ./
+RUN npm install --production
+
+COPY backend/ ./
+
+# Setup Python virtual environment
+RUN python3 -m venv /root/.venv
+RUN /root/.venv/bin/pip install --no-cache-dir aiohttp litellm
+
+# Expose port
+EXPOSE 8001
+
+CMD ["node", "server.js"]
