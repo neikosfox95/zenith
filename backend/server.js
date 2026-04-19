@@ -36,6 +36,16 @@ import { setupPhase17Routes } from './phase17_routes.js';
 import { setupPhase18Routes } from './phase18_routes.js';
 import { setupPhase19Routes } from './phase19_routes.js';
 import { setupPhase20Routes } from './phase20_routes.js';
+import phase21Routes from './phase21_routes.js';
+import phase22Routes from './phase22_routes.js';
+import phase23Routes from './phase23_routes.js';
+import phase24Routes from './phase24_routes.js';
+import phase25Routes from './phase25_routes.js';
+import phase26Routes from './phase26_routes.js';
+import phase27Routes from './phase27_routes.js';
+import phase28Routes from './phase28_routes.js';
+import phase29Routes from './phase29_routes.js';
+import phase30Routes from './phase30_routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -93,6 +103,47 @@ async function connectDB() {
     setupPhase18Routes(app, db, io, authenticateToken, ObjectId);
     setupPhase19Routes(app, db, io, authenticateToken, ObjectId);
     setupPhase20Routes(app, db, io, authenticateToken, ObjectId);
+    
+    // Mount Phases 21-30 routes
+    console.log('Setting up Phase 21 (Gaming & Gamification) routes...');
+    app.use('/api/gaming', phase21Routes);
+    console.log('✅ Phase 21 (Gaming & Gamification) routes loaded');
+    
+    console.log('Setting up Phase 22 (E-commerce & Shopping) routes...');
+    app.use('/api/ecommerce', phase22Routes);
+    console.log('✅ Phase 22 (E-commerce & Shopping) routes loaded');
+    
+    console.log('Setting up Phase 23 (Health & Wellness AI) routes...');
+    app.use('/api/health', phase23Routes);
+    console.log('✅ Phase 23 (Health & Wellness AI) routes loaded');
+    
+    console.log('Setting up Phase 24 (Education & Learning) routes...');
+    app.use('/api/education', phase24Routes);
+    console.log('✅ Phase 24 (Education & Learning) routes loaded');
+    
+    console.log('Setting up Phase 25 (Finance & Investment) routes...');
+    app.use('/api/finance', phase25Routes);
+    console.log('✅ Phase 25 (Finance & Investment) routes loaded');
+    
+    console.log('Setting up Phase 26 (Travel & Location) routes...');
+    app.use('/api/travel', phase26Routes);
+    console.log('✅ Phase 26 (Travel & Location) routes loaded');
+    
+    console.log('Setting up Phase 27 (Smart Home & IoT) routes...');
+    app.use('/api/smarthome', phase27Routes);
+    console.log('✅ Phase 27 (Smart Home & IoT) routes loaded');
+    
+    console.log('Setting up Phase 28 (Legal & Compliance AI) routes...');
+    app.use('/api/legal', phase28Routes);
+    console.log('✅ Phase 28 (Legal & Compliance AI) routes loaded');
+    
+    console.log('Setting up Phase 29 (Sports & Fitness Analytics) routes...');
+    app.use('/api/sports', phase29Routes);
+    console.log('✅ Phase 29 (Sports & Fitness Analytics) routes loaded');
+    
+    console.log('Setting up Phase 30 (Environmental & Sustainability) routes...');
+    app.use('/api/environment', phase30Routes);
+    console.log('✅ Phase 30 (Environmental & Sustainability) routes loaded');
     
   } catch (error) {
     console.error('MongoDB connection error:', error);

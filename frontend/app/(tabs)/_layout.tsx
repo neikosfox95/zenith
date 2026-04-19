@@ -26,146 +26,56 @@ export default function TabsLayout() {
         }
       }}
     >
+      {/* Main Tab: Home/Dashboard with all 30 phases */}
       <Tabs.Screen
-        name="dashboard"
+        name="home"
         options={{
-          title: 'Dashboard',
+          title: 'Home',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home" size={size} color={color} />
           ),
         }}
       />
-      <Tabs.Screen
-        name="creators"
-        options={{
-          title: 'Creators',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="fans"
-        options={{
-          title: 'Fan Club',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="star" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="analytics"
-        options={{
-          title: 'Analytics',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bar-chart" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="ai"
-        options={{
-          title: 'AI Studio',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="sparkles" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="code"
-        options={{
-          title: 'Code AI',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="code-slash" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="voice"
-        options={{
-          title: 'Voice AI',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="mic" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="media"
-        options={{
-          title: 'Media AI',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="color-palette" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="enterprise"
-        options={{
-          title: 'Enterprise',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="business" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="history"
-        options={{
-          title: 'History',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="time" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="phase10"
-        options={{
-          title: 'Analytics+',
-          tabBarIcon: ({ color, size}) => (
-            <Ionicons name="analytics" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="phase11"
-        options={{
-          title: 'Platforms',
-          tabBarIcon: ({ color, size}) => (
-            <Ionicons name="globe" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="phase12"
-        options={{
-          title: '3D/AR',
-          tabBarIcon: ({ color, size}) => (
-            <Ionicons name="cube" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="phase13"
-        options={{
-          title: 'Collab',
-          tabBarIcon: ({ color, size}) => (
-            <Ionicons name="people" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="phase14"
-        options={{
-          title: 'AI Agents',
-          tabBarIcon: ({ color, size}) => (
-            <Ionicons name="hardware-chip" size={size} color={color} />
-          ),
-        }}
-      />
+
+      {/* All Phase Screens - Hidden from tab bar but accessible via navigation */}
+      <Tabs.Screen name="dashboard" options={{ href: null }} />
+      <Tabs.Screen name="creators" options={{ href: null }} />
+      <Tabs.Screen name="fans" options={{ href: null }} />
+      <Tabs.Screen name="analytics" options={{ href: null }} />
+      <Tabs.Screen name="ai" options={{ href: null }} />
+      <Tabs.Screen name="code" options={{ href: null }} />
+      <Tabs.Screen name="voice" options={{ href: null }} />
+      <Tabs.Screen name="media" options={{ href: null }} />
+      <Tabs.Screen name="enterprise" options={{ href: null }} />
+      <Tabs.Screen name="history" options={{ href: null }} />
+      <Tabs.Screen name="phase10" options={{ href: null }} />
+      <Tabs.Screen name="phase11" options={{ href: null }} />
+      <Tabs.Screen name="phase12" options={{ href: null }} />
+      <Tabs.Screen name="phase13" options={{ href: null }} />
+      <Tabs.Screen name="phase14" options={{ href: null }} />
+      <Tabs.Screen name="phase15" options={{ href: null }} />
+      <Tabs.Screen name="phase16" options={{ href: null }} />
+      <Tabs.Screen name="phase17" options={{ href: null }} />
+      <Tabs.Screen name="phase18" options={{ href: null }} />
+      <Tabs.Screen name="phase19" options={{ href: null }} />
+      <Tabs.Screen name="phase20" options={{ href: null }} />
+      <Tabs.Screen name="phase21" options={{ href: null }} />
+      <Tabs.Screen name="phase22" options={{ href: null }} />
+      <Tabs.Screen name="phase23" options={{ href: null }} />
+      <Tabs.Screen name="phase24" options={{ href: null }} />
+      <Tabs.Screen name="phase25" options={{ href: null }} />
+      <Tabs.Screen name="phase26" options={{ href: null }} />
+      <Tabs.Screen name="phase27" options={{ href: null }} />
+      <Tabs.Screen name="phase28" options={{ href: null }} />
+      <Tabs.Screen name="phase29" options={{ href: null }} />
+      <Tabs.Screen name="phase30" options={{ href: null }} />
+
+      {/* Settings Tab */}
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color, size}) => (
+          tabBarIcon: ({ color, size }) => (
             <Ionicons name="settings" size={size} color={color} />
           ),
         }}
