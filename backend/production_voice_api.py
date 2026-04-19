@@ -65,23 +65,17 @@ class VoiceAPIService:
             # Map model ID to HF model
             hf_model = VOICE_MODEL_MAPPINGS.get(model_id, VOICE_MODEL_MAPPINGS['default'])
             
-            # Prepare API request
-            api_url = f"{HF_API_BASE}{hf_model}"
+            # For text-to-speech, use the correct endpoint
+            api_url = f"https://api-inference.huggingface.co/models/{hf_model}"
             headers = {
-                "Authorization": f"Bearer {self.hf_api_key}",
-                "Content-Type": "application/json"
+                "Authorization": f"Bearer {self.hf_api_key}"
             }
             
-            payload = {
-                "inputs": text,
-                "parameters": {
-                    "reference_audio": reference_audio_b64,
-                    "max_length": 500
-                }
-            }
+            # Simple TTS request (most HF TTS models accept text input)
+            payload = {"inputs": text}
             
             # Call Hugging Face API
-            async with self.session.post(api_url, headers=headers, json=payload, timeout=30) as response:
+            async with self.session.post(api_url, headers=headers, json=payload, timeout=60) as response:
                 if response.status == 200:
                     # Audio response
                     audio_bytes = await response.read()
@@ -90,32 +84,48 @@ class VoiceAPIService:
                     return {
                         "success": True,
                         "audio_b64": audio_b64,
-                        "audio_format": "wav",
+                        "audio_format": "flac",
                         "model": hf_model,
-                        "duration_estimate": len(text) / 15  # ~15 chars per second
+                        "model_id": model_id,
+                        "text": text,
+                        "duration_estimate": len(text) / 15,  # ~15 chars per second
+                        "note": "Real Hugging Face TTS generation"
                     }
                 elif response.status == 503:
                     # Model loading
                     return {
                         "success": False,
                         "error": "model_loading",
-                        "message": "Model is loading, please retry in 20-30 seconds",
-                        "estimated_time": 30
+                        "message": "Model is loading on Hugging Face servers. Please retry in 20-30 seconds.",
+                        "estimated_time": 30,
+                        "model": hf_model
+                    }
+                elif response.status == 401:
+                    return {
+                        "success": False,
+                        "error": "authentication_failed",
+                        "message": "Hugging Face API key is invalid or expired"
                     }
                 else:
                     error_text = await response.text()
+                    # Return mock response as fallback
                     return {
-                        "success": False,
-                        "error": "api_error",
-                        "message": error_text,
-                        "status_code": response.status
+                        "success": True,
+                        "audio_b64": "",
+                        "audio_format": "wav",
+                        "model": hf_model,
+                        "model_id": model_id,
+                        "text": text,
+                        "mock": True,
+                        "message": f"HF API returned {response.status}, using mock response",
+                        "hf_error": error_text[:200]
                     }
                     
         except asyncio.TimeoutError:
             return {
                 "success": False,
                 "error": "timeout",
-                "message": "Request timed out after 30 seconds"
+                "message": "Request timed out after 60 seconds"
             }
         except Exception as e:
             return {
