@@ -25,6 +25,17 @@ import { setupPhase6Routes } from './phase6_routes.js';
 import { setupPhase7Routes } from './phase7_routes.js';
 import { setupPhase8Routes } from './phase8_routes.js';
 import { setupPhase9Routes } from './phase9_routes.js';
+import { setupPhase10Routes } from './phase10_routes.js';
+import { setupPhase11Routes } from './phase11_routes.js';
+import { setupPhase12Routes } from './phase12_routes.js';
+import { setupPhase13Routes } from './phase13_routes.js';
+import { setupPhase14Routes } from './phase14_routes.js';
+import { setupPhase15Routes } from './phase15_routes.js';
+import { setupPhase16Routes } from './phase16_routes.js';
+import { setupPhase17Routes } from './phase17_routes.js';
+import { setupPhase18Routes } from './phase18_routes.js';
+import { setupPhase19Routes } from './phase19_routes.js';
+import { setupPhase20Routes } from './phase20_routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -71,6 +82,17 @@ async function connectDB() {
     setupPhase7Routes(app, db, io, authenticateToken, ObjectId);
     setupPhase8Routes(app, db, io, authenticateToken, ObjectId);
     setupPhase9Routes(app, db, io, authenticateToken, ObjectId);
+    setupPhase10Routes(app, db, io, authenticateToken, ObjectId);
+    setupPhase11Routes(app, db, io, authenticateToken, ObjectId);
+    setupPhase12Routes(app, db, io, authenticateToken, ObjectId);
+    setupPhase13Routes(app, db, io, authenticateToken, ObjectId);
+    setupPhase14Routes(app, db, io, authenticateToken, ObjectId);
+    setupPhase15Routes(app, db, io, authenticateToken, ObjectId);
+    setupPhase16Routes(app, db, io, authenticateToken, ObjectId);
+    setupPhase17Routes(app, db, io, authenticateToken, ObjectId);
+    setupPhase18Routes(app, db, io, authenticateToken, ObjectId);
+    setupPhase19Routes(app, db, io, authenticateToken, ObjectId);
+    setupPhase20Routes(app, db, io, authenticateToken, ObjectId);
     
   } catch (error) {
     console.error('MongoDB connection error:', error);
@@ -101,6 +123,7 @@ const authenticateToken = (req, res, next) => {
   try {
     const verified = jwt.verify(token, process.env.JWT_SECRET);
     req.userId = verified.userId;
+    req.user = { userId: verified.userId }; // For compatibility with phase routes
     next();
   } catch (error) {
     res.status(403).json({ error: 'Invalid token' });

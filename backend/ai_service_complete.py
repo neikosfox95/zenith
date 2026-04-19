@@ -50,7 +50,8 @@ TEXT_MODELS = {
     'claude-4.5-haiku': ('anthropic', 'claude-haiku-4-5'),  # Fastest, near-frontier
     'claude-mythos': ('anthropic', 'claude-mythos-preview'),  # Preview
     
-    # Grok (3 variants + agents)
+    # Grok (4 variants + agents)
+    'grok-4.3': ('xai', 'grok-4.3-multimodal'),  # NEW: Multimodal flagship (text, vision, audio)
     'grok-4.20': ('xai', 'grok-4.20-reasoning'),  # 4-agent system
     'grok-4.20-agents-4': ('xai', 'grok-4.20-multi-agent'),  # 4 agents explicit
     'grok-4.20-heavy': ('xai', 'grok-4.20-heavy'),  # 16-agent system
