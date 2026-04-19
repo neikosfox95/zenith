@@ -135,6 +135,33 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="phase12"
+        options={{
+          title: '3D/AR',
+          tabBarIcon: ({ color, size}) => (
+            <Ionicons name="cube" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="phase13"
+        options={{
+          title: 'Collab',
+          tabBarIcon: ({ color, size}) => (
+            <Ionicons name="people" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="phase14"
+        options={{
+          title: 'AI Agents',
+          tabBarIcon: ({ color, size}) => (
+            <Ionicons name="hardware-chip" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
