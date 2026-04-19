@@ -81,6 +81,15 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="voice"
+        options={{
+          title: 'Voice AI',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="mic" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="media"
         options={{
           title: 'Media AI',
