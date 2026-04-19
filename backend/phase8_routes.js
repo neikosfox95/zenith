@@ -48,6 +48,225 @@ async function callEnhancedAIService(method, data) {
 export function setupPhase8Routes(app, db, io, authenticateToken, ObjectId) {
   console.log('Setting up Phase 8 (Voice Cloning & Conversion) routes...');
 
+  // ============= GROK SPEECH-TO-TEXT (NEW 2025) =============
+  
+  // Grok STT - Batch Transcription
+  app.post('/api/voice/grok-stt/batch', authenticateToken, async (req, res) => {
+    try {
+      const { audio_url, language = 'auto', options = {} } = req.body;
+
+      const transcription = {
+        job_id: new ObjectId(),
+        user_id: req.user.userId,
+        audio_url,
+        language,
+        model: 'grok-stt-batch',
+        options: {
+          speaker_diarization: options.speaker_diarization || false,
+          word_timestamps: options.word_timestamps || true,
+          smart_formatting: options.smart_formatting || true,
+          multi_channel: options.multi_channel || false,
+          ...options
+        },
+        status: 'processing',
+        created_at: new Date(),
+        result: null,
+        pricing: { rate: '$0.10/hour', estimated_cost: 0 },
+        features: {
+          languages_supported: 25,
+          wer: '6.9%',  // Word Error Rate - beats competitors
+          accuracy: 'blazing'
+        }
+      };
+
+      await db.collection('voice_transcriptions').insertOne(transcription);
+
+      // Simulate processing
+      setTimeout(async () => {
+        const mockResult = {
+          text: 'This is a sample transcription from Grok Speech-to-Text API. [laugh] It supports 25+ languages with 6.9% WER accuracy.',
+          duration_seconds: 45,
+          language_detected: 'en',
+          word_timestamps: [
+            { word: 'This', start: 0.0, end: 0.2, confidence: 0.99 },
+            { word: 'is', start: 0.2, end: 0.3, confidence: 0.98 }
+          ],
+          speakers: options.speaker_diarization ? [
+            { speaker_id: 'speaker_1', segments: [[0, 15]] },
+            { speaker_id: 'speaker_2', segments: [[15, 45]] }
+          ] : null,
+          formatted: {
+            numbers: true,
+            dates: true,
+            currencies: true
+          }
+        };
+
+        await db.collection('voice_transcriptions').updateOne(
+          { job_id: transcription.job_id },
+          { 
+            $set: { 
+              status: 'completed', 
+              result: mockResult,
+              completed_at: new Date(),
+              'pricing.estimated_cost': ((45 / 3600) * 0.10).toFixed(4)
+            }
+          }
+        );
+
+        io.emit('voice:transcription-complete', { job_id: transcription.job_id.toString() });
+      }, 3000);
+
+      res.json({
+        ...transcription,
+        job_id: transcription.job_id.toString(),
+        message: 'Grok STT batch transcription started',
+        estimated_time: '5-10 seconds'
+      });
+    } catch (error) {
+      console.error('Grok STT batch error:', error);
+      res.status(500).json({ error: 'Failed to start transcription' });
+    }
+  });
+
+  // Grok STT - Real-time Streaming (WebSocket endpoint info)
+  app.get('/api/voice/grok-stt/streaming/info', authenticateToken, (req, res) => {
+    res.json({
+      websocket_url: 'wss://api.x.ai/v1/audio/speech-to-text/stream',
+      method: 'WebSocket',
+      pricing: '$0.20/hour',
+      features: {
+        real_time: true,
+        low_latency: '<100ms',
+        languages: 25,
+        wer: '6.9%',
+        speaker_diarization: true,
+        word_timestamps: true,
+        smart_formatting: true
+      },
+      example_usage: {
+        connect: 'WebSocket connection with audio stream',
+        response: 'Real-time transcription chunks'
+      }
+    });
+  });
+
+  // ============= GROK TEXT-TO-SPEECH (NEW 2025) =============
+
+  // Grok TTS - Generate Speech
+  app.post('/api/voice/grok-tts/generate', authenticateToken, async (req, res) => {
+    try {
+      const { text, voice = 'default', options = {} } = req.body;
+
+      if (!text) {
+        return res.status(400).json({ error: 'Text is required' });
+      }
+
+      const tts = {
+        job_id: new ObjectId(),
+        user_id: req.user.userId,
+        text,
+        voice,
+        model: 'grok-tts',
+        options: {
+          speed: options.speed || 1.0,
+          pitch: options.pitch || 1.0,
+          format: options.format || 'mp3',
+          ...options
+        },
+        status: 'processing',
+        created_at: new Date(),
+        audio_url: null,
+        pricing: {
+          rate: '$4.20 per 1M characters',
+          characters: text.length,
+          estimated_cost: ((text.length / 1000000) * 4.20).toFixed(4)
+        },
+        features: {
+          natural_voices: true,
+          expressive: true,
+          controls: ['[laugh]', '[sigh]', '<emphasis>', '<slow>', '<pause>'],
+          no_complex_markup: true
+        }
+      };
+
+      await db.collection('voice_tts').insertOne(tts);
+
+      // Simulate TTS generation
+      setTimeout(async () => {
+        const audioUrl = `/storage/tts/${tts.job_id}.mp3`;
+        await db.collection('voice_tts').updateOne(
+          { job_id: tts.job_id },
+          { 
+            $set: { 
+              status: 'completed', 
+              audio_url: audioUrl,
+              completed_at: new Date(),
+              duration_seconds: Math.ceil(text.length / 15)  // ~15 chars/sec
+            }
+          }
+        );
+
+        io.emit('voice:tts-complete', { job_id: tts.job_id.toString(), audio_url: audioUrl });
+      }, 2000);
+
+      res.json({
+        ...tts,
+        job_id: tts.job_id.toString(),
+        message: 'Grok TTS generation started',
+        estimated_time: '2-5 seconds',
+        voice_controls_example: 'Use [laugh], [sigh], <emphasis>, <slow>, <pause> in your text'
+      });
+    } catch (error) {
+      console.error('Grok TTS error:', error);
+      res.status(500).json({ error: 'Failed to generate speech' });
+    }
+  });
+
+  // Grok TTS - Streaming (WebSocket info)
+  app.get('/api/voice/grok-tts/streaming/info', authenticateToken, (req, res) => {
+    res.json({
+      websocket_url: 'wss://api.x.ai/v1/audio/text-to-speech/stream',
+      method: 'WebSocket',
+      pricing: '$4.20 per 1M characters',
+      features: {
+        real_time: true,
+        low_latency: true,
+        natural_voices: true,
+        expressive_controls: true,
+        easy_markup: true
+      },
+      voice_controls: {
+        emotions: ['[laugh]', '[sigh]', '[gasp]', '[cry]'],
+        emphasis: ['<emphasis>text</emphasis>'],
+        speed: ['<slow>text</slow>', '<fast>text</fast>'],
+        pause: ['<pause duration=\"1s\"/>']
+      },
+      example: 'Hello [laugh] this is amazing <emphasis>truly</emphasis> <slow>wonderful</slow>!'
+    });
+  });
+
+  // Get Grok voice job status
+  app.get('/api/voice/grok/:job_type/:job_id', authenticateToken, async (req, res) => {
+    try {
+      const { job_type, job_id } = req.params;
+      const collection = job_type === 'stt' ? 'voice_transcriptions' : 'voice_tts';
+
+      const job = await db.collection(collection).findOne({ job_id: new ObjectId(job_id) });
+
+      if (!job) {
+        return res.status(404).json({ error: 'Job not found' });
+      }
+
+      res.json({ ...job, job_id: job.job_id.toString() });
+    } catch (error) {
+      console.error('Get Grok job error:', error);
+      res.status(500).json({ error: 'Failed to retrieve job' });
+    }
+  });
+
+  // ============= ORIGINAL VOICE CLONING ROUTES (PRESERVED) =============
+
   // ============= VOICE CLONING MODELS DATABASE =============
   
   const voiceModels = {

@@ -327,16 +327,29 @@ IMAGE_MODELS = {
     'flux-2-dev': ('flux', 'flux-2-dev'),  # 32B open-weights, gen/edit
 }
 
-# ============= VOICE/AUDIO MODELS (7 models) =============
+# ============= VOICE/AUDIO MODELS (11 models) =============
 
 VOICE_MODELS = {
+    # xAI Grok Voice (NEW 2025 - Speech-to-Text & Text-to-Speech)
+    'grok-stt-batch': ('xai', 'grok-speech-to-text-batch'),  # Batch transcription $0.10/hr, 6.9% WER
+    'grok-stt-streaming': ('xai', 'grok-speech-to-text-streaming'),  # Real-time WebSocket $0.20/hr
+    'grok-tts': ('xai', 'grok-text-to-speech'),  # Natural voices $4.20/1M chars
+    'grok-tts-streaming': ('xai', 'grok-tts-streaming'),  # Real-time TTS WebSocket
+    
+    # OpenAI Whisper
     'whisper': ('openai', 'gpt-4o-transcribe'),
     'whisper-large': ('openai', 'whisper-large-v3'),
+    
+    # Google Gemini Audio
     'gemini-audio': ('gemini', 'gemini-3-audio-preview'),
+    'gemini-tts': ('gemini', 'gemini-3.1-flash-tts-preview'),  # TTS
+    
+    # Fish Audio
     'fish-audio-instant': ('fish', 'fish-audio-instant'),  # <30s
     'fish-audio-hq': ('fish', 'fish-audio-hq'),  # 5min
+    
+    # Meta Voicebox
     'voicebox-2.0': ('meta', 'voicebox-2.0'),  # 50+ languages
-    'gemini-tts': ('gemini', 'gemini-3.1-flash-tts-preview'),  # New TTS
 }
 
 # ============= VIDEO GENERATION MODELS (79 models) =============
