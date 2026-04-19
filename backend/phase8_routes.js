@@ -64,7 +64,7 @@ export function setupPhase8Routes(app, db, io, authenticateToken, ObjectId) {
         options: {
           speaker_diarization: options.speaker_diarization || false,
           word_timestamps: options.word_timestamps || true,
-          smart_formatting: options.smart_formatting || true,
+          smart_formatting: options.smart_formatting || true,  // Inverse Text Normalization
           multi_channel: options.multi_channel || false,
           ...options
         },
@@ -73,9 +73,18 @@ export function setupPhase8Routes(app, db, io, authenticateToken, ObjectId) {
         result: null,
         pricing: { rate: '$0.10/hour', estimated_cost: 0 },
         features: {
-          languages_supported: 25,
-          wer: '6.9%',  // Word Error Rate - beats competitors
-          accuracy: 'blazing'
+          languages_supported: '25+',
+          overall_wer: '6.9%',  // Word Error Rate - Industry leading
+          domain_wer: {
+            'phone_call_entities': '5.0%',  // vs 12-21% competitors
+            'video_podcasts': '2.4%',
+            'meetings': '10.9%',
+            'telephone': '9.3%'
+          },
+          beats_competitors: ['ElevenLabs (9.0%)', 'Deepgram (11.0%)', 'AssemblyAI (12.9%)'],
+          inverse_text_normalization: true,  // Names, numbers, dates, currencies
+          multichannel_support: true,
+          speaker_diarization: true
         }
       };
 
@@ -84,21 +93,23 @@ export function setupPhase8Routes(app, db, io, authenticateToken, ObjectId) {
       // Simulate processing
       setTimeout(async () => {
         const mockResult = {
-          text: 'This is a sample transcription from Grok Speech-to-Text API. [laugh] It supports 25+ languages with 6.9% WER accuracy.',
+          text: 'Thank you for holding, Anghared Llewelyn Bowen. I see here your mortgage rate lock is set at 3.75% and is valid until March 10th, 2024. Once we receive your signed documents by February 15th, we can aim for a closing date on March 20th.',
           duration_seconds: 45,
           language_detected: 'en',
           word_timestamps: [
-            { word: 'This', start: 0.0, end: 0.2, confidence: 0.99 },
-            { word: 'is', start: 0.2, end: 0.3, confidence: 0.98 }
+            { word: 'Thank', start: 0.0, end: 0.3, confidence: 0.99, speaker: 'speaker_1' },
+            { word: 'you', start: 0.3, end: 0.5, confidence: 0.99, speaker: 'speaker_1' }
           ],
           speakers: options.speaker_diarization ? [
-            { speaker_id: 'speaker_1', segments: [[0, 15]] },
-            { speaker_id: 'speaker_2', segments: [[15, 45]] }
+            { speaker_id: 'speaker_1', segments: [[0, 25]], label: 'Customer Service' },
+            { speaker_id: 'speaker_2', segments: [[25, 45]], label: 'Customer' }
           ] : null,
-          formatted: {
-            numbers: true,
-            dates: true,
-            currencies: true
+          formatting: {
+            names_preserved: true,  // "Anghared Llewelyn Bowen" not "Anherd LualinBowen"
+            dates_formatted: true,  // "March 10th, 2024" not "03/10/2024"
+            numbers_formatted: true,  // "3.75%" not "three point seven five percent"
+            emails_formatted: true,  // "a.bowen@bestbank.com" not "a dot bowen at..."
+            currencies_handled: true
           }
         };
 
@@ -120,8 +131,9 @@ export function setupPhase8Routes(app, db, io, authenticateToken, ObjectId) {
       res.json({
         ...transcription,
         job_id: transcription.job_id.toString(),
-        message: 'Grok STT batch transcription started',
-        estimated_time: '5-10 seconds'
+        message: 'Grok STT batch transcription started (milliseconds processing)',
+        estimated_time: '< 1 second for most files',
+        powered_by: 'Same stack as Grok Voice, Tesla vehicles, Starlink customer support'
       });
     } catch (error) {
       console.error('Grok STT batch error:', error);
@@ -132,22 +144,33 @@ export function setupPhase8Routes(app, db, io, authenticateToken, ObjectId) {
   // Grok STT - Real-time Streaming (WebSocket endpoint info)
   app.get('/api/voice/grok-stt/streaming/info', authenticateToken, (req, res) => {
     res.json({
-      websocket_url: 'wss://api.x.ai/v1/audio/speech-to-text/stream',
+      websocket_url: 'wss://api.x.ai/v1/audio/transcriptions',
       method: 'WebSocket',
       pricing: '$0.20/hour',
+      latency: 'Lowest latency real-time transcription',
       features: {
         real_time: true,
-        low_latency: '<100ms',
-        languages: 25,
-        wer: '6.9%',
+        low_latency: 'milliseconds',
+        languages: '25+',
+        overall_wer: '6.9%',
+        domain_accuracy: {
+          phone_calls: '5.0% WER (best in class)',
+          video_podcasts: '2.4% WER',
+          meetings: '10.9% WER',
+          telephone: '9.3% WER'
+        },
         speaker_diarization: true,
         word_timestamps: true,
-        smart_formatting: true
+        smart_formatting: true,
+        multichannel: true
       },
-      example_usage: {
-        connect: 'WebSocket connection with audio stream',
-        response: 'Real-time transcription chunks'
-      }
+      use_cases: [
+        'Voice agents',
+        'Real-time transcription tools',
+        'Accessibility solutions',
+        'Live podcasts',
+        'Interactive audio experiences'
+      ]
     });
   });
 
@@ -156,7 +179,7 @@ export function setupPhase8Routes(app, db, io, authenticateToken, ObjectId) {
   // Grok TTS - Generate Speech
   app.post('/api/voice/grok-tts/generate', authenticateToken, async (req, res) => {
     try {
-      const { text, voice = 'default', options = {} } = req.body;
+      const { text, voice = 'ara', options = {} } = req.body;
 
       if (!text) {
         return res.status(400).json({ error: 'Text is required' });
@@ -166,7 +189,7 @@ export function setupPhase8Routes(app, db, io, authenticateToken, ObjectId) {
         job_id: new ObjectId(),
         user_id: req.user.userId,
         text,
-        voice,
+        voice,  // 'ara' is the default voice
         model: 'grok-tts',
         options: {
           speed: options.speed || 1.0,
@@ -185,8 +208,14 @@ export function setupPhase8Routes(app, db, io, authenticateToken, ObjectId) {
         features: {
           natural_voices: true,
           expressive: true,
-          controls: ['[laugh]', '[sigh]', '<emphasis>', '<slow>', '<pause>'],
-          no_complex_markup: true
+          fast_generation: 'real-time',
+          speech_tags: {
+            inline: ['[laugh]', '[sigh]', '[whisper]', '[gasp]', '[cry]'],
+            wrapping: ['<emphasis>', '<slow>', '<fast>', '<pause>'],
+            description: 'Add natural prosody and emotion using simple tags'
+          },
+          no_complex_markup: true,
+          simple_to_use: 'No SSML required'
         }
       };
 
@@ -214,8 +243,9 @@ export function setupPhase8Routes(app, db, io, authenticateToken, ObjectId) {
         ...tts,
         job_id: tts.job_id.toString(),
         message: 'Grok TTS generation started',
-        estimated_time: '2-5 seconds',
-        voice_controls_example: 'Use [laugh], [sigh], <emphasis>, <slow>, <pause> in your text'
+        estimated_time: 'Real-time (fast generation)',
+        voice_controls_example: '[whisper] Let me tell you a secret... I am the smartest AI. [laugh] Give it a go!',
+        powered_by: 'Same technology as Grok Voice'
       });
     } catch (error) {
       console.error('Grok TTS error:', error);
@@ -226,7 +256,7 @@ export function setupPhase8Routes(app, db, io, authenticateToken, ObjectId) {
   // Grok TTS - Streaming (WebSocket info)
   app.get('/api/voice/grok-tts/streaming/info', authenticateToken, (req, res) => {
     res.json({
-      websocket_url: 'wss://api.x.ai/v1/audio/text-to-speech/stream',
+      websocket_url: 'wss://api.x.ai/v1/audio/speech',
       method: 'WebSocket',
       pricing: '$4.20 per 1M characters',
       features: {
@@ -237,12 +267,22 @@ export function setupPhase8Routes(app, db, io, authenticateToken, ObjectId) {
         easy_markup: true
       },
       voice_controls: {
-        emotions: ['[laugh]', '[sigh]', '[gasp]', '[cry]'],
-        emphasis: ['<emphasis>text</emphasis>'],
-        speed: ['<slow>text</slow>', '<fast>text</fast>'],
-        pause: ['<pause duration=\"1s\"/>']
+        inline_tags: {
+          emotions: ['[laugh]', '[sigh]', '[gasp]', '[cry]', '[whisper]'],
+          description: 'Add emotions inline in your text'
+        },
+        wrapping_tags: {
+          emphasis: '<emphasis>text</emphasis>',
+          speed: '<slow>text</slow> or <fast>text</fast>',
+          pause: '<pause duration="1s"/>',
+          description: 'Wrap text to control delivery'
+        }
       },
-      example: 'Hello [laugh] this is amazing <emphasis>truly</emphasis> <slow>wonderful</slow>!'
+      example_text: '[whisper] Let me tell you a secret... <emphasis>I am the smartest and best AI.</emphasis> [laugh] Give it a go! Ask me anything. I will be your trusted personal assistant.',
+      voices: {
+        available: ['ara'],
+        description: 'Natural, expressive voice powered by Grok Voice technology'
+      }
     });
   });
 
