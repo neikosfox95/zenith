@@ -31,13 +31,14 @@ TEXT_MODELS = {
     'gemini-3.1-flash-tts': ('gemini', 'gemini-3.1-flash-tts-preview'),  # Speech generation
     'gemini-thinking': ('gemini', 'gemini-3-flash-thinking'),  # Extended reasoning
     
-    # Gemma (8 variants - open source)
+    # Gemma (9 variants - open source)
     'gemma-3-1b': ('gemini', 'gemma-3-1b'),
     'gemma-3-4b': ('gemini', 'gemma-3-4b'),
     'gemma-3-12b': ('gemini', 'gemma-3-12b'),
     'gemma-3-27b': ('gemini', 'gemma-3-27b'),
     'gemma-4-e2b': ('gemini', 'gemma-4-e2b'),  # Multimodal
     'gemma-4-e4b': ('gemini', 'gemma-4-e4b'),  # Multimodal
+    'gemma-4-e4b-obliterated': ('huggingface', 'OBLITERATUS/gemma-4-E4B-it-OBLITERATED'),  # Uncensored abliterated
     'gemma-4-26b-moe': ('gemini', 'gemma-4-26b-moe'),  # Mixture of Experts
     'gemma-4-31b': ('gemini', 'gemma-4-31b'),  # Dense
     

@@ -23,6 +23,7 @@ import { setupPhase4Routes } from './phase4_routes.js';
 import { setupPhase5Routes } from './phase5_routes.js';
 import { setupPhase6Routes } from './phase6_routes.js';
 import { setupPhase7Routes } from './phase7_routes.js';
+import { setupPhase8Routes } from './phase8_routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -67,6 +68,7 @@ async function connectDB() {
     setupPhase5Routes(app, db, io, authenticateToken, ObjectId);
     setupPhase6Routes(app, db, io, authenticateToken, ObjectId);
     setupPhase7Routes(app, db, io, authenticateToken, ObjectId);
+    setupPhase8Routes(app, db, io, authenticateToken, ObjectId);
     
   } catch (error) {
     console.error('MongoDB connection error:', error);
