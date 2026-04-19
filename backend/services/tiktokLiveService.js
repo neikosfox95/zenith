@@ -22,7 +22,7 @@ export class TikTokLiveMonitor {
     this.connection = null;
     this.wsConnection = null;
     this.isConnected = false;
-    this.useT iktool = options.tiktoolApiKey ? true : false;
+    this.useTiktool = options.tiktoolApiKey ? true : false;
     this.listeners = {};
   }
 
@@ -256,7 +256,7 @@ export class TikTokLiveMonitor {
    */
   async connect() {
     // Try TikTool first if API key is provided (better features)
-    if (this.useT iktool) {
+    if (this.useTiktool) {
       const tiktoolSuccess = await this.connectSecondary();
       if (tiktoolSuccess) return true;
       console.log('⚠️ TikTool connection failed, falling back to primary method');

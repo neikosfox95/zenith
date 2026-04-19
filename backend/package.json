@@ -9,6 +9,7 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
+    "@tiktool/live": "^2.6.7",
     "archiver": "^7.0.1",
     "axios": "^1.6.5",
     "axios-retry": "^4.5.0",
@@ -32,7 +33,8 @@
     "speakeasy": "^2.0.0",
     "tiktok-live-connector": "^1.1.8",
     "twilio": "^5.13.1",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "ws": "^8.20.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
