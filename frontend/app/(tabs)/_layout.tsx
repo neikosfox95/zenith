@@ -117,6 +117,24 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="phase10"
+        options={{
+          title: 'Analytics+',
+          tabBarIcon: ({ color, size}) => (
+            <Ionicons name="analytics" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="phase11"
+        options={{
+          title: 'Platforms',
+          tabBarIcon: ({ color, size}) => (
+            <Ionicons name="globe" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
