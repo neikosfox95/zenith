@@ -84,7 +84,7 @@ class ComprehensiveAPITestSuite:
             "password": TEST_USER["password"]
         }
         
-        success, response = self.make_request('POST', '/register', register_data)
+        success, response = self.make_request('POST', '/auth/register', register_data)
         if success and response.status_code in [200, 201, 409]:  # 409 for existing user
             self.log_test("User Registration", True, f"Status: {response.status_code}")
         else:
@@ -97,7 +97,7 @@ class ComprehensiveAPITestSuite:
             "password": TEST_USER["password"]
         }
         
-        success, response = self.make_request('POST', '/login', login_data)
+        success, response = self.make_request('POST', '/auth/login', login_data)
         if success and response.status_code == 200:
             try:
                 data = response.json()
@@ -853,32 +853,6 @@ class ComprehensiveAPITestSuite:
             'phase_results': phase_results,
             'failed_details': self.failed_tests
         }
-            # Try to register first
-            register_data = {
-                "email": TEST_USER["email"],
-                "password": TEST_USER["password"],
-                "username": TEST_USER["username"]
-            }
-            requests.post(f"{API_BASE}/auth/register", json=register_data)
-            
-            # Login
-            login_data = {
-                "email": TEST_USER["email"],
-                "password": TEST_USER["password"]
-            }
-            response = requests.post(f"{API_BASE}/auth/login", json=login_data)
-            
-            if response.status_code == 200:
-                self.token = response.json().get('token')
-                self.log_test("Authentication", True, f"Token obtained: {self.token[:20]}...")
-                return True
-            else:
-                self.log_test("Authentication", False, f"Login failed: {response.status_code}")
-                return False
-                
-        except Exception as e:
-            self.log_test("Authentication", False, f"Auth error: {str(e)}")
-            return False
     
     def get_headers(self):
         """Get headers with auth token"""
@@ -1598,31 +1572,18 @@ class ComprehensiveAPITestSuite:
 
 def main():
     """Main test execution"""
-    print("Starting Advanced Features Deep Testing - Phases 12-19")
-    print("Testing the most complex and advanced backend features")
-    print("Focus on workflow integrity and feature completeness")
-    print("="*60)
+    print("🚀 STARTING COMPREHENSIVE 30-PHASE BACKEND API TESTING")
+    print("Testing all 100+ endpoints across all 30 phases")
+    print("Focus on complete API coverage, authentication, and error handling")
+    print("="*80)
     
-    suite = AdvancedFeaturesTestSuite()
+    suite = ComprehensiveAPITestSuite()
     
-    # Authenticate first
-    if not suite.authenticate():
-        print("❌ Authentication failed. Cannot proceed with tests.")
-        return
-    
-    # Run all test phases
-    suite.test_phase12_3d_spatial_ai()
-    suite.test_phase17_ar_vr_content()
-    suite.test_phase18_advanced_video_editing()
-    suite.test_phase19_ai_training()
-    suite.test_phase14_ai_agents()
-    suite.run_critical_checks()
-    
-    # Print summary
-    passed, failed = suite.print_summary()
+    # Run comprehensive tests
+    suite.run_comprehensive_tests()
     
     # Return appropriate exit code
-    return 0 if failed == 0 else 1
+    return 0 if len(suite.failed_tests) == 0 else 1
 
 if __name__ == "__main__":
     exit(main())
