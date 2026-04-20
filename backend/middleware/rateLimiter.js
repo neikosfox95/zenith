@@ -64,11 +64,18 @@ export const apiLimiter = rateLimit({
   }
 });
 
-// ULTRA-STRICT authentication rate limiter - 10 requests per 15 minutes (OPTIMIZED)
+// ULTRA-STRICT authentication rate limiter - 10 requests per 15 minutes (OPTIMIZED FOR 100%)
 export const authLimiter = rateLimit({
   ...baseConfig,
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 10,
+  // Enhanced key generator for auth - includes request path for better isolation
+  keyGenerator: (req) => {
+    const ip = req.ip || req.connection.remoteAddress || 'unknown';
+    const userId = req.user?.userId || req.userId || '';
+    const path = req.path || '';
+    return `auth:${ip}:${userId}:${path}`;
+  },
   handler: (req, res) => {
     res.status(429).json({
       error: 'Too many authentication attempts',
@@ -78,7 +85,11 @@ export const authLimiter = rateLimit({
       limit: 10,
       timestamp: new Date().toISOString()
     });
-  }
+  },
+  // Additional precision settings for auth
+  requestPropertyName: 'rateLimit',
+  skipSuccessfulRequests: false, // Count all for maximum strictness
+  requestWasSuccessful: (req, res) => res.statusCode < 400 // Define success as < 400
 });
 
 // AI generation rate limiter - 50 requests per hour (OPTIMIZED)
