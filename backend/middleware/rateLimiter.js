@@ -59,7 +59,20 @@ export const apiLimiter = rateLimit({
       timestamp: new Date().toISOString()
     });
   },
-  skip: (req) => req.path === '/api/health' || req.path === '/health',
+  skip: (req) => {
+    // Skip health checks and auth routes (they have their own limiters)
+    const path = req.path || req.url;
+    return path === '/api/health' || 
+           path === '/health' || 
+           path === '/api/login' || 
+           path === '/api/register' ||
+           path === '/api/auth/login' ||
+           path === '/api/auth/register' ||
+           path.startsWith('/api/login') ||
+           path.startsWith('/api/register') ||
+           path.startsWith('/api/auth/login') ||
+           path.startsWith('/api/auth/register');
+  },
   skipFailedRequests: false,
   skipSuccessfulRequests: false
 });
