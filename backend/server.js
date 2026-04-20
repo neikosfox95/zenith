@@ -18,6 +18,8 @@ import nodemailer from 'nodemailer';
 import cron from 'node-cron';
 import archiver from 'archiver';
 import { createObjectCsvWriter } from 'csv-writer';
+import { apiLimiter, authLimiter, aiLimiter, speedLimiter } from './middleware/rateLimiter.js';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { setupPhase3Routes } from './phase3_routes.js';
 import { setupPhase4Routes } from './phase4_routes.js';
 import { setupPhase5Routes } from './phase5_routes.js';
@@ -64,6 +66,12 @@ const io = new Server(httpServer, {
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Apply general speed limiter to all routes
+app.use(speedLimiter);
+
+// Apply API rate limiter to all API routes
+app.use('/api/', apiLimiter);
 
 // MongoDB connection
 const mongoUrl = process.env.MONGO_URL;
@@ -193,7 +201,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // ============= AUTH ROUTES =============
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
     const { email, username, password } = req.body;
 
@@ -234,7 +242,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -264,6 +272,64 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Alias routes for frontend compatibility
+app.post('/api/login', authLimiter, async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await db.collection('users').findOne({ email });
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid credentials' });
+    }
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) {
+      return res.status(400).json({ error: 'Invalid credentials' });
+    }
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET);
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        username: user.username
+      }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+app.post('/api/register', authLimiter, async (req, res) => {
+  try {
+    const { email, username, password } = req.body;
+    const existingUser = await db.collection('users').findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    const user = {
+      email,
+      username,
+      password: hashedPassword,
+      createdAt: new Date()
+    };
+    const result = await db.collection('users').insertOne(user);
+    const token = jwt.sign({ userId: result.insertedId }, process.env.JWT_SECRET);
+    res.status(201).json({
+      token,
+      user: {
+        id: result.insertedId,
+        email: user.email,
+        username: user.username
+      }
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Registration failed' });
   }
 });
 
@@ -3985,10 +4051,23 @@ function stopRecording(streamId) {
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
 
+  // Test event for Sprint 1
+  socket.emit('welcome', { message: 'Connected to TikTok AI Command Center' });
+
+  // Listen for ping
+  socket.on('ping', () => {
+    socket.emit('pong', { timestamp: Date.now() });
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
   });
 });
+
+// ============= ERROR HANDLERS =============
+// Apply error handlers AFTER all routes
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 // ============= STARTUP =============
 const PORT = process.env.PORT || 8001;
