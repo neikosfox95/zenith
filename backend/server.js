@@ -18,7 +18,7 @@ import nodemailer from 'nodemailer';
 import cron from 'node-cron';
 import archiver from 'archiver';
 import { createObjectCsvWriter } from 'csv-writer';
-import { apiLimiter, authLimiter, aiLimiter, speedLimiter } from './middleware/rateLimiter.js';
+import { apiLimiter, authLimiter, aiLimiter, speedLimiter, uploadLimiter } from './middleware/rateLimiter.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { setupPhase3Routes } from './phase3_routes.js';
 import { setupPhase4Routes } from './phase4_routes.js';
@@ -389,6 +389,13 @@ app.post('/api/creators', authenticateToken, async (req, res) => {
 app.get('/api/creators', authenticateToken, async (req, res) => {
   try {
     const userId = req.userId;
+    
+    // Import pagination utilities
+    const { parsePaginationParams, parseSortParams, formatPaginatedResponse } = await import('./utils/pagination.js');
+    
+    // Parse pagination and sort parameters
+    const { page, limit, skip } = parsePaginationParams(req.query);
+    const sort = parseSortParams(req.query, '-created_at');
 
     // Get user's creators
     const userCreators = await db.collection('user_creators')
@@ -396,15 +403,242 @@ app.get('/api/creators', authenticateToken, async (req, res) => {
       .toArray();
 
     const creatorIds = userCreators.map(uc => uc.creator_id);
+    
+    // Build filter for search
+    const filter = { _id: { $in: creatorIds } };
+    
+    // Add text search if query provided
+    if (req.query.search) {
+      filter.$or = [
+        { tiktok_username: { $regex: req.query.search, $options: 'i' } },
+        { display_name: { $regex: req.query.search, $options: 'i' } }
+      ];
+    }
+    
+    // Add status filter if provided
+    if (req.query.status) {
+      filter.status = req.query.status;
+    }
 
-    const creators = await db.collection('creators')
-      .find({ _id: { $in: creatorIds } })
-      .toArray();
+    // Get paginated creators with total count
+    const [creators, total] = await Promise.all([
+      db.collection('creators')
+        .find(filter)
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .toArray(),
+      db.collection('creators').countDocuments(filter)
+    ]);
 
-    res.json(creators);
+    // Format and return paginated response
+    res.json(formatPaginatedResponse(creators, total, page, limit));
   } catch (error) {
     console.error('Get creators error:', error);
     res.status(500).json({ error: 'Failed to get creators' });
+  }
+});
+
+// ============= ADVANCED SEARCH ENDPOINT (Sprint 2 Phase 2) =============
+app.get('/api/search/creators', authenticateToken, async (req, res) => {
+  try {
+    const { advancedSearch } = await import('./utils/pagination.js');
+    
+    // Use advanced search with faceted results
+    const result = await advancedSearch(
+      db.collection('creators'),
+      req.query,
+      ['tiktok_username', 'display_name', 'bio'],
+      { user_id: req.userId } // Additional filter
+    );
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Advanced search error:', error);
+    res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+// ============= FILE UPLOAD ENDPOINTS (Sprint 2 Phase 3) =============
+// Import upload middleware
+const uploadMiddleware = await import('./middleware/upload.js');
+const { uploadSingle, uploadImage, uploadVideo, uploadAudio, handleMulterError, saveFileMetadata } = uploadMiddleware.default || uploadMiddleware;
+
+// Upload single file
+app.post('/api/upload', authenticateToken, uploadLimiter, (req, res, next) => {
+  uploadSingle(req, res, async (err) => {
+    if (err) {
+      return handleMulterError(err, req, res, next);
+    }
+    
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+      }
+      
+      // Save file metadata to database
+      const fileMetadata = await saveFileMetadata(db, req.file, req.userId);
+      
+      res.json({
+        success: true,
+        message: 'File uploaded successfully',
+        file: {
+          id: fileMetadata._id,
+          filename: fileMetadata.filename,
+          originalName: fileMetadata.originalName,
+          size: fileMetadata.size,
+          mimetype: fileMetadata.mimetype,
+          fileType: fileMetadata.fileType,
+          url: `/api/uploads/${fileMetadata.fileType}s/${fileMetadata.filename}`
+        }
+      });
+    } catch (error) {
+      console.error('File upload error:', error);
+      res.status(500).json({ error: 'Failed to save file' });
+    }
+  });
+});
+
+// Upload image
+app.post('/api/upload/image', authenticateToken, uploadLimiter, (req, res, next) => {
+  uploadImage(req, res, async (err) => {
+    if (err) {
+      return handleMulterError(err, req, res, next);
+    }
+    
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No image uploaded' });
+      }
+      
+      const fileMetadata = await saveFileMetadata(db, req.file, req.userId);
+      
+      res.json({
+        success: true,
+        message: 'Image uploaded successfully',
+        image: {
+          id: fileMetadata._id,
+          filename: fileMetadata.filename,
+          url: `/api/uploads/images/${fileMetadata.filename}`,
+          size: fileMetadata.size
+        }
+      });
+    } catch (error) {
+      console.error('Image upload error:', error);
+      res.status(500).json({ error: 'Failed to save image' });
+    }
+  });
+});
+
+// Upload video
+app.post('/api/upload/video', authenticateToken, uploadLimiter, (req, res, next) => {
+  uploadVideo(req, res, async (err) => {
+    if (err) {
+      return handleMulterError(err, req, res, next);
+    }
+    
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: 'No video uploaded' });
+      }
+      
+      const fileMetadata = await saveFileMetadata(db, req.file, req.userId);
+      
+      res.json({
+        success: true,
+        message: 'Video uploaded successfully',
+        video: {
+          id: fileMetadata._id,
+          filename: fileMetadata.filename,
+          url: `/api/uploads/videos/${fileMetadata.filename}`,
+          size: fileMetadata.size,
+          duration: null // Can be calculated with ffmpeg later
+        }
+      });
+    } catch (error) {
+      console.error('Video upload error:', error);
+      res.status(500).json({ error: 'Failed to save video' });
+    }
+  });
+});
+
+// Get user's uploaded files with pagination
+app.get('/api/uploads', authenticateToken, async (req, res) => {
+  try {
+    const { parsePaginationParams, parseSortParams, formatPaginatedResponse } = await import('./utils/pagination.js');
+    
+    const { page, limit, skip } = parsePaginationParams(req.query);
+    const sort = parseSortParams(req.query, '-createdAt');
+    
+    const filter = { userId: req.userId };
+    
+    // Filter by file type if provided
+    if (req.query.fileType) {
+      filter.fileType = req.query.fileType;
+    }
+    
+    const [files, total] = await Promise.all([
+      db.collection('uploads')
+        .find(filter)
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .toArray(),
+      db.collection('uploads').countDocuments(filter)
+    ]);
+    
+    // Add URL to each file
+    const filesWithUrls = files.map(file => ({
+      ...file,
+      url: `/api/uploads/${file.fileType}s/${file.filename}`
+    }));
+    
+    res.json(formatPaginatedResponse(filesWithUrls, total, page, limit));
+  } catch (error) {
+    console.error('Get uploads error:', error);
+    res.status(500).json({ error: 'Failed to get uploads' });
+  }
+});
+
+// Serve uploaded files
+app.get('/api/uploads/:type/:filename', authenticateToken, (req, res) => {
+  const { type, filename } = req.params;
+  const filePath = path.join('/app/backend/uploads', type, filename);
+  
+  // Check if file exists
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+  
+  res.sendFile(filePath);
+});
+
+// Delete uploaded file
+app.delete('/api/uploads/:id', authenticateToken, async (req, res) => {
+  try {
+    const { deleteFile } = uploadMiddleware.default || uploadMiddleware;
+    const fileId = req.params.id;
+    
+    // Find file
+    const file = await db.collection('uploads').findOne({ 
+      _id: new ObjectId(fileId),
+      userId: req.userId
+    });
+    
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    // Delete from disk
+    await deleteFile(file.path);
+    
+    // Delete from database
+    await db.collection('uploads').deleteOne({ _id: new ObjectId(fileId) });
+    
+    res.json({ success: true, message: 'File deleted successfully' });
+  } catch (error) {
+    console.error('Delete file error:', error);
+    res.status(500).json({ error: 'Failed to delete file' });
   }
 });
 
