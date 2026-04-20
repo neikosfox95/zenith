@@ -464,6 +464,193 @@ app.get('/api/search/creators', authenticateToken, async (req, res) => {
 const uploadMiddleware = await import('./middleware/upload.js');
 const { uploadSingle, uploadImage, uploadVideo, uploadAudio, handleMulterError, saveFileMetadata } = uploadMiddleware.default || uploadMiddleware;
 
+// ============= PUSH NOTIFICATION ENDPOINTS (Sprint 2 Phase 4 - EXPERT LEVEL) =============
+// Import push notification service
+const pushService = await import('./services/pushNotifications.js');
+const {
+  registerPushToken,
+  removePushToken,
+  sendLiveStreamAlert,
+  sendGiftNotification,
+  sendProgressNotification,
+  sendInboxNotification,
+  sendRichNotification,
+  getUserNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification,
+  updateNotificationPreferences,
+  getUserPushTokens
+} = pushService.default || pushService;
+
+// Register push token with device info
+app.post('/api/notifications/register', authenticateToken, async (req, res) => {
+  try {
+    const { token, deviceInfo } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({ error: 'Push token is required' });
+    }
+    
+    const result = await registerPushToken(db, req.userId, token, deviceInfo);
+    
+    res.json({
+      success: true,
+      message: 'Push token registered successfully',
+      token: result
+    });
+  } catch (error) {
+    console.error('Register push token error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Remove push token
+app.delete('/api/notifications/register', authenticateToken, async (req, res) => {
+  try {
+    const { token } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({ error: 'Push token is required' });
+    }
+    
+    await removePushToken(db, token);
+    
+    res.json({
+      success: true,
+      message: 'Push token removed successfully'
+    });
+  } catch (error) {
+    console.error('Remove push token error:', error);
+    res.status(500).json({ error: 'Failed to remove push token' });
+  }
+});
+
+// Get user notifications with pagination
+app.get('/api/notifications', authenticateToken, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    
+    const result = await getUserNotifications(db, req.userId, page, limit);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Get notifications error:', error);
+    res.status(500).json({ error: 'Failed to get notifications' });
+  }
+});
+
+// Mark notification as read
+app.patch('/api/notifications/:id/read', authenticateToken, async (req, res) => {
+  try {
+    await markNotificationAsRead(db, req.params.id, req.userId);
+    
+    res.json({
+      success: true,
+      message: 'Notification marked as read'
+    });
+  } catch (error) {
+    console.error('Mark notification as read error:', error);
+    res.status(500).json({ error: 'Failed to mark notification as read' });
+  }
+});
+
+// Mark all notifications as read
+app.patch('/api/notifications/read-all', authenticateToken, async (req, res) => {
+  try {
+    await markAllNotificationsAsRead(db, req.userId);
+    
+    res.json({
+      success: true,
+      message: 'All notifications marked as read'
+    });
+  } catch (error) {
+    console.error('Mark all notifications as read error:', error);
+    res.status(500).json({ error: 'Failed to mark notifications as read' });
+  }
+});
+
+// Delete notification
+app.delete('/api/notifications/:id', authenticateToken, async (req, res) => {
+  try {
+    await deleteNotification(db, req.params.id, req.userId);
+    
+    res.json({
+      success: true,
+      message: 'Notification deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete notification error:', error);
+    res.status(500).json({ error: 'Failed to delete notification' });
+  }
+});
+
+// Update notification preferences
+app.patch('/api/notifications/preferences', authenticateToken, async (req, res) => {
+  try {
+    const preferences = req.body;
+    
+    await updateNotificationPreferences(db, req.userId, preferences);
+    
+    res.json({
+      success: true,
+      message: 'Notification preferences updated successfully'
+    });
+  } catch (error) {
+    console.error('Update preferences error:', error);
+    res.status(500).json({ error: 'Failed to update preferences' });
+  }
+});
+
+// EXPERT: Send live stream alert (for testing)
+app.post('/api/notifications/test/live-alert', authenticateToken, async (req, res) => {
+  try {
+    const { creatorUsername, creatorAvatar } = req.body;
+    
+    const result = await sendLiveStreamAlert(db, creatorUsername, creatorAvatar);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Send live alert error:', error);
+    res.status(500).json({ error: 'Failed to send live alert' });
+  }
+});
+
+// EXPERT: Send gift notification (for testing)
+app.post('/api/notifications/test/gift', authenticateToken, async (req, res) => {
+  try {
+    const giftData = req.body;
+    
+    const result = await sendGiftNotification(db, req.userId, giftData);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Send gift notification error:', error);
+    res.status(500).json({ error: 'Failed to send gift notification' });
+  }
+});
+
+// EXPERT: Send custom rich notification
+app.post('/api/notifications/send', authenticateToken, async (req, res) => {
+  try {
+    const tokens = await getUserPushTokens(db, req.userId);
+    
+    if (tokens.length === 0) {
+      return res.status(400).json({ error: 'No push tokens registered' });
+    }
+    
+    const notification = req.body;
+    
+    const result = await sendRichNotification(tokens, notification);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Send notification error:', error);
+    res.status(500).json({ error: 'Failed to send notification' });
+  }
+});
+
 // Upload single file
 app.post('/api/upload', authenticateToken, uploadLimiter, (req, res, next) => {
   uploadSingle(req, res, async (err) => {
