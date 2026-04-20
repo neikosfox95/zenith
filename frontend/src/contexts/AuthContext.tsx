@@ -1,8 +1,9 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import Constants from 'expo-constants';
 
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
+const API_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
 
 interface User {
   id: string;
@@ -30,6 +31,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     loadStoredAuth();
   }, []);
 
+  // Setup axios interceptor for automatic token injection
+  useEffect(() => {
+    const interceptor = axios.interceptors.request.use(
+      (config) => {
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
+
+    return () => {
+      axios.interceptors.request.eject(interceptor);
+    };
+  }, [token]);
+
   const loadStoredAuth = async () => {
     try {
       const storedToken = await AsyncStorage.getItem('auth_token');
@@ -48,7 +66,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await axios.post(`${API_URL}/api/auth/login`, {
+      const response = await axios.post(`${API_URL}/api/login`, {
         email,
         password,
       });
@@ -67,7 +85,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const register = async (email: string, username: string, password: string) => {
     try {
-      const response = await axios.post(`${API_URL}/api/auth/register`, {
+      const response = await axios.post(`${API_URL}/api/register`, {
         email,
         username,
         password,

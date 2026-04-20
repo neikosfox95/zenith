@@ -33,12 +33,16 @@ export default function Login() {
     setLoading(true);
     try {
       await login(email, password);
-      router.replace('/(tabs)/dashboard');
+      router.replace('/(tabs)/home');
     } catch (error: any) {
       Alert.alert('Login Failed', error.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSkipLogin = () => {
+    router.replace('/(tabs)/home');
   };
 
   return (
@@ -88,6 +92,13 @@ export default function Login() {
               disabled={loading}
             >
               <Text style={styles.buttonText}>{loading ? 'Logging in...' : 'Login'}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.button, { backgroundColor: theme.textSecondary, marginTop: 12 }]}
+              onPress={handleSkipLogin}
+            >
+              <Text style={styles.buttonText}>Skip Login (Demo Mode)</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

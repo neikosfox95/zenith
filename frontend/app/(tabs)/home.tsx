@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
   TextInput,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { TikTokColors } from '../../src/constants/tiktokTheme';
 import { useRouter } from 'expo-router';
+import { useAuth } from '../../src/contexts/AuthContext';
 
 const { width } = Dimensions.get('window');
 const cardWidth = (width - 48) / 2; // 2 columns with padding
@@ -55,8 +57,27 @@ const ALL_PHASES = [
 export default function HomeScreen() {
   const { theme } = useTheme();
   const router = useRouter();
+  const { user, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [favorites, setFavorites] = useState<number[]>([1, 5, 7, 11]);
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/(auth)/login');
+          },
+        },
+      ]
+    );
+  };
 
   const filteredPhases = ALL_PHASES.filter(phase =>
     phase.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -87,9 +108,14 @@ export default function HomeScreen() {
           <View>
             <Text style={styles.headerTitle}>TikTok AI Command</Text>
             <Text style={styles.headerSubtitle}>1,000,000/1,000,000 Zenith Grade</Text>
+            {user && (
+              <Text style={[styles.userEmail, { fontSize: 11, color: 'rgba(255,255,255,0.8)', marginTop: 4 }]}>
+                {user.email}
+              </Text>
+            )}
           </View>
-          <TouchableOpacity style={styles.profileButton}>
-            <Ionicons name="person-circle" size={40} color="white" />
+          <TouchableOpacity style={styles.profileButton} onPress={handleLogout}>
+            <Ionicons name="log-out" size={28} color="white" />
           </TouchableOpacity>
         </View>
 
