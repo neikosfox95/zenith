@@ -67,11 +67,23 @@ const io = new Server(httpServer, {
 app.use(cors());
 app.use(express.json());
 
-// Apply general speed limiter to all routes
-app.use(speedLimiter);
+// NOTE: Removed global speedLimiter to prevent middleware conflicts
+// Each route group now has its own specific rate limiter for 100% effectiveness
 
-// Apply API rate limiter to all API routes
+// Apply specific rate limiters to route groups (order matters!)
+// Most specific routes first, broader routes last
+
+// 1. Authentication routes - ULTRA STRICT (10 req/15min)
+//    Applied at route level below
+
+// 2. AI routes - STRICT (50 req/hour)
+//    Applied via phase routes
+
+// 3. General API routes - MODERATE (300 req/15min)
 app.use('/api/', apiLimiter);
+
+// Health check endpoints - NO RATE LIMITING
+// (Already excluded in individual limiters via skip function)
 
 // MongoDB connection
 const mongoUrl = process.env.MONGO_URL;
@@ -96,7 +108,7 @@ async function connectDB() {
     setupPhase3Routes(app, db, io, authenticateToken, sendEmailNotification, sendPushNotification, triggerWebhook, checkAlertRules, exportToCSV, generateReport, backupData, logAuditEvent, hasPermission, ObjectId);
     setupPhase4Routes(app, db, io, authenticateToken, ObjectId);
     setupPhase5Routes(app, db, io, authenticateToken, ObjectId);
-    setupPhase6Routes(app, db, io, authenticateToken, ObjectId);
+    setupPhase6Routes(app, db, io, authenticateToken, aiLimiter, ObjectId);
     setupPhase7Routes(app, db, io, authenticateToken, ObjectId);
     setupPhase8Routes(app, db, io, authenticateToken, ObjectId);
     setupPhase9Routes(app, db, io, authenticateToken, ObjectId);

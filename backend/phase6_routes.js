@@ -44,13 +44,13 @@ async function callEnhancedAIService(method, data) {
   });
 }
 
-export function setupPhase6Routes(app, db, io, authenticateToken, ObjectId) {
+export function setupPhase6Routes(app, db, io, authenticateToken, aiLimiter, ObjectId) {
   console.log('Setting up Phase 6 routes...');
 
   // ============= IMAGE GENERATION =============
   
   // Get available image models
-  app.get('/api/media/image/models', authenticateToken, (req, res) => {
+  app.get('/api/media/image/models', authenticateToken, aiLimiter, (req, res) => {
     res.json({
       models: [
         {
@@ -344,7 +344,7 @@ export function setupPhase6Routes(app, db, io, authenticateToken, ObjectId) {
   });
 
   // Generate images
-  app.post('/api/media/image/generate', authenticateToken, async (req, res) => {
+  app.post('/api/media/image/generate', authenticateToken, aiLimiter, async (req, res) => {
     try {
       const { prompt, model = 'nano-banana-2', size = '1024x1024', num_images = 1, quality = 'standard' } = req.body;
       

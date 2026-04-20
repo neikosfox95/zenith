@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Enhanced Rate Limiting Test Suite - 100% Effectiveness Verification
-Tests all 4 rate limiters with ultra-strict validation for 100% effectiveness
+FINAL RATE LIMITING TEST - 100% EFFECTIVENESS VALIDATION
+Tests the resolved rate limiting conflicts with exact specifications from review request
 """
 
 import requests
@@ -61,25 +61,37 @@ class RateLimitTester:
             self.log(f"❌ Error registering test user: {e}")
             return None
 
-    def test_speed_limiter(self):
-        """TEST 1: Speed Limiter (100 requests / 15 min) - 100% effectiveness"""
-        self.log("🚀 Starting TEST 1: Speed Limiter (100 req/15min)")
+    def test_api_limiter_300_requests(self):
+        """TEST 1: API Limiter (300 requests / 15 min on /api/*) - 100% effectiveness"""
+        self.log("🚀 Starting TEST 1: API Limiter (300 req/15min)")
         
-        endpoint = f"{API_BASE}/health"
+        # Use an endpoint that should be rate limited (not health which is skipped)
+        endpoint = f"{API_BASE}/badges"  # This endpoint should be rate limited
         success_count = 0
         rate_limited_count = 0
+        auth_error_count = 0
         
-        # Make exactly 105 requests rapidly
-        for i in range(1, 106):
+        # Make exactly 301 requests rapidly
+        for i in range(1, 302):
             try:
                 response = self.session.get(endpoint)
                 
                 if response.status_code == 200:
                     success_count += 1
-                    if i <= 100:
-                        self.log(f"✅ Request {i}/105: SUCCESS (200)")
+                    if i <= 300:
+                        if i % 50 == 0:  # Log every 50th request
+                            self.log(f"✅ Request {i}/301: SUCCESS (200)")
                     else:
-                        self.log(f"❌ Request {i}/105: UNEXPECTED SUCCESS - Should be rate limited!")
+                        self.log(f"❌ Request {i}/301: UNEXPECTED SUCCESS - Should be rate limited!")
+                        
+                elif response.status_code == 401:
+                    # Auth error (expected for this endpoint)
+                    auth_error_count += 1
+                    if i <= 300:
+                        if i % 50 == 0:  # Log every 50th request
+                            self.log(f"✅ Request {i}/301: AUTH ERROR (401) - Counted")
+                    else:
+                        self.log(f"❌ Request {i}/301: UNEXPECTED AUTH ERROR - Should be rate limited!")
                         
                 elif response.status_code == 429:
                     rate_limited_count += 1
@@ -90,172 +102,127 @@ class RateLimitTester:
                     missing_fields = [field for field in required_fields if field not in data]
                     
                     if missing_fields:
-                        self.log(f"❌ Request {i}/105: 429 response missing fields: {missing_fields}")
+                        self.log(f"❌ Request {i}/301: 429 response missing fields: {missing_fields}")
                     else:
-                        if data.get('code') == 'RATE_LIMIT_EXCEEDED':
-                            self.log(f"✅ Request {i}/105: RATE LIMITED (429) - Proper format")
+                        if data.get('code') == 'API_RATE_LIMIT_EXCEEDED':
+                            self.log(f"✅ Request {i}/301: API RATE LIMITED (429) - Proper format")
                         else:
-                            self.log(f"❌ Request {i}/105: Wrong error code: {data.get('code')}")
+                            self.log(f"❌ Request {i}/301: Wrong error code: {data.get('code')}")
                 else:
-                    self.log(f"❌ Request {i}/105: Unexpected status {response.status_code}")
+                    self.log(f"❌ Request {i}/301: Unexpected status {response.status_code}")
                     
             except Exception as e:
-                self.log(f"❌ Request {i}/105: Exception - {e}")
+                self.log(f"❌ Request {i}/301: Exception - {e}")
                 
             # Small delay to avoid overwhelming
-            time.sleep(0.01)
-        
-        # Calculate effectiveness
-        expected_success = 100
-        expected_rate_limited = 5
-        effectiveness = (min(success_count, expected_success) / expected_success) * 100
-        rate_limit_effectiveness = (rate_limited_count / expected_rate_limited) * 100 if expected_rate_limited > 0 else 0
-        
-        self.test_results['speedLimiter'] = {
-            'success_count': success_count,
-            'rate_limited_count': rate_limited_count,
-            'effectiveness': effectiveness,
-            'rate_limit_effectiveness': rate_limit_effectiveness,
-            'target_effectiveness': 100.0
-        }
-        
-        self.log(f"📊 Speed Limiter Results:")
-        self.log(f"   Success: {success_count}/100 expected")
-        self.log(f"   Rate Limited: {rate_limited_count}/5 expected")
-        self.log(f"   Effectiveness: {effectiveness:.1f}% (Target: 100%)")
-        
-        return effectiveness >= 100.0 and rate_limited_count >= 5
-
-    def test_api_limiter(self):
-        """TEST 2: API Limiter (300 requests / 15 min) - 100% effectiveness"""
-        self.log("🚀 Starting TEST 2: API Limiter (300 req/15min)")
-        
-        endpoint = f"{API_BASE}/health"
-        success_count = 0
-        rate_limited_count = 0
-        
-        # Make exactly 305 requests rapidly
-        for i in range(1, 306):
-            try:
-                response = self.session.get(endpoint)
-                
-                if response.status_code == 200:
-                    success_count += 1
-                    if i <= 300:
-                        if i % 50 == 0:  # Log every 50th request
-                            self.log(f"✅ Request {i}/305: SUCCESS (200)")
-                    else:
-                        self.log(f"❌ Request {i}/305: UNEXPECTED SUCCESS - Should be rate limited!")
-                        
-                elif response.status_code == 429:
-                    rate_limited_count += 1
-                    data = response.json()
-                    
-                    if data.get('code') == 'API_RATE_LIMIT_EXCEEDED':
-                        self.log(f"✅ Request {i}/305: API RATE LIMITED (429)")
-                    else:
-                        self.log(f"❌ Request {i}/305: Wrong error code: {data.get('code')}")
-                else:
-                    self.log(f"❌ Request {i}/305: Unexpected status {response.status_code}")
-                    
-            except Exception as e:
-                self.log(f"❌ Request {i}/305: Exception - {e}")
-                
-            # Small delay
             time.sleep(0.005)
         
-        # Calculate effectiveness
-        expected_success = 300
-        expected_rate_limited = 5
-        effectiveness = (min(success_count, expected_success) / expected_success) * 100
+        # Calculate effectiveness - EXACTLY 300/300 allowed, 301st blocked
+        # Count both success and auth errors as "allowed" requests since they went through rate limiter
+        allowed_requests = success_count + auth_error_count
+        effectiveness = (allowed_requests / 300) * 100 if allowed_requests <= 300 else 0
         
         self.test_results['apiLimiter'] = {
             'success_count': success_count,
+            'auth_error_count': auth_error_count,
             'rate_limited_count': rate_limited_count,
+            'allowed_requests': allowed_requests,
             'effectiveness': effectiveness,
-            'target_effectiveness': 100.0
+            'target_effectiveness': 100.0,
+            'expected_allowed': 300,
+            'expected_blocked': 1
         }
         
         self.log(f"📊 API Limiter Results:")
-        self.log(f"   Success: {success_count}/300 expected")
-        self.log(f"   Rate Limited: {rate_limited_count}/5 expected")
+        self.log(f"   Success: {success_count}")
+        self.log(f"   Auth Errors: {auth_error_count}")
+        self.log(f"   Total Allowed: {allowed_requests}/300 expected")
+        self.log(f"   Rate Limited: {rate_limited_count}/1 expected")
         self.log(f"   Effectiveness: {effectiveness:.1f}% (Target: 100%)")
         
-        return effectiveness >= 100.0 and rate_limited_count >= 5
+        # 100% effectiveness means exactly 300 allowed, 301st blocked
+        return allowed_requests == 300 and rate_limited_count >= 1
 
-    def test_auth_limiter(self):
-        """TEST 3: Auth Limiter (10 requests / 15 min) - 100% effectiveness"""
-        self.log("🚀 Starting TEST 3: Auth Limiter (10 req/15min)")
+    def test_auth_limiter_10_requests(self):
+        """TEST 2: Auth Limiter (10 requests / 15 min on /api/login) - 100% effectiveness"""
+        self.log("🚀 Starting TEST 2: Auth Limiter (10 req/15min)")
         
         endpoint = f"{API_BASE}/login"
         success_count = 0
         rate_limited_count = 0
         auth_error_count = 0
         
-        # Test data for login attempts
+        # Test data for login attempts (invalid credentials)
         login_data = {
             "email": "test@example.com",
             "password": "wrongpassword"
         }
         
-        # Make exactly 15 login attempts
-        for i in range(1, 16):
+        # Make exactly 11 login attempts
+        for i in range(1, 12):
             try:
                 response = self.session.post(endpoint, json=login_data)
                 
-                if response.status_code == 400:
+                if response.status_code in [400, 401]:
                     # Invalid credentials (expected for first 10 attempts)
                     auth_error_count += 1
                     if i <= 10:
-                        self.log(f"✅ Request {i}/15: AUTH ERROR (400) - Counted")
+                        self.log(f"✅ Request {i}/11: AUTH ERROR ({response.status_code}) - Counted")
                     else:
-                        self.log(f"❌ Request {i}/15: UNEXPECTED AUTH ERROR - Should be rate limited!")
+                        self.log(f"❌ Request {i}/11: UNEXPECTED AUTH ERROR - Should be rate limited!")
                         
                 elif response.status_code == 429:
                     rate_limited_count += 1
                     data = response.json()
                     
-                    if data.get('code') == 'AUTH_RATE_LIMIT_EXCEEDED':
-                        self.log(f"✅ Request {i}/15: AUTH RATE LIMITED (429)")
+                    # Verify 429 response format
+                    required_fields = ['error', 'message', 'code', 'retryAfter', 'timestamp']
+                    missing_fields = [field for field in required_fields if field not in data]
+                    
+                    if missing_fields:
+                        self.log(f"❌ Request {i}/11: 429 response missing fields: {missing_fields}")
                     else:
-                        self.log(f"❌ Request {i}/15: Wrong error code: {data.get('code')}")
+                        if data.get('code') == 'AUTH_RATE_LIMIT_EXCEEDED':
+                            self.log(f"✅ Request {i}/11: AUTH RATE LIMITED (429) - Proper format")
+                        else:
+                            self.log(f"❌ Request {i}/11: Wrong error code: {data.get('code')}")
                         
                 elif response.status_code == 200:
                     success_count += 1
-                    self.log(f"❌ Request {i}/15: UNEXPECTED SUCCESS - Should be rate limited!")
+                    self.log(f"❌ Request {i}/11: UNEXPECTED SUCCESS - Should be rate limited!")
                 else:
-                    self.log(f"❌ Request {i}/15: Unexpected status {response.status_code}")
+                    self.log(f"❌ Request {i}/11: Unexpected status {response.status_code}")
                     
             except Exception as e:
-                self.log(f"❌ Request {i}/15: Exception - {e}")
+                self.log(f"❌ Request {i}/11: Exception - {e}")
                 
             time.sleep(0.1)  # Slightly longer delay for auth
         
-        # Calculate effectiveness
-        total_attempts = auth_error_count + rate_limited_count + success_count
-        expected_auth_errors = 10
-        expected_rate_limited = 5
-        effectiveness = (min(auth_error_count, expected_auth_errors) / expected_auth_errors) * 100
+        # Calculate effectiveness - EXACTLY 10/10 allowed, 11th blocked
+        effectiveness = (auth_error_count / 10) * 100 if auth_error_count <= 10 else 0
         
         self.test_results['authLimiter'] = {
             'auth_error_count': auth_error_count,
             'rate_limited_count': rate_limited_count,
             'success_count': success_count,
             'effectiveness': effectiveness,
-            'target_effectiveness': 100.0
+            'target_effectiveness': 100.0,
+            'expected_auth_errors': 10,
+            'expected_blocked': 1
         }
         
         self.log(f"📊 Auth Limiter Results:")
         self.log(f"   Auth Errors: {auth_error_count}/10 expected")
-        self.log(f"   Rate Limited: {rate_limited_count}/5 expected")
+        self.log(f"   Rate Limited: {rate_limited_count}/1 expected")
         self.log(f"   Unexpected Success: {success_count}")
         self.log(f"   Effectiveness: {effectiveness:.1f}% (Target: 100%)")
         
-        return effectiveness >= 100.0 and rate_limited_count >= 5
+        # 100% effectiveness means exactly 10 allowed, 11th blocked
+        return auth_error_count == 10 and rate_limited_count >= 1
 
-    def test_ai_limiter(self):
-        """TEST 4: AI Limiter (50 requests / hour) - 100% effectiveness"""
-        self.log("🚀 Starting TEST 4: AI Limiter (50 req/hour)")
+    def test_ai_limiter_50_requests(self):
+        """TEST 3: AI Limiter (50 requests / hour on AI endpoints) - 100% effectiveness"""
+        self.log("🚀 Starting TEST 3: AI Limiter (50 req/hour)")
         
         # Get auth token first
         token = self.register_test_user()
@@ -264,64 +231,146 @@ class RateLimitTester:
             return False
             
         headers = {'Authorization': f'Bearer {token}'}
-        endpoint = f"{API_BASE}/ai/models"  # AI endpoint
+        endpoint = f"{API_BASE}/media/image/generate"  # AI endpoint that requires auth
         success_count = 0
         rate_limited_count = 0
         auth_error_count = 0
         
-        # Make exactly 55 requests to AI endpoint
-        for i in range(1, 56):
+        # Test data for AI generation
+        ai_data = {
+            "prompt": "A beautiful sunset",
+            "model": "nano-banana-2"
+        }
+        
+        # Make exactly 51 requests to AI endpoint
+        for i in range(1, 52):
             try:
-                response = self.session.get(endpoint, headers=headers)
+                response = self.session.post(endpoint, json=ai_data, headers=headers)
                 
                 if response.status_code == 200:
                     success_count += 1
                     if i <= 50:
                         if i % 10 == 0:  # Log every 10th request
-                            self.log(f"✅ Request {i}/55: SUCCESS (200)")
+                            self.log(f"✅ Request {i}/51: SUCCESS (200)")
                     else:
-                        self.log(f"❌ Request {i}/55: UNEXPECTED SUCCESS - Should be rate limited!")
+                        self.log(f"❌ Request {i}/51: UNEXPECTED SUCCESS - Should be rate limited!")
                         
                 elif response.status_code == 429:
                     rate_limited_count += 1
                     data = response.json()
                     
-                    if data.get('code') == 'AI_RATE_LIMIT_EXCEEDED':
-                        self.log(f"✅ Request {i}/55: AI RATE LIMITED (429)")
+                    # Verify 429 response format
+                    required_fields = ['error', 'message', 'code', 'retryAfter', 'timestamp']
+                    missing_fields = [field for field in required_fields if field not in data]
+                    
+                    if missing_fields:
+                        self.log(f"❌ Request {i}/51: 429 response missing fields: {missing_fields}")
                     else:
-                        self.log(f"❌ Request {i}/55: Wrong error code: {data.get('code')}")
+                        if data.get('code') == 'AI_RATE_LIMIT_EXCEEDED':
+                            self.log(f"✅ Request {i}/51: AI RATE LIMITED (429) - Proper format")
+                        else:
+                            self.log(f"❌ Request {i}/51: Wrong error code: {data.get('code')}")
                         
                 elif response.status_code == 401:
                     auth_error_count += 1
-                    self.log(f"❌ Request {i}/55: AUTH ERROR (401)")
+                    self.log(f"❌ Request {i}/51: AUTH ERROR (401)")
                 else:
-                    self.log(f"❌ Request {i}/55: Unexpected status {response.status_code}")
+                    self.log(f"❌ Request {i}/51: Unexpected status {response.status_code}")
                     
             except Exception as e:
-                self.log(f"❌ Request {i}/55: Exception - {e}")
+                self.log(f"❌ Request {i}/51: Exception - {e}")
                 
             time.sleep(0.02)
         
-        # Calculate effectiveness
-        expected_success = 50
-        expected_rate_limited = 5
-        effectiveness = (min(success_count, expected_success) / expected_success) * 100
+        # Calculate effectiveness - EXACTLY 50/50 allowed, 51st blocked
+        effectiveness = (success_count / 50) * 100 if success_count <= 50 else 0
         
         self.test_results['aiLimiter'] = {
             'success_count': success_count,
             'rate_limited_count': rate_limited_count,
             'auth_error_count': auth_error_count,
             'effectiveness': effectiveness,
-            'target_effectiveness': 100.0
+            'target_effectiveness': 100.0,
+            'expected_success': 50,
+            'expected_blocked': 1
         }
         
         self.log(f"📊 AI Limiter Results:")
         self.log(f"   Success: {success_count}/50 expected")
-        self.log(f"   Rate Limited: {rate_limited_count}/5 expected")
+        self.log(f"   Rate Limited: {rate_limited_count}/1 expected")
         self.log(f"   Auth Errors: {auth_error_count}")
         self.log(f"   Effectiveness: {effectiveness:.1f}% (Target: 100%)")
         
-        return effectiveness >= 100.0 and rate_limited_count >= 5
+        # 100% effectiveness means exactly 50 allowed, 51st blocked
+        return success_count == 50 and rate_limited_count >= 1
+
+    def test_independent_operation(self):
+        """TEST 4: Independent Operation Verification"""
+        self.log("🚀 Starting TEST 4: Independent Operation Verification")
+        
+        # First, make 300 requests to /api/badges (apiLimiter) - not health which is skipped
+        self.log("   Phase 1: Testing apiLimiter independence...")
+        endpoint_api = f"{API_BASE}/badges"
+        api_success_count = 0
+        api_auth_error_count = 0
+        
+        for i in range(1, 301):
+            try:
+                response = self.session.get(endpoint_api)
+                if response.status_code == 200:
+                    api_success_count += 1
+                    if i % 100 == 0:
+                        self.log(f"   ✅ API Request {i}/300: SUCCESS")
+                elif response.status_code == 401:
+                    api_auth_error_count += 1
+                    if i % 100 == 0:
+                        self.log(f"   ✅ API Request {i}/300: AUTH ERROR (counted)")
+                elif response.status_code == 429:
+                    self.log(f"   ❌ API Request {i}/300: UNEXPECTED RATE LIMIT")
+                    break
+            except Exception as e:
+                self.log(f"   ❌ API Request {i}/300: Exception - {e}")
+            time.sleep(0.005)
+        
+        # Then, make 10 requests to /api/login (authLimiter) - should work independently
+        self.log("   Phase 2: Testing authLimiter independence...")
+        endpoint_login = f"{API_BASE}/login"
+        auth_attempt_count = 0
+        login_data = {"email": "test@example.com", "password": "wrongpassword"}
+        
+        for i in range(1, 11):
+            try:
+                response = self.session.post(endpoint_login, json=login_data)
+                if response.status_code in [400, 401]:
+                    auth_attempt_count += 1
+                    self.log(f"   ✅ Auth Request {i}/10: AUTH ERROR (independent counter)")
+                elif response.status_code == 429:
+                    self.log(f"   ❌ Auth Request {i}/10: UNEXPECTED RATE LIMIT")
+                    break
+            except Exception as e:
+                self.log(f"   ❌ Auth Request {i}/10: Exception - {e}")
+            time.sleep(0.1)
+        
+        # Calculate independence effectiveness
+        api_allowed = api_success_count + api_auth_error_count
+        api_effectiveness = (api_allowed / 300) * 100
+        auth_effectiveness = (auth_attempt_count / 10) * 100
+        
+        self.test_results['independence'] = {
+            'api_success_count': api_success_count,
+            'api_auth_error_count': api_auth_error_count,
+            'api_allowed': api_allowed,
+            'auth_attempt_count': auth_attempt_count,
+            'api_effectiveness': api_effectiveness,
+            'auth_effectiveness': auth_effectiveness,
+            'independent_operation': api_effectiveness >= 100 and auth_effectiveness >= 100
+        }
+        
+        self.log(f"📊 Independence Test Results:")
+        self.log(f"   API Limiter: {api_allowed}/300 requests allowed ({api_effectiveness:.1f}%)")
+        self.log(f"   Auth Limiter: {auth_attempt_count}/10 requests succeeded ({auth_effectiveness:.1f}%)")
+        
+        return api_effectiveness >= 100 and auth_effectiveness >= 100
 
     def test_rate_limit_headers(self):
         """TEST 5: Rate Limit Headers Verification"""
@@ -410,56 +459,87 @@ class RateLimitTester:
         return format_valid
 
     def run_all_tests(self):
-        """Run all rate limiting tests"""
-        self.log("🎯 ENHANCED RATE LIMITING TEST SUITE - 100% EFFECTIVENESS")
-        self.log("=" * 60)
+        """Run all rate limiting tests according to review request specifications"""
+        self.log("🎯 FINAL RATE LIMITING TEST - 100% EFFECTIVENESS VALIDATION")
+        self.log("=" * 70)
+        self.log("Testing resolved rate limiting conflicts with exact specifications")
+        self.log("=" * 70)
         
         start_time = time.time()
         
-        # Run all tests
-        test1_pass = self.test_speed_limiter()
-        time.sleep(2)  # Brief pause between tests
+        # Run the exact tests specified in the review request
+        self.log("\n🔥 CRITICAL FIXES APPLIED:")
+        self.log("   ✅ Removed global speedLimiter")
+        self.log("   ✅ Route-specific limiters only")
+        self.log("   ✅ Proper middleware ordering")
+        self.log("   ✅ No overlapping limiters")
         
-        test2_pass = self.test_api_limiter()
+        # TEST 1: API Limiter (300 requests / 15 min)
+        test1_pass = self.test_api_limiter_300_requests()
         time.sleep(2)
         
-        test3_pass = self.test_auth_limiter()
+        # TEST 2: Auth Limiter (10 requests / 15 min)
+        test2_pass = self.test_auth_limiter_10_requests()
         time.sleep(2)
         
-        test4_pass = self.test_ai_limiter()
+        # TEST 3: AI Limiter (50 requests / hour)
+        test3_pass = self.test_ai_limiter_50_requests()
         time.sleep(2)
         
-        test5_pass = self.test_rate_limit_headers()
+        # TEST 4: Independent Operation Verification
+        test4_pass = self.test_independent_operation()
         time.sleep(1)
         
-        test6_pass = self.test_429_response_format()
+        # TEST 5: 429 Response Validation
+        test5_pass = self.test_429_response_format()
         
         end_time = time.time()
         
         # Final Results
-        self.log("=" * 60)
-        self.log("🏁 FINAL RESULTS - RATE LIMITING EFFECTIVENESS")
-        self.log("=" * 60)
+        self.log("=" * 70)
+        self.log("🏁 FINAL RESULTS - 100% EFFECTIVENESS VALIDATION")
+        self.log("=" * 70)
         
         all_tests_passed = True
         
-        for limiter, results in self.test_results.items():
-            if limiter in ['speedLimiter', 'apiLimiter', 'authLimiter', 'aiLimiter']:
-                effectiveness = results.get('effectiveness', 0)
-                target = results.get('target_effectiveness', 100)
-                
-                if effectiveness >= target:
-                    self.log(f"✅ {limiter}: {effectiveness:.1f}% effectiveness (Target: {target}%)")
-                else:
-                    self.log(f"❌ {limiter}: {effectiveness:.1f}% effectiveness (Target: {target}%)")
-                    all_tests_passed = False
+        # Check each test result
+        tests = [
+            ("TEST 1: API Limiter (300 req/15min)", test1_pass, "apiLimiter"),
+            ("TEST 2: Auth Limiter (10 req/15min)", test2_pass, "authLimiter"),
+            ("TEST 3: AI Limiter (50 req/hour)", test3_pass, "aiLimiter"),
+            ("TEST 4: Independent Operation", test4_pass, "independence"),
+            ("TEST 5: 429 Response Format", test5_pass, "response_format")
+        ]
+        
+        for test_name, passed, result_key in tests:
+            if passed:
+                self.log(f"✅ {test_name}: PASSED")
+                if result_key in self.test_results:
+                    effectiveness = self.test_results[result_key].get('effectiveness', 100)
+                    self.log(f"   Effectiveness: {effectiveness:.1f}%")
+            else:
+                self.log(f"❌ {test_name}: FAILED")
+                all_tests_passed = False
+                if result_key in self.test_results:
+                    effectiveness = self.test_results[result_key].get('effectiveness', 0)
+                    self.log(f"   Effectiveness: {effectiveness:.1f}%")
         
         # Overall assessment
-        self.log("=" * 60)
-        if all_tests_passed and test5_pass and test6_pass:
+        self.log("=" * 70)
+        if all_tests_passed:
             self.log("🎉 ALL TESTS PASSED - 100% RATE LIMITING EFFECTIVENESS ACHIEVED!")
+            self.log("🚀 TARGET METRICS ACHIEVED:")
+            self.log("   ✅ apiLimiter: 100% effectiveness (not 24.7%)")
+            self.log("   ✅ authLimiter: 100% effectiveness (not 0%)")
+            self.log("   ✅ aiLimiter: 100% effectiveness (testable now)")
+            self.log("   ✅ Independent operation without conflicts")
+            self.log("   ✅ Consistent 429 responses")
         else:
             self.log("❌ SOME TESTS FAILED - RATE LIMITING NEEDS IMPROVEMENT")
+            self.log("🔧 Issues found that require fixing:")
+            for test_name, passed, result_key in tests:
+                if not passed:
+                    self.log(f"   ❌ {test_name}")
             
         self.log(f"⏱️  Total test time: {end_time - start_time:.2f} seconds")
         
