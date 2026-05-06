@@ -50,23 +50,25 @@ export default function AIStudioScreen() {
       const endpoint = getModelsEndpoint(activeCategory);
       const response = await axios.get(`${API_URL}/api/ai-studio/${endpoint}`);
       
+      let loadedModels = [];
+      
       if (activeCategory === 'music') {
         // Flatten music categories
-        const allModels = [];
         Object.entries(response.data.categories).forEach(([category, models]) => {
           models.forEach(model => {
-            allModels.push({ ...model, category });
+            loadedModels.push({ ...model, category });
           });
         });
-        setModels(allModels);
       } else if (activeCategory === 'mcp') {
-        setModels(response.data.top_50 || []);
+        loadedModels = response.data.top_50 || [];
       } else {
-        setModels(response.data.models || []);
+        loadedModels = response.data.models || [];
       }
       
-      if (allModels.length > 0 || response.data.models?.length > 0) {
-        setSelectedModel(allModels[0] || response.data.models[0]);
+      setModels(loadedModels);
+      
+      if (loadedModels.length > 0) {
+        setSelectedModel(loadedModels[0]);
       }
     } catch (error) {
       console.error('Error loading models:', error);
