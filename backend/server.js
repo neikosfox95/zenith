@@ -49,6 +49,7 @@ import phase28Routes from './phase28_routes.js';
 import phase29Routes from './phase29_routes.js';
 import phase30Routes from './phase30_routes.js';
 import aiStudioRoutes from './ai_studio_routes.js';
+import { setupSocketIOTests } from './socketio_test_routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -178,6 +179,12 @@ async function connectDB() {
     console.log('🎨 Setting up AI Studio (Text, Image, Video, Voice, Music, Music Video, MCPs) routes...');
     app.use('/api/ai-studio', aiStudioRoutes);
     console.log('✅ AI Studio routes loaded - 100+ AI Models integrated!');
+    
+    // PHASE 6: SOCKET.IO TESTING ROUTES
+    console.log('🔌 Setting up Socket.IO Testing routes (Phase 6)...');
+    const socketTestRoutes = setupSocketIOTests(app, io);
+    app.use('/api/socket-test', socketTestRoutes);
+    console.log('✅ Phase 6: Socket.IO Testing routes loaded!');
     
   } catch (error) {
     console.error('MongoDB connection error:', error);

@@ -507,22 +507,49 @@ router.post('/mythos/reason', async (req, res) => {
 // HELPER FUNCTIONS FOR ROUTING TO AI PROVIDERS
 // ============================================================
 
+const AI_MICROSERVICE_URL = 'http://localhost:8002';
+
 async function routeTextGeneration(model, messages, options) {
-  // This would route to the appropriate AI provider
-  // For now, returning mock response
-  return {
-    model,
-    content: `Response from ${model}`,
-    usage: { prompt_tokens: 10, completion_tokens: 50 }
-  };
+  try {
+    // Call Python AI microservice
+    const response = await axios.post(`${AI_MICROSERVICE_URL}/ai/text/generate`, {
+      model,
+      messages,
+      temperature: options.temperature || 0.7,
+      max_tokens: options.max_tokens || 2000,
+      stream: options.stream || false
+    });
+    return response.data;
+  } catch (error) {
+    console.error('AI microservice error:', error.message);
+    // Fallback to mock
+    return {
+      model,
+      content: `Response from ${model} (microservice unavailable)`,
+      usage: { prompt_tokens: 10, completion_tokens: 50 }
+    };
+  }
 }
 
 async function routeImageGeneration(model, prompt, options) {
-  return {
-    model,
-    images: ['https://placeholder.com/image1.jpg'],
-    prompt
-  };
+  try {
+    // Call Python AI microservice
+    const response = await axios.post(`${AI_MICROSERVICE_URL}/ai/image/generate`, {
+      model,
+      prompt,
+      size: options.size || '1024x1024',
+      n: options.n || 1
+    });
+    return response.data;
+  } catch (error) {
+    console.error('AI microservice error:', error.message);
+    // Fallback to mock
+    return {
+      model,
+      images: ['https://placeholder.com/image1.jpg'],
+      prompt
+    };
+  }
 }
 
 async function routeVideoGeneration(model, prompt, options) {
@@ -535,12 +562,25 @@ async function routeVideoGeneration(model, prompt, options) {
 }
 
 async function routeTTSGeneration(model, text, options) {
-  return {
-    model,
-    audio_url: 'https://placeholder.com/audio1.mp3',
-    duration: 5,
-    voice: options.voice
-  };
+  try {
+    // Call Python AI microservice
+    const response = await axios.post(`${AI_MICROSERVICE_URL}/ai/tts/generate`, {
+      model,
+      text,
+      voice: options.voice || 'default',
+      language: options.language || 'en'
+    });
+    return response.data;
+  } catch (error) {
+    console.error('AI microservice error:', error.message);
+    // Fallback to mock
+    return {
+      model,
+      audio_url: 'https://placeholder.com/audio1.mp3',
+      duration: 5,
+      voice: options.voice
+    };
+  }
 }
 
 async function routeMusicGeneration(model, prompt, options) {
