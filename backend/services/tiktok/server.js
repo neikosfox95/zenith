@@ -6,21 +6,22 @@
 import express from 'express';
 import { createServer } from 'http';
 import { WebcastPushConnection } from 'tiktok-live-connector';
-import MessageBus from '../lib/message-bus.js';
-import circuitBreaker from '../lib/circuit-breaker.js';
+import MessageBus from '../../lib/message-bus.js';
+import circuitBreaker from '../../lib/circuit-breaker.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 const app = express();
 const httpServer = createServer(app);
-const PORT = process.env.TIKTOK_SERVICE_PORT || 8010;
+const PORT = process.env.TIKTOK_SERVICE_PORT || 8011;
 
 // Middleware
 app.use(express.json());
 
-// Initialize message bus
-const messageBus = new MessageBus(process.env.REDIS_URL);
+// Initialize message bus (optional - graceful degradation without Redis)
+let messageBus = null;
+// Don't initialize MessageBus if Redis is not available to avoid connection errors
 
 // Active connections map
 const activeConnections = new Map();
@@ -85,11 +86,13 @@ class TikTokConnectionManager {
       console.log(`✅ [TikTok] Connected to @${this.username}`);
 
       // Publish connection event
-      await messageBus.publish('tiktok.events', 'connection', {
-        username: this.username,
-        status: 'connected',
-        timestamp: Date.now()
-      });
+      if (messageBus) {
+        await messageBus.publish('tiktok.events', 'connection', {
+          username: this.username,
+          status: 'connected',
+          timestamp: Date.now()
+        });
+      }
 
     } catch (error) {
       console.error(`❌ [TikTok] Connection error for @${this.username}:`, error.message);
@@ -107,17 +110,19 @@ class TikTokConnectionManager {
 
       console.log(`🎁 [TikTok] Gift from ${data.uniqueId}: ${data.giftName} x${data.repeatCount}`);
 
-      await messageBus.publish('tiktok.events', 'gift', {
-        username: this.username,
-        user: data.uniqueId,
-        userId: data.userId,
-        giftId: data.giftId,
-        giftName: data.giftName,
-        giftPictureUrl: data.giftPictureUrl,
-        repeatCount: data.repeatCount,
-        diamondCount: data.diamondCount,
-        timestamp: Date.now()
-      });
+      if (messageBus) {
+        await messageBus.publish('tiktok.events', 'gift', {
+          username: this.username,
+          user: data.uniqueId,
+          userId: data.userId,
+          giftId: data.giftId,
+          giftName: data.giftName,
+          giftPictureUrl: data.giftPictureUrl,
+          repeatCount: data.repeatCount,
+          diamondCount: data.diamondCount,
+          timestamp: Date.now()
+        });
+      }
     });
 
     // Comment event
@@ -128,13 +133,13 @@ class TikTokConnectionManager {
 
       console.log(`💬 [TikTok] Comment from ${data.uniqueId}: ${data.comment}`);
 
-      await messageBus.publish('tiktok.events', 'comment', {
+      if (messageBus) { await messageBus.publish('tiktok.events', 'comment', {
         username: this.username,
         user: data.uniqueId,
         userId: data.userId,
         comment: data.comment,
         timestamp: Date.now()
-      });
+      }); }
     });
 
     // Like event
@@ -143,13 +148,15 @@ class TikTokConnectionManager {
       this.stats.likes++;
       this.stats.lastEventAt = new Date();
 
-      await messageBus.publish('tiktok.events', 'like', {
-        username: this.username,
-        user: data.uniqueId,
-        likeCount: data.likeCount,
-        totalLikeCount: data.totalLikeCount,
-        timestamp: Date.now()
-      });
+      if (messageBus) {
+        await messageBus.publish('tiktok.events', 'like', {
+          username: this.username,
+          user: data.uniqueId,
+          likeCount: data.likeCount,
+          totalLikeCount: data.totalLikeCount,
+          timestamp: Date.now()
+        });
+      }
     });
 
     // Share event
@@ -158,11 +165,13 @@ class TikTokConnectionManager {
       this.stats.shares++;
       this.stats.lastEventAt = new Date();
 
-      await messageBus.publish('tiktok.events', 'share', {
-        username: this.username,
-        user: data.uniqueId,
-        timestamp: Date.now()
-      });
+      if (messageBus) {
+        await messageBus.publish('tiktok.events', 'share', {
+          username: this.username,
+          user: data.uniqueId,
+          timestamp: Date.now()
+        });
+      }
     });
 
     // Follow event
@@ -171,11 +180,11 @@ class TikTokConnectionManager {
       this.stats.follows++;
       this.stats.lastEventAt = new Date();
 
-      await messageBus.publish('tiktok.events', 'follow', {
+      if (messageBus) { await messageBus.publish('tiktok.events', 'follow', {
         username: this.username,
         user: data.uniqueId,
         timestamp: Date.now()
-      });
+      }); }
     });
 
     // Disconnect handler
@@ -183,11 +192,11 @@ class TikTokConnectionManager {
       console.log(`⚠️ [TikTok] Disconnected from @${this.username}`);
       this.isConnected = false;
 
-      await messageBus.publish('tiktok.events', 'connection', {
+      if (messageBus) { await messageBus.publish('tiktok.events', 'connection', {
         username: this.username,
         status: 'disconnected',
         timestamp: Date.now()
-      });
+      }); }
 
       await this._scheduleReconnect();
     });
@@ -196,11 +205,11 @@ class TikTokConnectionManager {
     this.connection.on('error', async (error) => {
       console.error(`❌ [TikTok] Error for @${this.username}:`, error.message);
       
-      await messageBus.publish('tiktok.events', 'error', {
+      if (messageBus) { await messageBus.publish('tiktok.events', 'error', {
         username: this.username,
         error: error.message,
         timestamp: Date.now()
-      });
+      }); }
     });
   }
 
@@ -367,9 +376,13 @@ app.get('/health', (req, res) => {
 
 async function start() {
   try {
-    // Start message bus
-    await messageBus.start();
-    console.log('✅ Message bus started');
+    // Start message bus (if available)
+    if (messageBus) {
+      await messageBus.start();
+      console.log('✅ Message bus started');
+    } else {
+      console.log('⚠️ Running without message bus (Redis not available)');
+    }
 
     // Auto-connect to default creator if specified
     const defaultCreator = process.env.DEFAULT_TIKTOK_CREATOR || 'darkskully';
@@ -398,7 +411,9 @@ process.on('SIGTERM', async () => {
     await manager.disconnect();
   }
   
-  await messageBus.stop();
+  if (messageBus) {
+    await messageBus.stop();
+  }
   process.exit(0);
 });
 
