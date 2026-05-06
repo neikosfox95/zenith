@@ -969,6 +969,333 @@
 
 ---
 
+### 1️⃣1️⃣ RANKINGS & LEAGUE SYSTEMS (COMPREHENSIVE)
+
+#### **A. TikTok League System (Fragments-Based Rankings)**
+
+- **League Tiers (4 Main Leagues):**
+  - **A-League (Top Tier):**
+    - Division A1 (highest)
+    - Division A2
+    - Division A3
+    - Requirements to reach A1
+    - Requirements to maintain A-League status
+
+  - **B-League:**
+    - Division B1
+    - Division B2
+    - Division B3
+    - Division B4
+    - Division B5
+    - Requirements for B→A promotion
+    - Requirements to maintain B-League status
+
+  - **C-League:**
+    - Division C1
+    - Division C2
+    - Division C3
+    - Division C4
+    - Division C5
+    - Requirements for C→B promotion
+    - Requirements to maintain C-League status
+
+  - **D-League (Starting Tier):**
+    - Division D1
+    - Division D2
+    - Division D3
+    - Division D4
+    - Division D5 (entry level - ALL creators start here)
+    - Requirements for D→C promotion
+
+- **Fragments System (League Points):**
+  - Total fragments earned
+  - Fragments per day
+  - Fragments per week
+  - Fragments per stream
+  - Fragments vs diamonds tracking (separate currencies)
+  - Fragment earning rate
+  - Fragment velocity (rate of accumulation)
+  - Historical fragment trends
+
+- **Division Progression Tracking:**
+  - Current league & division (e.g., "B3")
+  - Fragments needed for next division
+  - Fragments needed for next league
+  - Progress percentage within current division
+  - Progress percentage within current league
+  - Promotion history (dates of all promotions)
+  - Relegation history (dates of all demotions)
+  - Time spent in each division/league
+
+- **League Shields:**
+  - Shield count (protection from relegation)
+  - Shield earned from each promotion
+  - Shield usage tracking
+  - Shield protection periods
+  - Shield effectiveness (days protected)
+
+- **Weekly Reset Mechanics:**
+  - Current week league status
+  - Previous week comparison
+  - Weekly gift gallery unlocked by league
+  - Gift gallery size by league tier
+  - Post-Sunday reset tracking
+
+- **Daily League Movement:**
+  - Daily position changes
+  - Day-to-day league shifts
+  - Intra-week volatility tracking
+  - Position stability score
+
+- **Promotion & Relegation Analytics:**
+  - Promotion rate (% of time moving up)
+  - Relegation rate (% of time moving down)
+  - Average time to promotion
+  - Risk of relegation score
+  - Promotion velocity
+
+#### **B. TikTok Live Pro Status**
+
+**Note:** Official "Live Pro" program not confirmed in 2026 research. Framework will track proposed/community-defined "Pro" criteria:
+
+- **Live Pro Eligibility Tracking:**
+  - Follower count (1,000+ required, or 100+ with high authority)
+  - Age verification (18+, 19+ in South Korea)
+  - Account standing score
+  - Community guideline violations (must be zero)
+  - Authority score (for early access with <1,000 followers)
+
+- **Authority Score Components:**
+  - Content quality signals
+  - Original content rate
+  - High-retention content rate
+  - Completion rate average
+  - Engagement rate average
+  - Community violation record
+
+- **Live Pro Performance Standards:**
+  - Minimum streams per week
+  - Minimum stream duration (30-60 min optimal)
+  - Minimum engagement rate per stream
+  - Minimum viewer retention
+  - Gift receiving rate
+  - Follower growth from streams
+
+- **Live Pro Status Maintenance:**
+  - Days since last stream
+  - Stream consistency score
+  - Quality standards compliance (1080p, lighting, audio)
+  - Community guideline adherence
+  - Engagement benchmarks maintained
+
+#### **C. TikTok Gaming Pro Status**
+
+**Note:** Official "Gaming Pro" program not confirmed in 2026 research. Framework will track proposed/community-defined "Gaming Pro" criteria:
+
+- **Gaming Pro Eligibility:**
+  - All Live Pro requirements (above)
+  - Gaming content category verification
+  - Gaming stream frequency
+  - Gaming audience retention
+  - Game-specific engagement metrics
+
+- **Gaming Pro Performance:**
+  - Gaming content percentage (of total streams)
+  - Gaming stream viewership
+  - Gaming stream engagement rate
+  - Gaming community growth
+  - Game title diversity or specialization
+
+- **Gaming Pro Maintenance:**
+  - Gaming stream consistency
+  - Gaming content quality
+  - Gaming community engagement
+  - Gaming trends participation
+  - Gaming collaboration rate
+
+#### **D. Global Ranking Systems**
+
+- **Overall Global Rankings:**
+  - Global follower rank
+  - Global engagement rank
+  - Global view rank
+  - Global earnings rank (if public)
+  - Global influence score
+
+- **Category-Based Rankings:**
+  - Rank within content category (comedy, education, gaming, etc.)
+  - Category-specific engagement rank
+  - Category growth velocity rank
+  - Top creators per category (Discover List)
+
+- **Gifting & Earnings Rankings:**
+  - Top gifted creators (diamonds received)
+  - Top earners by RPM
+  - Top live streamers by revenue
+  - Top TikTok Shop sellers by GMV
+
+- **Viral Content Rankings:**
+  - Most viral videos (by views)
+  - Fastest growing videos (velocity)
+  - Most engaged videos (engagement rate)
+  - Most shared videos
+  - Most saved videos
+
+#### **E. Regional Ranking Systems**
+
+**US Regional Rankings (Priority - Phase 1):**
+
+- **National US Rankings:**
+  - Top US creators by followers
+  - Top US creators by engagement
+  - Top US creators by earnings
+  - Top US creators by category
+  - Fastest growing US creators
+  - US market share percentage
+
+- **State-Level Rankings:**
+  - Rankings by all 50 US states
+  - Top creators per state
+  - State-level engagement rates
+  - State-level audience demographics
+  - Cross-state influence tracking
+
+- **City-Level Rankings (Major US Cities):**
+  - Top creators in NYC, LA, Chicago, Houston, Phoenix, Philadelphia, etc.
+  - Metropolitan area rankings
+  - Urban vs suburban vs rural rankings
+
+**International Regional Rankings (Phase 2 Expansion):**
+
+- **Asia-Pacific:**
+  - Indonesia (108M users)
+  - Philippines (62.3M users)
+  - Bangladesh (46.5M users)
+  - Vietnam (40.9M users)
+  - Thailand (34M users)
+  - Japan (26.9M users)
+
+- **Europe:**
+  - Russia (56M users)
+  - Turkey (40.2M users)
+  - UK (24.8M users)
+  - France (21.5M users)
+  - Germany (21.8M users)
+  - Spain (19M users)
+  - Italy (19.8M users)
+
+- **Latin America:**
+  - Brazil (91.7M users)
+  - Mexico (85.4M users)
+  - Colombia (32M users)
+  - Argentina (24.4M users)
+  - Peru (24.4M users)
+
+- **Middle East & Africa:**
+  - Egypt (41.3M users)
+  - Saudi Arabia (34.1M users)
+  - Iraq (34.3M users)
+  - Nigeria (37.4M users)
+  - South Africa (23.4M users)
+
+- **Regional Ranking Metrics Per Region:**
+  - Top creators by followers
+  - Top creators by engagement
+  - Regional viral trends
+  - Regional audience behavior
+  - Cross-regional influence
+  - Regional language rankings
+  - Regional cultural trends
+
+#### **F. Competitive Rankings & Leaderboards**
+
+- **Daily Leaderboards:**
+  - Top gainers today (followers, views, engagement)
+  - Top losers today
+  - Biggest movers (up/down in rankings)
+
+- **Weekly Leaderboards:**
+  - Weekly top performers
+  - Weekly growth leaders
+  - Weekly engagement leaders
+  - Weekly viral content leaders
+
+- **Monthly & Yearly Leaderboards:**
+  - Monthly performance rankings
+  - Quarterly rankings
+  - Annual rankings
+  - Year-over-year comparisons
+
+- **Creator-to-Watch Lists:**
+  - TikTok Discover List (official 50 creators)
+  - Educators category
+  - Foodies category
+  - Icons category
+  - Innovators category
+  - Originators category
+
+- **Fastest Growing Rankings:**
+  - Fastest follower growth (absolute)
+  - Fastest follower growth (percentage)
+  - Fastest engagement growth
+  - Fastest revenue growth
+  - Emerging creator detection
+
+#### **G. Niche & Industry-Specific Rankings**
+
+- **Comedy/Entertainment Rankings**
+- **Education/Professional Rankings**
+- **Gaming/Esports Rankings**
+- **Travel Rankings**
+- **Food & Cooking Rankings**
+- **Fashion & Beauty Rankings**
+- **Finance & Business Rankings**
+- **Health & Fitness Rankings**
+- **Technology Rankings**
+- **Music & Dance Rankings**
+- **DIY & Crafts Rankings**
+- **Parenting & Family Rankings**
+
+#### **H. Live Streaming Platform Rankings**
+
+- **TikTok Live vs Competitors:**
+  - TikTok Live market position (#2 globally in Q1 2026)
+  - vs YouTube Live (#1)
+  - vs Twitch
+  - vs Kick (131% YoY growth)
+  - Market share tracking
+  - Hours watched comparison
+  - Viewership trends
+
+#### **I. Ranking Algorithm & Scoring**
+
+- **Composite Ranking Score:**
+  - Weighted formula combining multiple factors
+  - Follower count weight
+  - Engagement rate weight
+  - View count weight
+  - Viral content weight
+  - Revenue/monetization weight
+  - Growth velocity weight
+  - Consistency weight
+
+- **Ranking Movement Tracking:**
+  - Rank change daily
+  - Rank change weekly
+  - Rank change monthly
+  - Rank velocity (speed of movement)
+  - Rank stability index
+  - Historical rank trends
+
+- **Percentile Rankings:**
+  - Top 1% creators
+  - Top 5% creators
+  - Top 10% creators
+  - Percentile by category
+  - Percentile by region
+
+---
+
 ## 🎯 IMPLEMENTATION PRIORITIES
 
 ### **PHASE 1 (P0 - MVP):**
