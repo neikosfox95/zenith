@@ -1,6 +1,10 @@
 """
-AI Studio Python Microservice
-Handles all AI API integrations using emergentintegrations library
+AI Studio Python Microservice - ZENITH GRADE SUPER APP
+Handles all AI API integrations:
+- Emergent LLM Key (OpenAI, Anthropic, Google)
+- Atlas Cloud API (300+ models: Suno, Video, Image)
+- VoxCPM (Tokenizer-free TTS)
+- Additional TTS providers
 """
 
 from fastapi import FastAPI, HTTPException
@@ -10,6 +14,8 @@ from typing import List, Optional, Dict, Any
 import asyncio
 import base64
 import os
+import httpx
+import time
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -19,7 +25,15 @@ load_dotenv()
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 from emergentintegrations.llm.openai.image_generation import OpenAIImageGeneration
 
-app = FastAPI(title="AI Studio Microservice", version="1.0.0")
+# Try to import VoxCPM (install if available)
+try:
+    from voxcpm import VoxCPM
+    VOXCPM_AVAILABLE = True
+except ImportError:
+    VOXCPM_AVAILABLE = False
+    print("⚠️ VoxCPM not installed. Run: pip install voxcpm")
+
+app = FastAPI(title="AI Studio Microservice - Zenith Grade", version="2.0.0")
 
 # CORS middleware
 app.add_middleware(
@@ -30,8 +44,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Get API key from environment
+# Get API keys from environment
 EMERGENT_LLM_KEY = os.getenv("EMERGENT_LLM_KEY", "sk-emergent-3A6Ba8062AfA8B036E")
+ATLAS_CLOUD_API_KEY = os.getenv("ATLAS_CLOUD_API_KEY", "")
+ATLAS_CLOUD_BASE_URL = "https://api.atlascloud.ai/v1"
+
+# Initialize VoxCPM if available
+voxcpm_model = None
+if VOXCPM_AVAILABLE:
+    try:
+        voxcpm_model = VoxCPM()
+        print("✅ VoxCPM initialized successfully")
+    except Exception as e:
+        print(f"⚠️ VoxCPM initialization failed: {e}")
 
 # ============================================================
 # REQUEST/RESPONSE MODELS
@@ -175,22 +200,184 @@ async def generate_image(request: ImageGenerationRequest):
         raise HTTPException(status_code=500, detail=f"Image generation error: {str(e)}")
 
 # ============================================================
-# TTS ENDPOINT (Mock for now - can be extended)
+# ATLAS CLOUD API INTEGRATION (300+ MODELS)
 # ============================================================
 
-@app.post("/ai/tts/generate")
-async def generate_tts(request: TTSRequest):
-    """Generate text-to-speech (mock implementation)"""
+async def call_atlas_cloud(endpoint: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Call Atlas Cloud API with error handling"""
+    if not ATLAS_CLOUD_API_KEY:
+        raise HTTPException(status_code=500, detail="Atlas Cloud API key not configured")
+    
+    headers = {
+        "Authorization": f"Bearer {ATLAS_CLOUD_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        try:
+            response = await client.post(
+                f"{ATLAS_CLOUD_BASE_URL}/{endpoint}",
+                json=payload,
+                headers=headers
+            )
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPError as e:
+            raise HTTPException(status_code=500, detail=f"Atlas Cloud API error: {str(e)}")
+
+async def poll_atlas_task(prediction_id: str, max_wait: int = 120) -> Dict[str, Any]:
+    """Poll Atlas Cloud task until completion"""
+    start_time = time.time()
+    
+    while time.time() - start_time < max_wait:
+        result = await call_atlas_cloud(
+            f"model/prediction/{prediction_id}",
+            {}
+        )
+        
+        status = result.get("data", {}).get("status")
+        
+        if status == "completed":
+            return result.get("data", {})
+        elif status == "failed":
+            error = result.get("data", {}).get("error", "Unknown error")
+            raise HTTPException(status_code=500, detail=f"Atlas Cloud task failed: {error}")
+        
+        await asyncio.sleep(2)
+    
+    raise HTTPException(status_code=408, detail="Atlas Cloud task timeout")
+
+# ============================================================
+# MUSIC GENERATION (SUNO via Atlas Cloud)
+# ============================================================
+
+@app.post("/ai/music/generate")
+async def generate_music(request: Dict[str, Any]):
+    """Generate music using Suno via Atlas Cloud"""
     try:
+        model = request.get("model", "suno-v5-beta")
+        prompt = request.get("prompt", "")
+        
+        # Submit to Atlas Cloud
+        result = await call_atlas_cloud("audio/generations", {
+            "model": model,
+            "prompt": prompt,
+            "make_instrumental": request.get("instrumental_only", False),
+            "duration": request.get("duration", 120)
+        })
+        
+        # Get prediction ID
+        prediction_id = result.get("data", {}).get("id")
+        
+        if not prediction_id:
+            raise HTTPException(status_code=500, detail="No prediction ID returned")
+        
+        # Poll for completion
+        completed_data = await poll_atlas_task(prediction_id)
+        
         return {
-            "model": request.model,
-            "audio_url": "https://placeholder.com/audio.mp3",
-            "text": request.text,
-            "voice": request.voice,
-            "duration": len(request.text.split()) * 0.5  # Rough estimate
+            "model": model,
+            "music_url": completed_data.get("outputs", [{}])[0].get("url"),
+            "duration": request.get("duration", 120),
+            "prompt": prompt
         }
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"TTS generation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Music generation error: {str(e)}")
+
+# ============================================================
+# VIDEO GENERATION (Multiple models via Atlas Cloud)
+# ============================================================
+
+@app.post("/ai/video/generate")
+async def generate_video(request: Dict[str, Any]):
+    """Generate video using Atlas Cloud (Veo, Vidu, Seedance, Kling, etc.)"""
+    try:
+        model = request.get("model", "veo-3.1")
+        prompt = request.get("prompt", "")
+        
+        # Map model to Atlas Cloud model ID
+        model_mapping = {
+            "veo-3.1": "veo-3.1",
+            "vidu-q3": "vidu-q3",
+            "seedance-2.0": "seedance-2.0",
+            "kling-3.0": "kling-3.0",
+            "sora-2-api": "sora-2.0",
+            "wan-2.7": "wan-2.7",
+            "happy-horse-1.0": "happy-horse-1.0"
+        }
+        
+        atlas_model = model_mapping.get(model, "veo-3.1")
+        
+        # Submit to Atlas Cloud
+        result = await call_atlas_cloud("video/generate", {
+            "model": atlas_model,
+            "prompt": prompt,
+            "image_url": request.get("image_url"),
+            "duration": request.get("duration", 10),
+            "aspect_ratio": request.get("aspect_ratio", "16:9")
+        })
+        
+        # Get prediction ID
+        prediction_id = result.get("data", {}).get("id")
+        
+        if not prediction_id:
+            raise HTTPException(status_code=500, detail="No prediction ID returned")
+        
+        # Poll for completion
+        completed_data = await poll_atlas_task(prediction_id, max_wait=180)
+        
+        return {
+            "model": model,
+            "video_url": completed_data.get("outputs", [{}])[0].get("url"),
+            "duration": request.get("duration", 10),
+            "prompt": prompt
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Video generation error: {str(e)}")
+
+# ============================================================
+# TEXT-TO-SPEECH (VoxCPM)
+# ============================================================
+
+@app.post("/ai/tts/voxcpm")
+async def generate_voxcpm_tts(request: Dict[str, Any]):
+    """Generate TTS using VoxCPM (tokenizer-free)"""
+    try:
+        if not VOXCPM_AVAILABLE or not voxcpm_model:
+            raise HTTPException(status_code=503, detail="VoxCPM not available")
+        
+        text = request.get("text", "")
+        voice = request.get("voice", "default")
+        
+        # Generate audio
+        audio = voxcpm_model.generate(
+            text=text,
+            cfg_value=2.0,
+            inference_timesteps=10,
+            normalize=True,
+            denoise=True
+        )
+        
+        # Convert to base64
+        import soundfile as sf
+        import io
+        
+        buffer = io.BytesIO()
+        sf.write(buffer, audio, voxcpm_model.tts_model.sample_rate, format='WAV')
+        buffer.seek(0)
+        audio_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+        
+        return {
+            "model": "voxcpm-1.0",
+            "audio_url": f"data:audio/wav;base64,{audio_base64}",
+            "text": text,
+            "duration": len(audio) / voxcpm_model.tts_model.sample_rate
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"VoxCPM TTS error: {str(e)}")
 
 # ============================================================
 # HEALTH CHECK
