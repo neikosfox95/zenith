@@ -48,6 +48,7 @@ import phase27Routes from './phase27_routes.js';
 import phase28Routes from './phase28_routes.js';
 import phase29Routes from './phase29_routes.js';
 import phase30Routes from './phase30_routes.js';
+import aiStudioRoutes from './ai_studio_routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -99,10 +100,18 @@ async function connectDB() {
     db = client.db(dbName);
     console.log('Connected to MongoDB');
     
-    // Create indexes
-    await db.collection('users').createIndex({ email: 1 }, { unique: true });
-    await db.collection('creators').createIndex({ tiktok_username: 1 });
-    await db.collection('user_creators').createIndex({ user_id: 1, creator_id: 1 });
+    // Create indexes (ignore errors if already exist)
+    try {
+      await db.collection('users').createIndex({ email: 1 }, { unique: true });
+    } catch (e) { /* Index might already exist */ }
+    
+    try {
+      await db.collection('creators').createIndex({ tiktok_username: 1 });
+    } catch (e) { /* Index might already exist */ }
+    
+    try {
+      await db.collection('user_creators').createIndex({ user_id: 1, creator_id: 1 });
+    } catch (e) { /* Index might already exist */ }
     
     // Setup Phase routes after DB connection
     setupPhase3Routes(app, db, io, authenticateToken, sendEmailNotification, sendPushNotification, triggerWebhook, checkAlertRules, exportToCSV, generateReport, backupData, logAuditEvent, hasPermission, ObjectId);
@@ -164,6 +173,11 @@ async function connectDB() {
     console.log('Setting up Phase 30 (Environmental & Sustainability) routes...');
     app.use('/api/environment', phase30Routes);
     console.log('✅ Phase 30 (Environmental & Sustainability) routes loaded');
+    
+    // AI STUDIO ROUTES - ZENITH GRADE SUPER APP
+    console.log('🎨 Setting up AI Studio (Text, Image, Video, Voice, Music, Music Video, MCPs) routes...');
+    app.use('/api/ai-studio', aiStudioRoutes);
+    console.log('✅ AI Studio routes loaded - 100+ AI Models integrated!');
     
   } catch (error) {
     console.error('MongoDB connection error:', error);

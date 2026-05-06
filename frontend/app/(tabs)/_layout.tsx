@@ -31,8 +31,19 @@ export default function TabsLayout() {
         name="home"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color, size}) => (
             <Ionicons name="home" size={size} color={color} />
+          ),
+        }}
+      />
+
+      {/* AI STUDIO TAB - ZENITH GRADE SUPER APP */}
+      <Tabs.Screen
+        name="ai_studio"
+        options={{
+          title: 'AI Studio',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="sparkles" size={size} color={color} />
           ),
         }}
       />
