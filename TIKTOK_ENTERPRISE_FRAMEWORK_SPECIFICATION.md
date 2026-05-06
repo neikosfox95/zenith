@@ -1594,21 +1594,84 @@
 
 ---
 
-### 1️⃣6️⃣ VERIFICATION & ACCOUNT STATUS
+### 1️⃣6️⃣ VERIFICATION & ACCOUNT STATUS (EXPANDED)
 
-#### **A. Verification Status Tracking**
-- **Blue Checkmark Eligibility:**
+#### **A. Verification Types & Blue Checkmark**
+
+**1. Personal Account Verification:**
+- Eligibility tracking
+- Government-issued ID verification (Driver's License, Passport, National ID)
+- Live selfie verification
+- Cross-platform verification status (Instagram, YouTube, X)
+- Media coverage tracking
+
+**2. Business Account Verification:**
+- Business entity verification
+- Branded email verification (matching website domain)
+- Business documents (License, Articles of Incorporation, Tax Registration, SEC filings)
+- Official business entity status
+
+**3. Institutional Verification:**
+- Organization verification
+- Official entity status
+- Documentation requirements
+
+**4. Government/Political Account Verification:**
+- Government entity verification
+- Political account classification
+- Institutional verification requirements
+- Special restrictions tracking
+
+**5. Artist Account Certification (Music):**
+- **Artist Certification Status:**
+  - Artist profile claimed status
+  - Music library connection
+  - Official sound attribution
+  - Artist tag display (requires 4+ songs, 100+ videos using music)
+  - Approval timeline (7-30 days)
+
+- **Music Distribution Tracking:**
+  - Distributor used (DistroKid, TuneCore, Ditto, CD Baby, SoundOn, Rebel)
+  - Distribution cost tracking
+  - Royalty split (100% vs 91% vs per-play)
+  - Delivery timeline (24-72 hours vs 1-2 weeks)
+  - Platforms distributed to (85-150+)
+  - ISRC/UPC code tracking
+  - Content ID protection status
+
+- **SoundOn Per-Play Model Tracking:**
+  - Per-play royalty earnings
+  - "New" tag algorithm boost tracking
+  - Fan Spotlight features
+  - AI derivative protection status
+  - Viral momentum royalty multiplier
+
+- **Hybrid Distribution Strategy:**
+  - Traditional distributor releases (albums, evergreen tracks)
+  - TikTok native distribution (social-first singles, remixes, trends)
+  - Distribution strategy effectiveness
+
+- **Artist Hub Features:**
+  - Proof of ownership submitted
+  - Artist profile search status
+  - Application approval tracking
+
+#### **B. Blue Checkmark Eligibility (All Types)**
+- **Core Requirements:**
   - Authenticity verification
-  - Cross-platform verification status (Instagram, YouTube, X)
   - Uniqueness score
-  - Activity score (4+ posts/month, logged in last 6 months)
+  - Activity score (4+ posts/month, logged in last 6 months, 3-5 videos in last 30 days)
   - Notability score (media coverage tracking)
-  - Profile completeness
+  - Profile completeness (bio, photo, at least one video)
+  - Account in good standing (no violations)
+  - Two-step verification enabled
+  - Verified email address
 
 - **Media Coverage Tracking:**
   - Credible news articles mentioning creator
   - Verified YouTube videos (500k+ views)
   - Podcast appearances
+  - Local news coverage (for regional figures)
   - Press features
   - Organic coverage (not paid press)
 
@@ -1618,6 +1681,7 @@
   - Processing timeline (3-30 days)
   - Approval/denial status
   - Reapplication eligibility (30 days after denial)
+  - Account type-specific application (Personal, Business, Institutional, Government)
 
 #### **B. Community Guidelines Compliance**
 - **Violation Tracking:**
@@ -1927,6 +1991,388 @@
   - Revenue from brand collaborations
   - Audience overlap with partners
   - Cross-promotion effectiveness
+
+---
+
+### 2️⃣1️⃣ SUPER FAN SYSTEM (COMPREHENSIVE)
+
+#### **A. Super Fan Subscription Tiers**
+- **Subscription Management:**
+  - Total Super Fan subscribers
+  - Subscribers by tier (2-5 customizable tiers)
+  - Tier pricing (capped at $9.99/month in 2026)
+  - Monthly vs yearly billing tracking
+  - Subscription renewal rate
+  - Churn rate by tier
+
+- **Tier Configuration:**
+  - Tier 1 (Basic): Price, perks, badges
+  - Tier 2 (Standard): Price, perks, badges
+  - Tier 3 (Premium): Price, perks, badges
+  - Tier 4 (Elite): Price, perks, badges (optional)
+  - Tier 5 (Ultimate): Price, perks, badges (optional)
+
+#### **B. Super Fan Badges & Progression**
+- **Badge System:**
+  - Month-to-month badge progression
+  - Year-to-year badge evolution
+  - Badge display in chat
+  - Badge display on profile
+  - Entrance spotlight (username highlighted on LIVE entry)
+  - Level-up celebration badges
+  - Glowing/animated badges (premium tiers)
+
+- **Progression Tracking:**
+  - Months subscribed
+  - Years subscribed
+  - Consecutive months (streak tracking)
+  - Badge tier unlocked
+  - Next badge requirements
+  - Badge evolution timeline
+
+#### **C. Super Fan Perks & Benefits**
+- **Tier-Based Perks:**
+  - LIVE reminders
+  - Chat interaction priority
+  - Exclusive chat room access
+  - Special Gifts for LIVEs
+  - Priority support
+  - Custom creator perks (shoutouts, exclusive content)
+  - Enhanced Gift sending
+
+- **Level-Up Rewards:**
+  - Points earned from missions
+  - Watching LIVEs (points within 7 days)
+  - Commenting in chat
+  - Sending Gifts
+  - Collectible rewards
+  - Badge upgrades
+
+#### **D. Super Fan Gift System**
+- **Super Fan Gift Pricing:**
+  - Super Fan gift cost (research indicates ~19,999 coins or similar premium price)
+  - Multiple Super Fan gifts tracking
+  - Gift bundles (2×, 5×, 10× Super Fan gifts)
+  - Total Super Fan gifts sent
+  - Total Super Fan gifts received
+
+- **Creator Earnings from Super Fan Gifts:**
+  - Revenue per Super Fan gift
+  - Creator payout (50% TikTok split)
+  - Example: 19,999 coins ≈ $265 viewer cost → ~$132.50 creator payout
+  - Multiple gift multiplier (2×, 5×, 10×)
+  - Total Super Fan gift revenue
+
+#### **E. Super Fan Status Maintenance**
+- **Activity Requirements:**
+  - Points earned within 7-day window
+  - Mission completion tracking
+  - LIVE attendance tracking
+  - Gift sending frequency
+  - Comment engagement
+
+- **Status Tracking:**
+  - Active status (green)
+  - Paused status (reminders sent)
+  - Reactivation tracking
+  - Status expiration warnings
+
+---
+
+### 2️⃣2️⃣ FAN CLUB SYSTEM (50 LEVELS - "HEART ME")
+
+#### **A. Fan Club Levels (1-50)**
+- **Level Progression:**
+  - Current level (1-50)
+  - Total hearts earned
+  - Hearts needed for next level
+  - Progress percentage
+  - Level-up notifications
+  - Level-up history
+
+- **Heart Earning System:**
+  - Hearts from live gifts (1 Rose = 1 heart, larger gifts = more)
+  - Hearts from video likes/duets
+  - Hearts from comments
+  - Hearts from subscription renewals
+  - Hearts from special events
+  - Daily heart accumulation
+  - No daily cap (unlimited earning)
+
+#### **B. Fan Club Level Requirements (Full 50 Levels)**
+
+**Levels 1-5 (Starter Star):**
+- Total hearts: 0-500
+- Badge: Starter Star
+- Perks: Basic heart emoji
+
+**Levels 6-10 (Bronze Heart):**
+- Total hearts: 501-2,500
+- Badge: Bronze Heart
+- Perks: Priority in chat
+
+**Levels 11-15 (Silver Heart):**
+- Total hearts: 2,501-7,500
+- Badge: Silver Heart
+- Perks: Custom sub badge
+
+**Levels 16-20 (Gold Heart):**
+- Total hearts: 7,501-20,000
+- Badge: Gold Heart
+- Perks: Exclusive emoji pack
+
+**Levels 21-25 (Platinum Star):**
+- Total hearts: 20,001-50,000
+- Badge: Platinum Star
+- Perks: Live priority + shoutouts
+
+**Levels 26-30 (Ruby Crown):**
+- Total hearts: 50,001-100,000
+- Badge: Ruby Crown
+- Perks: Custom frame + 2× hearts from gifts
+
+**Levels 31-35 (Emerald Crown):**
+- Total hearts: 100,001-200,000
+- Badge: Emerald Crown
+- Perks: VIP access to lives
+
+**Levels 36-40 (Diamond Crown):**
+- Total hearts: 200,001-400,000
+- Badge: Diamond Crown
+- Perks: Top fan leaderboard
+
+**Levels 41-45 (Legendary Star):**
+- Total hearts: 400,001-700,000
+- Badge: Legendary Star
+- Perks: Permanent profile badge
+
+**Levels 46-50 (Ultimate Diamond):**
+- Total hearts: 700,001-1,000,000+
+- Badge: Ultimate Diamond
+- Perks: All perks + creator collab invites
+
+**Post-Level 50 (Legendary Status):**
+- Total hearts: 1,000,000+
+- No cap on hearts
+- Permanent "Legendary" status
+
+#### **C. Fan Club Features**
+- Fan Club dashboard access
+- Progress bar tracking
+- Badge display (profile/avatar during lives/videos)
+- Bronze/Silver/Gold tiers per 10 levels
+- Auto level-up triggers
+- Level-up notifications
+- Permanent levels (no reset unless unsubscribe)
+- Regional bonus multipliers (during events)
+
+#### **D. Time to Progress**
+- Average time per level tier
+- Fast-track strategies (frequent lives, gift encouragement)
+- Peak hours optimization (evenings/weekends)
+- Event multipliers (2× hearts during special events)
+- Collaboration boosts
+
+---
+
+### 2️⃣3️⃣ GIFTING LEVELS SYSTEM (1-50+)
+
+#### **A. Gifter Rank Progression (Per Creator)**
+- **Current gifter level** (1-60+ range, varies by creator/region)
+- **Total Diamonds gifted** to specific creator
+- **Cumulative threshold tracking**
+- **Level-up requirements**
+- **Seasonal resets** (some regions)
+- **Per-LIVE event resets**
+
+#### **B. Gifting Level Requirements (Approximate Thresholds)**
+
+**Levels 1-5 (Entry):**
+- Diamonds: 0-1,000
+- Badge: Small heart icon next to username
+- Perks: Basic visibility in chat
+
+**Levels 6-10 (Bronze Tier):**
+- Diamonds: 1,001-10,000
+- Badge: Colored name badges (blue)
+- Perks: Priority chat placement
+
+**Levels 11-20 (Silver Tier):**
+- Diamonds: 10,001-100,000
+- Badge: Glowing badges
+- Perks: Entry to leaderboards, custom emotes
+
+**Levels 21-25 (Gold Tier):**
+- Diamonds: 100,001-500,000
+- Badge: Golden frame
+- Perks: Creator shoutouts
+
+**Levels 26-30 (Elite Tier):**
+- Diamonds: 500,001-1,000,000
+- Badge: Premium badges, custom avatars
+- Perks: **Elite Level 26+:** Custom badges, special creator recognition, priority gifting effects, top leaderboard spots, VIP access
+
+**Levels 31-60 (Legendary Tier):**
+- Diamonds: 1,000,000+
+- Badge: Elite contributor status, animated badges, global visibility
+- Perks: All elite perks, permanent VIP status, exclusive animations
+
+#### **C. Gifting Badges & Visibility**
+- Badge display next to username (live chat)
+- Colored name differentiation
+- Glowing effects (higher levels)
+- Golden frames (Level 21+)
+- Custom avatars (Level 26+)
+- Animated badges (Level 30+)
+- Elite status markers
+
+#### **D. Gifting Perks by Level**
+- **Levels 1-10:** Basic visibility, priority chat
+- **Levels 11-20:** Leaderboard entry, custom emotes
+- **Levels 21-25:** Creator shoutouts, premium recognition
+- **Levels 26+:** Elite perks:
+  - Custom badges
+  - Special creator recognition
+  - Priority gifting effects
+  - Top leaderboard dominance
+  - VIP access
+  - Global visibility
+  - Exclusive animations
+
+#### **E. Multi-Gifting & Streaks**
+- Consecutive gift streaks
+- Multi-gift bonuses
+- Streak multipliers
+- Gift combo effects
+- Badge boost from streaks
+
+#### **F. Gifting Level Impact on Rankings**
+- Leaderboard position
+- Top gifter rankings (daily, weekly, monthly)
+- Creator-specific leaderboards
+- Global gifter rankings
+- Regional gifter rankings
+
+---
+
+### 2️⃣4️⃣ COMPLETE GIFT CATALOG (80+ GIFTS)
+
+#### **A. Entry-Level Gifts ($0.01-$0.27)**
+- Rose: 1 coin ($0.01) = 0.5 diamonds
+- Finger Heart: 5 coins ($0.07) = 2.5 diamonds
+- Mic: 5 coins ($0.07) = 2.5 diamonds
+- Hi: 5 coins ($0.07) = 2.5 diamonds
+- Cotton's Shell: 5 coins ($0.07) = 2.5 diamonds
+- Tiny Dino: 10 coins ($0.13) = 5 diamonds
+- Marvin the Monkey: 10 coins ($0.13) = 5 diamonds
+- Raccoon: 15 coins ($0.20) = 7.5 diamonds
+- Perfume: 20 coins ($0.27) = 10 diamonds
+- Baby Fox: 20 coins ($0.27) = 10 diamonds
+
+#### **B. Budget-Friendly Animated Gifts ($0.40-$5.30)**
+- Capybara: 30 coins ($0.40) = 15 diamonds
+- I Love You: 49 coins ($0.65) = 24.5 diamonds
+- Panda: 5 coins ($0.07) = 2.5 diamonds
+- Confetti: 100 coins ($1.33) = 50 diamonds
+- Sunglasses: 199 coins ($2.64) = 99.5 diamonds
+- Singing Frogs: 399 coins ($5.30) = 199.5 diamonds
+- Sweet Dreams: 399 coins ($5.30) = 199.5 diamonds
+- Forever Rosa: 399 coins ($5.30) = 199.5 diamonds
+- Swing: 399 coins ($5.30) = 199.5 diamonds
+
+#### **C. Mid-Range Gifts ($6.65-$14.46)**
+- Money Rain: 500 coins ($6.65) = 250 diamonds
+- Window Basket: 500 coins ($6.65) = 250 diamonds
+- Record Player: 600 coins ($7.98) = 300 diamonds
+- Love Balloon: 699 coins ($9.29) = 349.5 diamonds
+- Goose: 699 coins ($9.29) = 349.5 diamonds
+- Disco Ball: 1,000 coins ($13.30) = 500 diamonds
+- Gerry the Giraffe: 1,000 coins ($13.30) = 500 diamonds
+- Galaxy: 1,000 coins ($13.30) = 500 diamonds
+- Diamond Tree: 1,088 coins ($14.46) = 544 diamonds
+
+#### **D. Premium Gifts ($15.96-$79.78)**
+- Gaming Chair: 1,200 coins ($15.96) = 600 diamonds
+- Flower Arrangement: 1,500 coins ($19.95) = 750 diamonds
+- Mermaid: 2,988 coins ($39.74) = 1,494 diamonds
+- Meteor Shower: 3,000 coins ($39.89) = 1,500 diamonds
+- Dancing Bears: 3,000 coins ($39.89) = 1,500 diamonds
+- Car Drifting: 3,000 coins ($39.89) = 1,500 diamonds
+- Ellie the Elephant: 5,000 coins ($66.48) = 2,500 diamonds
+- Wolf: 5,000 coins ($66.48) = 2,500 diamonds
+- Draco: 5,000 coins ($66.48) = 2,500 diamonds
+- Silver Sports Car: 5,000 coins ($66.48) = 2,500 diamonds
+- Airplane: 6,000 coins ($79.78) = 3,000 diamonds
+
+#### **E. Luxury Gifts ($199.50-$562.48)**
+- Planet: 15,000 coins ($199.50) = 7,500 diamonds
+- Pyramids: 15,000 coins ($199.50) = 7,500 diamonds
+- Diamond Flight: 18,000 coins ($239.40) = 9,000 diamonds
+- Party Boat: 19,999 coins ($265.94) = 9,999.5 diamonds
+- TikTok Shuttle: 20,000 coins ($266.00) = 10,000 diamonds
+- Castle Fantasy: 20,000 coins ($266.00) = 10,000 diamonds
+- Infinite Heart: 23,999 coins ($319.27) = 11,999.5 diamonds
+- Phoenix: 25,999 coins ($345.62) = 12,999.5 diamonds
+- Adam's Dream: 25,999 coins ($345.62) = 12,999.5 diamonds
+- Dragon Flame: 26,999 coins ($359.29) = 13,499.5 diamonds
+- Lion: 29,999 coins ($398.95) = 14,999.5 diamonds
+- Gorilla: 30,000 coins ($399.00) = 15,000 diamonds
+- Zeus: 34,000 coins ($452.20) = 17,000 diamonds
+- TikTok Universe: 44,999 coins ($562.48) = 22,499.5 diamonds
+
+#### **F. Gift Types & Effects**
+- **Simple Animations:** Basic visual effects (Rose, simple hearts)
+- **Elaborate Graphics:** Complex animated sequences (Universe, Lion, Meteor Shower)
+- **Interactive Elements:** Dynamic on-screen displays during lives
+- **Special Effects:** Sparkling animations, transitions, festive graphics
+- **Screen-Taking Effects:** Full-screen animations (Universe, Zeus)
+
+#### **G. Font Gifts (Special Category)**
+**Note:** Research did not reveal specific "Font Gifts" as a distinct category in 2026. This may be:
+- Regional-specific feature
+- Beta/limited release feature
+- Alternative name for animated text effects
+- Community-created category name
+
+**Framework will track:**
+- Font gift availability by region
+- Unlock requirements (if applicable)
+- Font gift catalog (when available)
+- Font gift performance metrics
+
+#### **H. Interactive Gifts (Category)**
+**Interactive gift features:**
+- On-screen interaction triggers
+- Viewer participation elements
+- Multi-user interactive experiences
+- Synchronized gift effects
+- Community gift events
+
+#### **I. Gift Value & Time Equivalents**
+- **Coin-to-Dollar Conversion:** ~$0.0129 per coin (US)
+- **Coin-to-Diamond Conversion:** 2 coins = 1 diamond
+- **Diamond-to-Cash Conversion:** $0.005 per diamond
+- **Creator Payout:** ~50% of gift value (after TikTok commission)
+
+**Examples:**
+- Rose (1 coin) → Creator gets ~$0.0025
+- Galaxy (1,000 coins) → Creator gets ~$2.50
+- Lion (29,999 coins) → Creator gets ~$75
+- Universe (44,999 coins) → Creator gets ~$112
+
+#### **J. Ranking Boost from Gifting**
+- **Fragment System Impact:**
+  - Fragments earned from gifts (league ranking currency)
+  - Gift-to-fragment conversion rates
+  - Boost in league divisions from high-value gifts
+  - Weekly fragment totals from gifting
+
+- **Leaderboard Impact:**
+  - Top gifter rankings (daily, weekly, monthly)
+  - Creator-specific leaderboards
+  - Global leaderboard positions
+  - Regional leaderboard rankings
+  - League tier boosts from consistent gifting
 
 ---
 
