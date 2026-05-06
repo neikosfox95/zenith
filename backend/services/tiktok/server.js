@@ -52,6 +52,19 @@ class TikTokConnectionManager {
       likes: 0,
       shares: 0,
       follows: 0,
+      joins: 0,
+      subscribes: 0,
+      envelopes: 0,
+      questions: 0,
+      emotes: 0,
+      stickers: 0,
+      battles: 0,
+      micBattles: 0,
+      linkMics: 0,
+      viewers: {
+        current: 0,
+        peak: 0
+      },
       connectedAt: null,
       lastEventAt: null
     };
@@ -102,6 +115,10 @@ class TikTokConnectionManager {
   }
 
   _setupEventHandlers() {
+    // ============================================================
+    // CORE ENGAGEMENT EVENTS
+    // ============================================================
+
     // Gift event
     this.connection.on('gift', async (data) => {
       this.stats.totalEvents++;
@@ -125,7 +142,7 @@ class TikTokConnectionManager {
       }
     });
 
-    // Comment event
+    // Comment/Chat event
     this.connection.on('chat', async (data) => {
       this.stats.totalEvents++;
       this.stats.comments++;
@@ -133,13 +150,15 @@ class TikTokConnectionManager {
 
       console.log(`💬 [TikTok] Comment from ${data.uniqueId}: ${data.comment}`);
 
-      if (messageBus) { await messageBus.publish('tiktok.events', 'comment', {
-        username: this.username,
-        user: data.uniqueId,
-        userId: data.userId,
-        comment: data.comment,
-        timestamp: Date.now()
-      }); }
+      if (messageBus) { 
+        await messageBus.publish('tiktok.events', 'comment', {
+          username: this.username,
+          user: data.uniqueId,
+          userId: data.userId,
+          comment: data.comment,
+          timestamp: Date.now()
+        }); 
+      }
     });
 
     // Like event
@@ -180,11 +199,258 @@ class TikTokConnectionManager {
       this.stats.follows++;
       this.stats.lastEventAt = new Date();
 
-      if (messageBus) { await messageBus.publish('tiktok.events', 'follow', {
-        username: this.username,
-        user: data.uniqueId,
-        timestamp: Date.now()
-      }); }
+      if (messageBus) { 
+        await messageBus.publish('tiktok.events', 'follow', {
+          username: this.username,
+          user: data.uniqueId,
+          timestamp: Date.now()
+        }); 
+      }
+    });
+
+    // ============================================================
+    // VIEWER & MEMBER EVENTS
+    // ============================================================
+
+    // Join event (user joins the stream)
+    this.connection.on('join', async (data) => {
+      this.stats.totalEvents++;
+      this.stats.joins++;
+      this.stats.lastEventAt = new Date();
+
+      console.log(`👋 [TikTok] ${data.uniqueId} joined the stream`);
+
+      if (messageBus) {
+        await messageBus.publish('tiktok.events', 'join', {
+          username: this.username,
+          user: data.uniqueId,
+          userId: data.userId,
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    // Member event
+    this.connection.on('member', async (data) => {
+      this.stats.totalEvents++;
+      this.stats.lastEventAt = new Date();
+
+      if (messageBus) {
+        await messageBus.publish('tiktok.events', 'member', {
+          username: this.username,
+          user: data.uniqueId,
+          userId: data.userId,
+          memberCount: data.memberCount,
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    // RoomUser event (viewer count updates)
+    this.connection.on('roomUser', async (data) => {
+      this.stats.totalEvents++;
+      this.stats.lastEventAt = new Date();
+      
+      // Track viewer stats
+      this.stats.viewers.current = data.viewerCount || 0;
+      if (this.stats.viewers.current > this.stats.viewers.peak) {
+        this.stats.viewers.peak = this.stats.viewers.current;
+      }
+
+      console.log(`👥 [TikTok] Viewer count: ${data.viewerCount}`);
+
+      if (messageBus) {
+        await messageBus.publish('tiktok.events', 'roomUser', {
+          username: this.username,
+          viewerCount: data.viewerCount,
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    // ============================================================
+    // SUBSCRIPTION & MONETIZATION EVENTS
+    // ============================================================
+
+    // Subscribe event
+    this.connection.on('subscribe', async (data) => {
+      this.stats.totalEvents++;
+      this.stats.subscribes++;
+      this.stats.lastEventAt = new Date();
+
+      console.log(`⭐ [TikTok] ${data.uniqueId} subscribed!`);
+
+      if (messageBus) {
+        await messageBus.publish('tiktok.events', 'subscribe', {
+          username: this.username,
+          user: data.uniqueId,
+          userId: data.userId,
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    // Envelope event (gift envelopes)
+    this.connection.on('envelope', async (data) => {
+      this.stats.totalEvents++;
+      this.stats.envelopes++;
+      this.stats.lastEventAt = new Date();
+
+      console.log(`💝 [TikTok] Gift envelope from ${data.uniqueId}`);
+
+      if (messageBus) {
+        await messageBus.publish('tiktok.events', 'envelope', {
+          username: this.username,
+          user: data.uniqueId,
+          userId: data.userId,
+          envelopeId: data.envelopeId,
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    // ============================================================
+    // INTERACTIVE EVENTS
+    // ============================================================
+
+    // Question event (Q&A)
+    this.connection.on('question', async (data) => {
+      this.stats.totalEvents++;
+      this.stats.questions++;
+      this.stats.lastEventAt = new Date();
+
+      console.log(`❓ [TikTok] Question from ${data.uniqueId}: ${data.questionText}`);
+
+      if (messageBus) {
+        await messageBus.publish('tiktok.events', 'question', {
+          username: this.username,
+          user: data.uniqueId,
+          userId: data.userId,
+          questionText: data.questionText,
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    // Emote event (reactions)
+    this.connection.on('emote', async (data) => {
+      this.stats.totalEvents++;
+      this.stats.emotes++;
+      this.stats.lastEventAt = new Date();
+
+      if (messageBus) {
+        await messageBus.publish('tiktok.events', 'emote', {
+          username: this.username,
+          user: data.uniqueId,
+          emoteId: data.emoteId,
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    // Sticker event
+    this.connection.on('sticker', async (data) => {
+      this.stats.totalEvents++;
+      this.stats.stickers++;
+      this.stats.lastEventAt = new Date();
+
+      if (messageBus) {
+        await messageBus.publish('tiktok.events', 'sticker', {
+          username: this.username,
+          user: data.uniqueId,
+          stickerId: data.stickerId,
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    // ============================================================
+    // BATTLE & COMPETITION EVENTS
+    // ============================================================
+
+    // Battle event (PK battles)
+    this.connection.on('battle', async (data) => {
+      this.stats.totalEvents++;
+      this.stats.battles++;
+      this.stats.lastEventAt = new Date();
+
+      console.log(`⚔️ [TikTok] Battle event: ${data.battleStatus}`);
+
+      if (messageBus) {
+        await messageBus.publish('tiktok.events', 'battle', {
+          username: this.username,
+          battleStatus: data.battleStatus,
+          battleUsers: data.battleUsers,
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    // Mic Battle event
+    this.connection.on('mic_battle', async (data) => {
+      this.stats.totalEvents++;
+      this.stats.micBattles++;
+      this.stats.lastEventAt = new Date();
+
+      console.log(`🎤 [TikTok] Mic Battle event`);
+
+      if (messageBus) {
+        await messageBus.publish('tiktok.events', 'mic_battle', {
+          username: this.username,
+          battleData: data,
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    // Link Mic event (multi-guest streaming)
+    this.connection.on('link_mic', async (data) => {
+      this.stats.totalEvents++;
+      this.stats.linkMics++;
+      this.stats.lastEventAt = new Date();
+
+      console.log(`🔗 [TikTok] Link Mic event`);
+
+      if (messageBus) {
+        await messageBus.publish('tiktok.events', 'link_mic', {
+          username: this.username,
+          linkMicData: data,
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    // ============================================================
+    // STREAM STATE EVENTS
+    // ============================================================
+
+    // Stream status event
+    this.connection.on('streamEnd', async (data) => {
+      this.stats.totalEvents++;
+      this.stats.lastEventAt = new Date();
+
+      console.log(`🛑 [TikTok] Stream ended for @${this.username}`);
+
+      if (messageBus) {
+        await messageBus.publish('tiktok.events', 'streamEnd', {
+          username: this.username,
+          timestamp: Date.now()
+        });
+      }
+    });
+
+    // Live intro event
+    this.connection.on('intro', async (data) => {
+      this.stats.totalEvents++;
+      this.stats.lastEventAt = new Date();
+
+      if (messageBus) {
+        await messageBus.publish('tiktok.events', 'intro', {
+          username: this.username,
+          introData: data,
+          timestamp: Date.now()
+        });
+      }
     });
 
     // Disconnect handler
@@ -192,11 +458,13 @@ class TikTokConnectionManager {
       console.log(`⚠️ [TikTok] Disconnected from @${this.username}`);
       this.isConnected = false;
 
-      if (messageBus) { await messageBus.publish('tiktok.events', 'connection', {
-        username: this.username,
-        status: 'disconnected',
-        timestamp: Date.now()
-      }); }
+      if (messageBus) { 
+        await messageBus.publish('tiktok.events', 'connection', {
+          username: this.username,
+          status: 'disconnected',
+          timestamp: Date.now()
+        }); 
+      }
 
       await this._scheduleReconnect();
     });
@@ -205,12 +473,16 @@ class TikTokConnectionManager {
     this.connection.on('error', async (error) => {
       console.error(`❌ [TikTok] Error for @${this.username}:`, error.message);
       
-      if (messageBus) { await messageBus.publish('tiktok.events', 'error', {
-        username: this.username,
-        error: error.message,
-        timestamp: Date.now()
-      }); }
+      if (messageBus) { 
+        await messageBus.publish('tiktok.events', 'error', {
+          username: this.username,
+          error: error.message,
+          timestamp: Date.now()
+        }); 
+      }
     });
+
+    console.log(`✅ [TikTok] All event handlers registered for @${this.username}`);
   }
 
   async _scheduleReconnect() {
