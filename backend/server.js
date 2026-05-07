@@ -50,6 +50,8 @@ import phase29Routes from './phase29_routes.js';
 import phase30Routes from './phase30_routes.js';
 import aiStudioRoutes from './ai_studio_routes.js';
 import { setupSocketIOTests } from './socketio_test_routes.js';
+import analyticsRoutes from './routes/analytics.js';
+import analyticsEngine from './services/analytics-engine.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -185,6 +187,14 @@ async function connectDB() {
     const socketTestRoutes = setupSocketIOTests(app, io);
     app.use('/api/socket-test', socketTestRoutes);
     console.log('✅ Phase 6: Socket.IO Testing routes loaded!');
+    
+    // ANALYTICS ENGINE ROUTES
+    console.log('📊 Setting up Analytics Engine routes...');
+    app.use('/api/analytics', analyticsRoutes);
+    console.log('✅ Analytics Engine routes loaded!');
+
+    // Start Analytics Engine
+    await analyticsEngine.start();
     
   } catch (error) {
     console.error('MongoDB connection error:', error);
