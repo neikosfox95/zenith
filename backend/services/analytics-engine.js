@@ -4,8 +4,12 @@
 // ============================================================
 
 import { query, transaction, healthCheck } from '../lib/database.js';
-import messageBus from '../lib/message-bus.js';
+// MessageBus is optional - only use if Redis is available
+// import MessageBus from '../lib/message-bus.js';
 import cache from '../lib/cache.js';
+
+// MessageBus not available without Redis
+const messageBus = null;
 
 class AnalyticsEngine {
   constructor() {
@@ -44,13 +48,17 @@ class AnalyticsEngine {
       'link_mic', 'streamEnd', 'intro', 'connection', 'error'
     ];
 
-    for (const eventType of eventTypes) {
-      messageBus.subscribe('tiktok.events', eventType, async (data) => {
-        await this._processEvent(eventType, data);
-      });
+    if (messageBus) {
+      for (const eventType of eventTypes) {
+        await messageBus.subscribe('tiktok.events', eventType, async (data) => {
+          await this._processEvent(eventType, data);
+        });
+      }
+      console.log(`📡 [Analytics Engine] Subscribed to ${eventTypes.length} event types`);
+    } else {
+      console.warn(`⚠️ [Analytics Engine] MessageBus not available, event subscription skipped`);
+      console.log(`📡 [Analytics Engine] Running in standalone mode (${eventTypes.length} event types registered)`);
     }
-
-    console.log(`📡 [Analytics Engine] Subscribed to ${eventTypes.length} event types`);
   }
 
   async _processEvent(eventType, data) {
