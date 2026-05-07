@@ -52,6 +52,7 @@ import aiStudioRoutes from './ai_studio_routes.js';
 import { setupSocketIOTests } from './socketio_test_routes.js';
 import analyticsRoutes from './routes/analytics.js';
 import analyticsEngine from './services/analytics-engine.js';
+import creatorRoutes from './routes/creators.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -192,6 +193,11 @@ async function connectDB() {
     console.log('📊 Setting up Analytics Engine routes...');
     app.use('/api/analytics', analyticsRoutes);
     console.log('✅ Analytics Engine routes loaded!');
+
+    // Creator Management Routes
+    console.log('👥 Setting up Creator Management routes...');
+    app.use('/api/creators', creatorRoutes);
+    console.log('✅ Creator Management routes loaded!');
 
     // Start Analytics Engine
     await analyticsEngine.start();
