@@ -9,7 +9,9 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@tiktool/live": "^2.6.7",
+    "anthropic": "^0.0.0",
     "archiver": "^7.0.1",
     "axios": "^1.6.5",
     "axios-retry": "^4.5.0",
@@ -34,6 +36,7 @@
     "natural": "^8.1.1",
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.5",
+    "openai": "^6.36.0",
     "pg": "^8.20.0",
     "pino": "^10.3.1",
     "pino-pretty": "^13.1.3",

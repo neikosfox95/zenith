@@ -53,6 +53,7 @@ import { setupSocketIOTests } from './socketio_test_routes.js';
 import analyticsRoutes from './routes/analytics.js';
 import analyticsEngine from './services/analytics-engine.js';
 import creatorRoutes from './routes/creators.js';
+import aiRoutes from './routes/ai.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
