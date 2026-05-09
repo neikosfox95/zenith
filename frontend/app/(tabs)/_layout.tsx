@@ -50,6 +50,9 @@ export default function TabsLayout() {
 
       {/* All Phase Screens - Hidden from tab bar but accessible via navigation */}
       <Tabs.Screen name="ai-studio-home" options={{ href: null }} />
+      <Tabs.Screen name="ai-model-gallery" options={{ href: null }} />
+      <Tabs.Screen name="ai-usage-dashboard" options={{ href: null }} />
+      <Tabs.Screen name="ai-text-generator" options={{ href: null }} />
       <Tabs.Screen name="dashboard" options={{ href: null }} />
       <Tabs.Screen name="creators" options={{ href: null }} />
       <Tabs.Screen name="fans" options={{ href: null }} />
