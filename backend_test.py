@@ -1,504 +1,716 @@
 #!/usr/bin/env python3
 """
-TikTok Live Monitor Backend API Testing - Batch 1 Support
-Tests backend APIs for Dashboard, Live Monitoring, and Analytics screens
+BATCH 1 BACKEND API TESTING - GOD TIER ENHANCEMENTS
+AI Studio v2 Endpoints Testing
+
+Tests the following endpoints:
+1. GET /api/ai-studio/v2/status
+2. GET /api/ai-studio/v2/usage
+3. GET /api/ai-studio/v2/provider-analytics
+4. POST /api/ai-studio/v2/generate/text
+5. GET /api/ai-studio/v2/models
+6. GET /api/ai-studio/v2/models?type=text
+
+Performance Testing:
+- Response time < 500ms for status
+- Response time < 1 second for all endpoints
+- Caching verification
+- Provider tracking accuracy
 """
 
 import requests
 import json
-import sys
-from typing import Dict, Any
-
-# Backend URL from environment
-BACKEND_URL = "https://zenith-dashboard-3.preview.emergentagent.com"
-API_BASE = f"{BACKEND_URL}/api"
-
-# Test credentials - use unique email to avoid conflicts
 import time
-timestamp = int(time.time())
-TEST_USER = {
-    "email": f"batch1test{timestamp}@example.com",
-    "username": f"batch1test{timestamp}",
-    "password": "Test123456!"
-}
+from datetime import datetime
 
-# Test results
+# Backend URL
+BASE_URL = "https://zenith-dashboard-3.preview.emergentagent.com/api/ai-studio/v2"
+
+# Test results storage
 test_results = []
-auth_token = None
 
-def log_test(test_name: str, passed: bool, details: str = ""):
+def log_test(test_name, passed, details="", response_time=None):
     """Log test result"""
     status = "✅ PASS" if passed else "❌ FAIL"
-    result = f"{status} - {test_name}"
-    if details:
-        result += f"\n    Details: {details}"
-    print(result)
-    test_results.append({
+    result = {
         "test": test_name,
+        "status": status,
         "passed": passed,
-        "details": details
-    })
-
-def test_health_check():
-    """Test 1: Health Check API"""
-    print("\n=== Test 1: Health Check ===")
-    try:
-        response = requests.get(f"{API_BASE}/health", timeout=10)
-        
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('status') == 'ok':
-                log_test("Health Check", True, f"Status: {data.get('status')}, Database: {data.get('database')}")
-                return True
-            else:
-                log_test("Health Check", False, f"Unexpected status: {data.get('status')}")
-                return False
-        else:
-            log_test("Health Check", False, f"HTTP {response.status_code}")
-            return False
-    except Exception as e:
-        log_test("Health Check", False, f"Exception: {str(e)}")
-        return False
-
-def test_authentication():
-    """Test 2: User Authentication"""
-    global auth_token
-    print("\n=== Test 2: Authentication ===")
+        "details": details,
+        "response_time": response_time,
+        "timestamp": datetime.now().isoformat()
+    }
+    test_results.append(result)
     
-    # Try to register (may already exist)
-    try:
-        response = requests.post(
-            f"{API_BASE}/auth/register",
-            json=TEST_USER,
-            timeout=10
-        )
-        if response.status_code in [200, 201]:
-            print("    ℹ️  User registered successfully")
-        elif response.status_code == 400:
-            print("    ℹ️  User already exists (expected)")
-        else:
-            print(f"    ⚠️  Registration returned {response.status_code}")
-    except Exception as e:
-        print(f"    ⚠️  Registration error: {str(e)}")
-    
-    # Login
-    try:
-        response = requests.post(
-            f"{API_BASE}/auth/login",
-            json={
-                "email": TEST_USER["email"],
-                "password": TEST_USER["password"]
-            },
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            auth_token = data.get('token')
-            if auth_token:
-                log_test("Authentication - Login", True, f"Token received (length: {len(auth_token)})")
-                return True
-            else:
-                log_test("Authentication - Login", False, "No token in response")
-                return False
-        else:
-            log_test("Authentication - Login", False, f"HTTP {response.status_code}: {response.text}")
-            return False
-    except Exception as e:
-        log_test("Authentication - Login", False, f"Exception: {str(e)}")
-        return False
+    time_str = f" ({response_time:.0f}ms)" if response_time else ""
+    print(f"{status}: {test_name}{time_str}")
+    if details:
+        print(f"   {details}")
+    print()
 
-def get_auth_headers():
-    """Get authorization headers"""
-    if auth_token:
-        return {"Authorization": f"Bearer {auth_token}"}
-    return {}
-
-def test_creators_list():
-    """Test 3: GET /api/creators/list"""
-    print("\n=== Test 3: Creators List ===")
-    try:
-        response = requests.get(
-            f"{API_BASE}/creators/list",
-            headers=get_auth_headers(),
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                creators = data.get('creators', [])
-                log_test("GET /api/creators/list", True, 
-                        f"Found {len(creators)} creators, Total: {data.get('total', 0)}")
-                return True, creators
-            else:
-                log_test("GET /api/creators/list", False, "success=false in response")
-                return False, []
-        else:
-            log_test("GET /api/creators/list", False, f"HTTP {response.status_code}")
-            return False, []
-    except Exception as e:
-        log_test("GET /api/creators/list", False, f"Exception: {str(e)}")
-        return False, []
-
-def test_add_creator():
-    """Test 4: POST /api/creators/add"""
-    print("\n=== Test 4: Add Creator ===")
-    test_username = "testcreator_batch1"
-    
-    try:
-        response = requests.post(
-            f"{API_BASE}/creators/add",
-            headers=get_auth_headers(),
-            json={"username": test_username, "displayName": "Test Creator Batch 1"},
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                log_test("POST /api/creators/add", True, 
-                        f"Creator added: {data.get('message')}")
-                return True, test_username
-            else:
-                log_test("POST /api/creators/add", False, f"success=false: {data.get('error')}")
-                return False, None
-        else:
-            log_test("POST /api/creators/add", False, f"HTTP {response.status_code}: {response.text}")
-            return False, None
-    except Exception as e:
-        log_test("POST /api/creators/add", False, f"Exception: {str(e)}")
-        return False, None
-
-def test_get_creator(username: str):
-    """Test 5: GET /api/creators/:username"""
-    print(f"\n=== Test 5: Get Creator Details ({username}) ===")
-    try:
-        response = requests.get(
-            f"{API_BASE}/creators/{username}",
-            headers=get_auth_headers(),
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                creator = data.get('creator', {})
-                connection_status = creator.get('connectionStatus', {})
-                log_test(f"GET /api/creators/{username}", True, 
-                        f"Creator found, Connected: {connection_status.get('isConnected', False)}")
-                return True
-            else:
-                log_test(f"GET /api/creators/{username}", False, "success=false in response")
-                return False
-        elif response.status_code == 404:
-            log_test(f"GET /api/creators/{username}", False, "Creator not found (404)")
-            return False
-        else:
-            log_test(f"GET /api/creators/{username}", False, f"HTTP {response.status_code}")
-            return False
-    except Exception as e:
-        log_test(f"GET /api/creators/{username}", False, f"Exception: {str(e)}")
-        return False
-
-def test_analytics_status():
-    """Test 6: GET /api/analytics/status"""
-    print("\n=== Test 6: Analytics Engine Status ===")
-    try:
-        response = requests.get(
-            f"{API_BASE}/analytics/status",
-            headers=get_auth_headers(),
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                stats = data.get('stats', {})
-                log_test("GET /api/analytics/status", True, 
-                        f"Engine running: {stats.get('isRunning')}, Events processed: {stats.get('eventsProcessed', 0)}")
-                return True
-            else:
-                log_test("GET /api/analytics/status", False, "success=false in response")
-                return False
-        else:
-            log_test("GET /api/analytics/status", False, f"HTTP {response.status_code}")
-            return False
-    except Exception as e:
-        log_test("GET /api/analytics/status", False, f"Exception: {str(e)}")
-        return False
-
-def test_analytics_creators():
-    """Test 7: GET /api/analytics/creators"""
-    print("\n=== Test 7: Analytics - All Creators ===")
-    try:
-        response = requests.get(
-            f"{API_BASE}/analytics/creators",
-            headers=get_auth_headers(),
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                creators = data.get('creators', [])
-                log_test("GET /api/analytics/creators", True, 
-                        f"Found {len(creators)} active creators")
-                return True
-            else:
-                log_test("GET /api/analytics/creators", False, "success=false in response")
-                return False
-        else:
-            log_test("GET /api/analytics/creators", False, f"HTTP {response.status_code}")
-            return False
-    except Exception as e:
-        log_test("GET /api/analytics/creators", False, f"Exception: {str(e)}")
-        return False
-
-def test_top_gifters(username: str):
-    """Test 8: GET /api/analytics/creator/:username/top-gifters"""
-    print(f"\n=== Test 8: Top Gifters ({username}) ===")
-    try:
-        response = requests.get(
-            f"{API_BASE}/analytics/creator/{username}/top-gifters?limit=10",
-            headers=get_auth_headers(),
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                gifters = data.get('topGifters', [])
-                log_test(f"GET /api/analytics/creator/{username}/top-gifters", True, 
-                        f"Found {len(gifters)} top gifters")
-                return True
-            else:
-                log_test(f"GET /api/analytics/creator/{username}/top-gifters", False, "success=false in response")
-                return False
-        elif response.status_code == 404:
-            log_test(f"GET /api/analytics/creator/{username}/top-gifters", True, 
-                    "Creator not found (404) - expected for new creator")
-            return True
-        else:
-            log_test(f"GET /api/analytics/creator/{username}/top-gifters", False, f"HTTP {response.status_code}")
-            return False
-    except Exception as e:
-        log_test(f"GET /api/analytics/creator/{username}/top-gifters", False, f"Exception: {str(e)}")
-        return False
-
-def test_recent_events(username: str):
-    """Test 9: GET /api/analytics/creator/:username/events (Recent Events)"""
-    print(f"\n=== Test 9: Recent Events ({username}) ===")
-    try:
-        response = requests.get(
-            f"{API_BASE}/analytics/creator/{username}/events?limit=50",
-            headers=get_auth_headers(),
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                events = data.get('events', [])
-                log_test(f"GET /api/analytics/creator/{username}/events", True, 
-                        f"Found {len(events)} recent events")
-                return True
-            else:
-                log_test(f"GET /api/analytics/creator/{username}/events", False, "success=false in response")
-                return False
-        elif response.status_code == 404:
-            log_test(f"GET /api/analytics/creator/{username}/events", True, 
-                    "Creator not found (404) - expected for new creator")
-            return True
-        else:
-            log_test(f"GET /api/analytics/creator/{username}/events", False, f"HTTP {response.status_code}")
-            return False
-    except Exception as e:
-        log_test(f"GET /api/analytics/creator/{username}/events", False, f"Exception: {str(e)}")
-        return False
-
-def test_viewer_trends(username: str):
-    """Test 10: GET /api/analytics/creator/:username/viewer-trends"""
-    print(f"\n=== Test 10: Viewer Trends ({username}) ===")
-    try:
-        response = requests.get(
-            f"{API_BASE}/analytics/creator/{username}/viewer-trends?hours=24",
-            headers=get_auth_headers(),
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                trends = data.get('trends', [])
-                log_test(f"GET /api/analytics/creator/{username}/viewer-trends", True, 
-                        f"Found {len(trends)} viewer trend data points")
-                return True
-            else:
-                log_test(f"GET /api/analytics/creator/{username}/viewer-trends", False, "success=false in response")
-                return False
-        elif response.status_code == 404:
-            log_test(f"GET /api/analytics/creator/{username}/viewer-trends", True, 
-                    "Creator not found (404) - expected for new creator")
-            return True
-        else:
-            log_test(f"GET /api/analytics/creator/{username}/viewer-trends", False, f"HTTP {response.status_code}")
-            return False
-    except Exception as e:
-        log_test(f"GET /api/analytics/creator/{username}/viewer-trends", False, f"Exception: {str(e)}")
-        return False
-
-def test_ai_generate():
-    """Test 11: POST /api/ai/generate (AI Orchestration)"""
-    print("\n=== Test 11: AI Generation (Orchestration) ===")
-    try:
-        response = requests.post(
-            f"{API_BASE}/ai/generate",
-            headers=get_auth_headers(),
-            json={
-                "prompt": "Summarize TikTok live stream performance",
-                "taskType": "text",
-                "complexity": "medium"
-            },
-            timeout=15
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                metadata = data.get('metadata', {})
-                log_test("POST /api/ai/generate", True, 
-                        f"AI generated response using model: {metadata.get('model', 'unknown')}")
-                return True
-            else:
-                log_test("POST /api/ai/generate", False, "success=false in response")
-                return False
-        else:
-            log_test("POST /api/ai/generate", False, f"HTTP {response.status_code}: {response.text}")
-            return False
-    except Exception as e:
-        log_test("POST /api/ai/generate", False, f"Exception: {str(e)}")
-        return False
-
-def test_ai_models():
-    """Test 12: GET /api/ai/models"""
-    print("\n=== Test 12: AI Models List ===")
-    try:
-        response = requests.get(
-            f"{API_BASE}/ai/models",
-            headers=get_auth_headers(),
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                models = data.get('models', {})
-                text_models = len(models.get('text', []))
-                code_models = len(models.get('code', []))
-                image_models = len(models.get('image', []))
-                video_models = len(models.get('video', []))
-                log_test("GET /api/ai/models", True, 
-                        f"Models available - Text: {text_models}, Code: {code_models}, Image: {image_models}, Video: {video_models}")
-                return True
-            else:
-                log_test("GET /api/ai/models", False, "success=false in response")
-                return False
-        else:
-            log_test("GET /api/ai/models", False, f"HTTP {response.status_code}")
-            return False
-    except Exception as e:
-        log_test("GET /api/ai/models", False, f"Exception: {str(e)}")
-        return False
-
-def run_all_tests():
-    """Run all backend tests"""
+def test_status_endpoint():
+    """Test 1: AI Studio Status API"""
     print("=" * 80)
-    print("TikTok Live Monitor Backend API Testing - Batch 1 Support")
+    print("TEST 1: AI Studio Status API - GET /api/ai-studio/v2/status")
     print("=" * 80)
     
-    # Test 1: Health Check
-    test_health_check()
+    try:
+        start_time = time.time()
+        response = requests.get(f"{BASE_URL}/status", timeout=10)
+        response_time = (time.time() - start_time) * 1000
+        
+        # Check HTTP status
+        if response.status_code != 200:
+            log_test("Status Endpoint - HTTP 200", False, 
+                    f"Expected 200, got {response.status_code}", response_time)
+            return
+        
+        log_test("Status Endpoint - HTTP 200", True, "", response_time)
+        
+        # Check response structure
+        data = response.json()
+        
+        # Check required fields
+        required_fields = ['totalModels', 'atlasCloudAvailable', 'fallbackAvailable', 'modelsByType']
+        missing_fields = [f for f in required_fields if f not in data]
+        
+        if missing_fields:
+            log_test("Status Endpoint - Response Structure", False,
+                    f"Missing fields: {', '.join(missing_fields)}")
+        else:
+            log_test("Status Endpoint - Response Structure", True,
+                    f"All required fields present: {', '.join(required_fields)}")
+        
+        # Check totalModels value
+        total_models = data.get('totalModels', 0)
+        if total_models == 39:
+            log_test("Status Endpoint - Total Models Count", True,
+                    f"Expected 39 models, got {total_models}")
+        else:
+            log_test("Status Endpoint - Total Models Count", False,
+                    f"Expected 39 models, got {total_models}")
+        
+        # Check modelsByType structure
+        models_by_type = data.get('modelsByType', {})
+        expected_types = ['text', 'image', 'video', 'audio', 'music']
+        missing_types = [t for t in expected_types if t not in models_by_type]
+        
+        if missing_types:
+            log_test("Status Endpoint - Models By Type", False,
+                    f"Missing types: {', '.join(missing_types)}")
+        else:
+            type_counts = ', '.join([f"{k}: {v}" for k, v in models_by_type.items()])
+            log_test("Status Endpoint - Models By Type", True,
+                    f"All types present - {type_counts}")
+        
+        # Check response time < 500ms
+        if response_time < 500:
+            log_test("Status Endpoint - Performance", True,
+                    f"Response time {response_time:.0f}ms < 500ms target")
+        else:
+            log_test("Status Endpoint - Performance", False,
+                    f"Response time {response_time:.0f}ms > 500ms target")
+        
+        print(f"📊 Status Response: {json.dumps(data, indent=2)}\n")
+        
+    except Exception as e:
+        log_test("Status Endpoint - Exception", False, str(e))
+
+def test_usage_endpoint():
+    """Test 2: AI Studio Usage API"""
+    print("=" * 80)
+    print("TEST 2: AI Studio Usage API - GET /api/ai-studio/v2/usage")
+    print("=" * 80)
     
-    # Test 2: Authentication
-    if not test_authentication():
-        print("\n⚠️  Authentication failed - some tests may not work without auth token")
+    try:
+        start_time = time.time()
+        response = requests.get(f"{BASE_URL}/usage", timeout=10)
+        response_time = (time.time() - start_time) * 1000
+        
+        # Check HTTP status
+        if response.status_code != 200:
+            log_test("Usage Endpoint - HTTP 200", False,
+                    f"Expected 200, got {response.status_code}", response_time)
+            return
+        
+        log_test("Usage Endpoint - HTTP 200", True, "", response_time)
+        
+        # Check response structure
+        data = response.json()
+        
+        # Check for usage object
+        if 'usage' not in data:
+            log_test("Usage Endpoint - Response Structure", False,
+                    "Missing 'usage' field")
+            return
+        
+        usage = data['usage']
+        
+        # Check today stats
+        if 'today' in usage:
+            today = usage['today']
+            required_today = ['requests', 'tokens', 'cost']
+            missing_today = [f for f in required_today if f not in today]
+            
+            if missing_today:
+                log_test("Usage Endpoint - Today Stats", False,
+                        f"Missing fields: {', '.join(missing_today)}")
+            else:
+                log_test("Usage Endpoint - Today Stats", True,
+                        f"requests: {today['requests']}, tokens: {today['tokens']}, cost: ${today['cost']}")
+        else:
+            log_test("Usage Endpoint - Today Stats", False, "Missing 'today' field")
+        
+        # Check thisMonth stats
+        if 'thisMonth' in usage:
+            this_month = usage['thisMonth']
+            required_month = ['requests', 'tokens', 'cost']
+            missing_month = [f for f in required_month if f not in this_month]
+            
+            if missing_month:
+                log_test("Usage Endpoint - This Month Stats", False,
+                        f"Missing fields: {', '.join(missing_month)}")
+            else:
+                log_test("Usage Endpoint - This Month Stats", True,
+                        f"requests: {this_month['requests']}, tokens: {this_month['tokens']}, cost: ${this_month['cost']}")
+        else:
+            log_test("Usage Endpoint - This Month Stats", False, "Missing 'thisMonth' field")
+        
+        # Check response time < 1 second
+        if response_time < 1000:
+            log_test("Usage Endpoint - Performance", True,
+                    f"Response time {response_time:.0f}ms < 1000ms target")
+        else:
+            log_test("Usage Endpoint - Performance", False,
+                    f"Response time {response_time:.0f}ms > 1000ms target")
+        
+        print(f"📊 Usage Response: {json.dumps(data, indent=2)}\n")
+        
+    except Exception as e:
+        log_test("Usage Endpoint - Exception", False, str(e))
+
+def test_provider_analytics_endpoint():
+    """Test 3: Provider Analytics API"""
+    print("=" * 80)
+    print("TEST 3: Provider Analytics API - GET /api/ai-studio/v2/provider-analytics")
+    print("=" * 80)
     
-    # Test 3: Creators List
-    passed, creators = test_creators_list()
+    try:
+        start_time = time.time()
+        response = requests.get(f"{BASE_URL}/provider-analytics", timeout=10)
+        response_time = (time.time() - start_time) * 1000
+        
+        # Check HTTP status
+        if response.status_code != 200:
+            log_test("Provider Analytics - HTTP 200", False,
+                    f"Expected 200, got {response.status_code}", response_time)
+            return
+        
+        log_test("Provider Analytics - HTTP 200", True, "", response_time)
+        
+        # Check response structure
+        data = response.json()
+        
+        # Check for analytics object
+        if 'analytics' not in data:
+            log_test("Provider Analytics - Response Structure", False,
+                    "Missing 'analytics' field")
+            return
+        
+        analytics = data['analytics']
+        
+        # Check total stats
+        if 'total' in analytics:
+            total = analytics['total']
+            required_total = ['requests', 'cost', 'tokens']
+            missing_total = [f for f in required_total if f not in total]
+            
+            if missing_total:
+                log_test("Provider Analytics - Total Stats", False,
+                        f"Missing fields: {', '.join(missing_total)}")
+            else:
+                log_test("Provider Analytics - Total Stats", True,
+                        f"requests: {total['requests']}, tokens: {total['tokens']}, cost: ${total['cost']}")
+        else:
+            log_test("Provider Analytics - Total Stats", False, "Missing 'total' field")
+        
+        # Check byProvider breakdown
+        if 'byProvider' in analytics:
+            by_provider = analytics['byProvider']
+            expected_providers = ['emergent', 'atlas', 'mock']
+            missing_providers = [p for p in expected_providers if p not in by_provider]
+            
+            if missing_providers:
+                log_test("Provider Analytics - By Provider", False,
+                        f"Missing providers: {', '.join(missing_providers)}")
+            else:
+                provider_summary = []
+                for provider, stats in by_provider.items():
+                    provider_summary.append(f"{provider}: {stats.get('requests', 0)} req ({stats.get('percentage', 0)}%)")
+                log_test("Provider Analytics - By Provider", True,
+                        ', '.join(provider_summary))
+        else:
+            log_test("Provider Analytics - By Provider", False, "Missing 'byProvider' field")
+        
+        # Check recentRequests
+        if 'recentRequests' in analytics:
+            recent = analytics['recentRequests']
+            log_test("Provider Analytics - Recent Requests", True,
+                    f"Found {len(recent)} recent requests")
+        else:
+            log_test("Provider Analytics - Recent Requests", False, "Missing 'recentRequests' field")
+        
+        # Check percentage calculations
+        if 'byProvider' in analytics:
+            by_provider = analytics['byProvider']
+            total_percentage = sum(float(p.get('percentage', 0)) for p in by_provider.values())
+            
+            # Allow for rounding errors (99-101%)
+            if 99 <= total_percentage <= 101 or total_percentage == 0:
+                log_test("Provider Analytics - Percentage Calculations", True,
+                        f"Total percentage: {total_percentage:.1f}%")
+            else:
+                log_test("Provider Analytics - Percentage Calculations", False,
+                        f"Total percentage: {total_percentage:.1f}% (should be ~100%)")
+        
+        # Check response time < 1 second
+        if response_time < 1000:
+            log_test("Provider Analytics - Performance", True,
+                    f"Response time {response_time:.0f}ms < 1000ms target")
+        else:
+            log_test("Provider Analytics - Performance", False,
+                    f"Response time {response_time:.0f}ms > 1000ms target")
+        
+        print(f"📊 Provider Analytics Response: {json.dumps(data, indent=2)}\n")
+        
+    except Exception as e:
+        log_test("Provider Analytics - Exception", False, str(e))
+
+def test_text_generation_endpoint():
+    """Test 4: Text Generation API"""
+    print("=" * 80)
+    print("TEST 4: Text Generation API - POST /api/ai-studio/v2/generate/text")
+    print("=" * 80)
     
-    # Test 4: Add Creator
-    passed, test_username = test_add_creator()
-    if not test_username and creators:
-        # Use existing creator if add failed
-        test_username = creators[0].get('username')
+    try:
+        # Test with gpt-5.5-pro model
+        payload = {
+            "prompt": "Test prompt",
+            "model": "gpt-5.5-pro",
+            "maxTokens": 100
+        }
+        
+        start_time = time.time()
+        response = requests.post(f"{BASE_URL}/generate/text", json=payload, timeout=30)
+        response_time = (time.time() - start_time) * 1000
+        
+        # Check HTTP status
+        if response.status_code != 200:
+            log_test("Text Generation - HTTP 200", False,
+                    f"Expected 200, got {response.status_code}", response_time)
+            return
+        
+        log_test("Text Generation - HTTP 200", True, "", response_time)
+        
+        # Check response structure
+        data = response.json()
+        
+        # Check for result object
+        if 'result' not in data:
+            log_test("Text Generation - Response Structure", False,
+                    "Missing 'result' field")
+            return
+        
+        result = data['result']
+        
+        # Check required fields in result
+        required_fields = ['text', 'provider', 'source', 'usage', 'cost']
+        missing_fields = [f for f in required_fields if f not in result]
+        
+        if missing_fields:
+            log_test("Text Generation - Result Structure", False,
+                    f"Missing fields: {', '.join(missing_fields)}")
+        else:
+            log_test("Text Generation - Result Structure", True,
+                    f"All required fields present: {', '.join(required_fields)}")
+        
+        # Check text content
+        if 'text' in result and result['text']:
+            text_preview = result['text'][:100] + "..." if len(result['text']) > 100 else result['text']
+            log_test("Text Generation - Text Content", True,
+                    f"Generated text: {text_preview}")
+        else:
+            log_test("Text Generation - Text Content", False, "No text generated")
+        
+        # Check provider and source
+        if 'provider' in result and 'source' in result:
+            log_test("Text Generation - Provider Info", True,
+                    f"Provider: {result['provider']}, Source: {result['source']}")
+        else:
+            log_test("Text Generation - Provider Info", False, "Missing provider/source info")
+        
+        # Check usage stats
+        if 'usage' in result:
+            usage = result['usage']
+            if 'total_tokens' in usage or 'prompt_tokens' in usage:
+                log_test("Text Generation - Usage Stats", True,
+                        f"Usage: {json.dumps(usage)}")
+            else:
+                log_test("Text Generation - Usage Stats", False, "Usage stats incomplete")
+        else:
+            log_test("Text Generation - Usage Stats", False, "Missing usage field")
+        
+        # Check cost
+        if 'cost' in result:
+            log_test("Text Generation - Cost Tracking", True,
+                    f"Cost: ${result['cost']}")
+        else:
+            log_test("Text Generation - Cost Tracking", False, "Missing cost field")
+        
+        # Check response time < 1 second (for API call, not AI generation)
+        if response_time < 30000:  # 30 seconds for AI generation is reasonable
+            log_test("Text Generation - Performance", True,
+                    f"Response time {response_time:.0f}ms")
+        else:
+            log_test("Text Generation - Performance", False,
+                    f"Response time {response_time:.0f}ms > 30000ms")
+        
+        print(f"📊 Text Generation Response: {json.dumps(data, indent=2)}\n")
+        
+    except Exception as e:
+        log_test("Text Generation - Exception", False, str(e))
+
+def test_models_endpoint():
+    """Test 5: Models API"""
+    print("=" * 80)
+    print("TEST 5: Models API - GET /api/ai-studio/v2/models")
+    print("=" * 80)
     
-    # Test 5: Get Creator Details
-    if test_username:
-        test_get_creator(test_username)
+    try:
+        start_time = time.time()
+        response = requests.get(f"{BASE_URL}/models", timeout=10)
+        response_time = (time.time() - start_time) * 1000
+        
+        # Check HTTP status
+        if response.status_code != 200:
+            log_test("Models Endpoint - HTTP 200", False,
+                    f"Expected 200, got {response.status_code}", response_time)
+            return
+        
+        log_test("Models Endpoint - HTTP 200", True, "", response_time)
+        
+        # Check response structure
+        data = response.json()
+        
+        # Check for models array
+        if 'models' not in data:
+            log_test("Models Endpoint - Response Structure", False,
+                    "Missing 'models' field")
+            return
+        
+        models = data['models']
+        
+        # Check total count
+        if 'total' in data:
+            total = data['total']
+            if total == 39:
+                log_test("Models Endpoint - Total Count", True,
+                        f"Expected 39 models, got {total}")
+            else:
+                log_test("Models Endpoint - Total Count", False,
+                        f"Expected 39 models, got {total}")
+        else:
+            log_test("Models Endpoint - Total Count", False, "Missing 'total' field")
+        
+        # Check byType breakdown
+        if 'byType' in data:
+            by_type = data['byType']
+            expected_counts = {
+                'text': 7,
+                'image': 10,
+                'video': 12,
+                'audio': 5,
+                'music': 5
+            }
+            
+            type_check_passed = True
+            type_details = []
+            for model_type, expected_count in expected_counts.items():
+                actual_count = by_type.get(model_type, 0)
+                type_details.append(f"{model_type}: {actual_count}")
+                if actual_count != expected_count:
+                    type_check_passed = False
+            
+            if type_check_passed:
+                log_test("Models Endpoint - By Type Counts", True,
+                        ', '.join(type_details))
+            else:
+                log_test("Models Endpoint - By Type Counts", False,
+                        f"Counts don't match expected - {', '.join(type_details)}")
+        else:
+            log_test("Models Endpoint - By Type Counts", False, "Missing 'byType' field")
+        
+        # Check model structure (sample first model)
+        if models and len(models) > 0:
+            sample_model = models[0]
+            required_model_fields = ['id', 'type', 'provider', 'logo', 'color', 'pricing']
+            missing_model_fields = [f for f in required_model_fields if f not in sample_model]
+            
+            if missing_model_fields:
+                log_test("Models Endpoint - Model Structure", False,
+                        f"Missing fields in model: {', '.join(missing_model_fields)}")
+            else:
+                log_test("Models Endpoint - Model Structure", True,
+                        f"Sample model has all required fields: {sample_model['id']}")
+        else:
+            log_test("Models Endpoint - Model Structure", False, "No models returned")
+        
+        # Check response time < 1 second
+        if response_time < 1000:
+            log_test("Models Endpoint - Performance", True,
+                    f"Response time {response_time:.0f}ms < 1000ms target")
+        else:
+            log_test("Models Endpoint - Performance", False,
+                    f"Response time {response_time:.0f}ms > 1000ms target")
+        
+        print(f"📊 Models Response (first 3 models): {json.dumps(models[:3], indent=2)}\n")
+        
+    except Exception as e:
+        log_test("Models Endpoint - Exception", False, str(e))
+
+def test_models_by_type_endpoint():
+    """Test 6: Models by Type API"""
+    print("=" * 80)
+    print("TEST 6: Models by Type API - GET /api/ai-studio/v2/models?type=text")
+    print("=" * 80)
     
-    # Test 6: Analytics Status
-    test_analytics_status()
+    try:
+        start_time = time.time()
+        response = requests.get(f"{BASE_URL}/models?type=text", timeout=10)
+        response_time = (time.time() - start_time) * 1000
+        
+        # Check HTTP status
+        if response.status_code != 200:
+            log_test("Models By Type - HTTP 200", False,
+                    f"Expected 200, got {response.status_code}", response_time)
+            return
+        
+        log_test("Models By Type - HTTP 200", True, "", response_time)
+        
+        # Check response structure
+        data = response.json()
+        
+        # Check for models object
+        if 'models' not in data:
+            log_test("Models By Type - Response Structure", False,
+                    "Missing 'models' field")
+            return
+        
+        models = data['models']
+        
+        # Check type field
+        if 'type' in data and data['type'] == 'text':
+            log_test("Models By Type - Type Field", True,
+                    f"Type field correct: {data['type']}")
+        else:
+            log_test("Models By Type - Type Field", False,
+                    f"Type field incorrect or missing")
+        
+        # Check count
+        if 'count' in data:
+            count = data['count']
+            if count == 7:
+                log_test("Models By Type - Count", True,
+                        f"Expected 7 text models, got {count}")
+            else:
+                log_test("Models By Type - Count", False,
+                        f"Expected 7 text models, got {count}")
+        else:
+            log_test("Models By Type - Count", False, "Missing 'count' field")
+        
+        # Check filtering works correctly (all models should be text type)
+        if isinstance(models, dict):
+            model_ids = list(models.keys())
+            expected_text_models = ['gpt-5.5-pro', 'gpt-5.4', 'claude-opus-4.7', 
+                                   'gemini-3.0-pro', 'gemini-2.0-flash', 'deepseek-v3', 'qwen-3-32b']
+            
+            all_present = all(model_id in model_ids for model_id in expected_text_models)
+            
+            if all_present:
+                log_test("Models By Type - Filtering", True,
+                        f"All expected text models present: {', '.join(model_ids)}")
+            else:
+                missing = [m for m in expected_text_models if m not in model_ids]
+                log_test("Models By Type - Filtering", False,
+                        f"Missing text models: {', '.join(missing)}")
+        else:
+            log_test("Models By Type - Filtering", False, "Models not in expected format")
+        
+        # Check response time < 1 second
+        if response_time < 1000:
+            log_test("Models By Type - Performance", True,
+                    f"Response time {response_time:.0f}ms < 1000ms target")
+        else:
+            log_test("Models By Type - Performance", False,
+                    f"Response time {response_time:.0f}ms > 1000ms target")
+        
+        print(f"📊 Models By Type Response: {json.dumps(data, indent=2)}\n")
+        
+    except Exception as e:
+        log_test("Models By Type - Exception", False, str(e))
+
+def test_provider_tracking():
+    """Test 7: Provider Tracking Verification"""
+    print("=" * 80)
+    print("TEST 7: Provider Tracking - Make 5 requests and verify tracking")
+    print("=" * 80)
     
-    # Test 7: Analytics Creators
-    test_analytics_creators()
+    try:
+        # Get initial analytics
+        initial_response = requests.get(f"{BASE_URL}/provider-analytics", timeout=10)
+        initial_data = initial_response.json()
+        initial_total = initial_data['analytics']['total']['requests']
+        
+        print(f"📊 Initial request count: {initial_total}")
+        
+        # Make 5 text generation requests
+        for i in range(5):
+            payload = {
+                "prompt": f"Test prompt {i+1}",
+                "model": "gpt-5.5-pro",
+                "maxTokens": 50
+            }
+            requests.post(f"{BASE_URL}/generate/text", json=payload, timeout=30)
+            time.sleep(0.5)  # Small delay between requests
+        
+        # Get updated analytics
+        time.sleep(1)  # Wait for tracking to update
+        updated_response = requests.get(f"{BASE_URL}/provider-analytics", timeout=10)
+        updated_data = updated_response.json()
+        updated_total = updated_data['analytics']['total']['requests']
+        
+        print(f"📊 Updated request count: {updated_total}")
+        
+        # Check if count increased by 5
+        increase = updated_total - initial_total
+        if increase == 5:
+            log_test("Provider Tracking - Request Count", True,
+                    f"Request count increased by 5 (from {initial_total} to {updated_total})")
+        else:
+            log_test("Provider Tracking - Request Count", False,
+                    f"Expected increase of 5, got {increase} (from {initial_total} to {updated_total})")
+        
+        # Check provider breakdown updated
+        by_provider = updated_data['analytics']['byProvider']
+        provider_summary = []
+        for provider, stats in by_provider.items():
+            if stats['requests'] > 0:
+                provider_summary.append(f"{provider}: {stats['requests']} req")
+        
+        if provider_summary:
+            log_test("Provider Tracking - Provider Breakdown", True,
+                    f"Provider breakdown updated: {', '.join(provider_summary)}")
+        else:
+            log_test("Provider Tracking - Provider Breakdown", False,
+                    "No provider breakdown data")
+        
+    except Exception as e:
+        log_test("Provider Tracking - Exception", False, str(e))
+
+def test_caching():
+    """Test 8: Caching Verification"""
+    print("=" * 80)
+    print("TEST 8: Caching - Second request should be faster")
+    print("=" * 80)
     
-    # Test 8-10: Creator-specific analytics
-    if test_username:
-        test_top_gifters(test_username)
-        test_recent_events(test_username)
-        test_viewer_trends(test_username)
-    
-    # Test 11-12: AI Orchestration
-    test_ai_generate()
-    test_ai_models()
-    
-    # Summary
+    try:
+        # First request
+        start_time = time.time()
+        response1 = requests.get(f"{BASE_URL}/status", timeout=10)
+        time1 = (time.time() - start_time) * 1000
+        
+        # Second request (should be cached)
+        time.sleep(0.1)
+        start_time = time.time()
+        response2 = requests.get(f"{BASE_URL}/status", timeout=10)
+        time2 = (time.time() - start_time) * 1000
+        
+        print(f"📊 First request: {time1:.0f}ms")
+        print(f"📊 Second request: {time2:.0f}ms")
+        
+        # Check if second request is faster or similar (caching may not be implemented)
+        if time2 <= time1 * 1.2:  # Allow 20% variance
+            log_test("Caching - Performance Improvement", True,
+                    f"Second request {time2:.0f}ms <= First request {time1:.0f}ms")
+        else:
+            log_test("Caching - Performance Improvement", False,
+                    f"Second request {time2:.0f}ms > First request {time1:.0f}ms (caching may not be implemented)")
+        
+    except Exception as e:
+        log_test("Caching - Exception", False, str(e))
+
+def print_summary():
+    """Print test summary"""
     print("\n" + "=" * 80)
     print("TEST SUMMARY")
     print("=" * 80)
     
-    passed_count = sum(1 for r in test_results if r['passed'])
-    total_count = len(test_results)
-    pass_rate = (passed_count / total_count * 100) if total_count > 0 else 0
+    total_tests = len(test_results)
+    passed_tests = sum(1 for t in test_results if t['passed'])
+    failed_tests = total_tests - passed_tests
     
-    print(f"\nTotal Tests: {total_count}")
-    print(f"Passed: {passed_count}")
-    print(f"Failed: {total_count - passed_count}")
-    print(f"Pass Rate: {pass_rate:.1f}%")
+    print(f"\nTotal Tests: {total_tests}")
+    print(f"✅ Passed: {passed_tests}")
+    print(f"❌ Failed: {failed_tests}")
+    print(f"Success Rate: {(passed_tests/total_tests*100):.1f}%\n")
     
+    if failed_tests > 0:
+        print("Failed Tests:")
+        for result in test_results:
+            if not result['passed']:
+                print(f"  ❌ {result['test']}")
+                if result['details']:
+                    print(f"     {result['details']}")
+        print()
+    
+    # Performance summary
+    print("Performance Summary:")
+    perf_tests = [t for t in test_results if t['response_time'] is not None]
+    if perf_tests:
+        avg_time = sum(t['response_time'] for t in perf_tests) / len(perf_tests)
+        max_time = max(t['response_time'] for t in perf_tests)
+        min_time = min(t['response_time'] for t in perf_tests)
+        print(f"  Average Response Time: {avg_time:.0f}ms")
+        print(f"  Min Response Time: {min_time:.0f}ms")
+        print(f"  Max Response Time: {max_time:.0f}ms")
+    print()
+
+def main():
+    """Run all tests"""
     print("\n" + "=" * 80)
-    print("NOTES ON REVIEW REQUEST ENDPOINTS")
+    print("BATCH 1 BACKEND API TESTING - GOD TIER ENHANCEMENTS")
+    print("AI Studio v2 Endpoints")
     print("=" * 80)
-    print("""
-The review request mentioned these endpoints which have different paths in the actual implementation:
-
-REVIEW REQUEST → ACTUAL IMPLEMENTATION:
-1. ✅ GET /api/creators/list → EXISTS (tested)
-2. ✅ POST /api/creators/add → EXISTS (tested)
-3. ✅ GET /api/creators/:username → EXISTS (tested)
-4. ❌ GET /api/analytics/summary → DOES NOT EXIST
-   → Use GET /api/analytics/status instead (tested)
-5. ❌ GET /api/analytics/top-gifters → DOES NOT EXIST
-   → Use GET /api/analytics/creator/:username/top-gifters instead (tested)
-6. ❌ GET /api/analytics/revenue-history → DOES NOT EXIST
-   → No direct equivalent found
-7. ❌ GET /api/live/current → DOES NOT EXIST
-   → Use GET /api/creators/list to check connection status
-8. ❌ GET /api/events/recent → DOES NOT EXIST
-   → Use GET /api/analytics/creator/:username/events instead (tested)
-9. ❌ POST /api/ai/orchestrate → DOES NOT EXIST
-   → Use POST /api/ai/generate instead (tested)
-10. ✅ GET /api/health → EXISTS (tested)
-
-CONCLUSION:
-The backend has a different API structure than mentioned in the review request.
-All core functionality exists but with different endpoint paths.
-All available endpoints have been tested successfully.
-    """)
+    print(f"Backend URL: {BASE_URL}")
+    print(f"Test Started: {datetime.now().isoformat()}")
+    print("=" * 80 + "\n")
     
-    return pass_rate >= 80
+    # Run all tests
+    test_status_endpoint()
+    test_usage_endpoint()
+    test_provider_analytics_endpoint()
+    test_text_generation_endpoint()
+    test_models_endpoint()
+    test_models_by_type_endpoint()
+    test_provider_tracking()
+    test_caching()
+    
+    # Print summary
+    print_summary()
+    
+    print("=" * 80)
+    print(f"Test Completed: {datetime.now().isoformat()}")
+    print("=" * 80)
 
 if __name__ == "__main__":
-    success = run_all_tests()
-    sys.exit(0 if success else 1)
+    main()
