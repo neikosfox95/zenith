@@ -67,7 +67,7 @@ export const LiveIndicator: React.FC<LiveIndicatorProps> = ({ isLive, viewerCoun
         styles.live,
         {
           transform: [{ scale: pulseAnim }],
-          shadowOpacity: glowOpacity,
+          opacity: glowOpacity,
         },
       ]}
     >
@@ -100,9 +100,6 @@ const styles = StyleSheet.create({
   },
   live: {
     backgroundColor: TikTokTheme.colors.status.live,
-    shadowColor: TikTokTheme.colors.status.live,
-    shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 12,
     elevation: 10,
   },
   offline: {

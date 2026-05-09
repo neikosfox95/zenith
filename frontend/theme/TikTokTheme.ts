@@ -141,42 +141,22 @@ export const TikTokTheme = {
   },
   
   // ============================================================
-  // SHADOWS - Elevation
+  // SHADOWS - Elevation (Android only, iOS uses opacity layers)
   // ============================================================
   shadows: {
     sm: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.25,
-      shadowRadius: 4,
       elevation: 2,
     },
     md: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 8,
       elevation: 4,
     },
     lg: {
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.35,
-      shadowRadius: 16,
       elevation: 8,
     },
     xl: {
-      shadowColor: '#00F2EA',
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.5,
-      shadowRadius: 20,
       elevation: 12,
     },
     glow: {
-      shadowColor: '#00F2EA',
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.8,
-      shadowRadius: 12,
       elevation: 10,
     },
   },
