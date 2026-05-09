@@ -200,6 +200,10 @@ async function connectDB() {
     app.use('/api/creators', creatorRoutes);
     console.log('✅ Creator Management routes loaded!');
 
+    // AI Routes
+    app.use('/api/ai', aiRoutes);
+    console.log('✅ AI Orchestration routes loaded!');
+
     // Start Analytics Engine
     await analyticsEngine.start();
     
