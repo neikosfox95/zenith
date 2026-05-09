@@ -16,18 +16,35 @@ const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
 // Initialize AI clients (with error handling for missing keys)
 let openai, googleAI;
 
+// Use Emergent LLM Key as primary
+const EMERGENT_KEY = process.env.EMERGENT_LLM_KEY;
+const hasValidKey = EMERGENT_KEY && EMERGENT_KEY.startsWith('sk-emergent-');
+
+if (hasValidKey) {
+  console.log('✅ Emergent LLM Key detected and configured');
+} else {
+  console.warn('⚠️ No valid Emergent LLM Key found');
+}
+
 try {
-  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY || process.env.EMERGENT_LLM_KEY || 'dummy_key' });
+  const openaiKey = process.env.OPENAI_API_KEY || EMERGENT_KEY;
+  openai = new OpenAI({ 
+    apiKey: openaiKey,
+    dangerouslyAllowBrowser: false 
+  });
+  console.log('✅ OpenAI client initialized');
 } catch (e) {
-  console.warn('OpenAI client initialization failed');
+  console.warn('⚠️ OpenAI client initialization failed:', e.message);
 }
 
 // let anthropic; // TODO: Initialize when package is fixed
 
 try {
-  googleAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || process.env.EMERGENT_LLM_KEY || 'dummy_key');
+  const googleKey = process.env.GOOGLE_API_KEY || EMERGENT_KEY;
+  googleAI = new GoogleGenerativeAI(googleKey);
+  console.log('✅ Google AI client initialized');
 } catch (e) {
-  console.warn('Google AI client initialization failed');
+  console.warn('⚠️ Google AI client initialization failed:', e.message);
 }
 
 class AIOrchestrator {
@@ -122,20 +139,34 @@ class AIOrchestrator {
 
     const apiModel = modelMap[model] || model;
 
-    const response = await openai.chat.completions.create({
-      model: apiModel,
-      messages: [{ role: 'user', content: prompt }],
-      temperature,
-      max_tokens: maxTokens,
-    });
+    try {
+      const response = await openai.chat.completions.create({
+        model: apiModel,
+        messages: [{ role: 'user', content: prompt }],
+        temperature,
+        max_tokens: maxTokens,
+      });
 
-    return {
-      text: response.choices[0].message.content,
-      model: apiModel,
-      provider: 'openai',
-      usage: response.usage,
-      requestId: uuidv4(),
-    };
+      return {
+        text: response.choices[0].message.content,
+        model: apiModel,
+        provider: 'openai',
+        usage: response.usage,
+        requestId: uuidv4(),
+      };
+    } catch (error) {
+      // If OpenAI fails (e.g., invalid key), return mock response for development
+      console.warn('OpenAI API call failed, returning mock response:', error.message);
+      
+      return {
+        text: `[AI Response - Mock Mode]\n\nThis is a simulated AI response for the prompt: "${prompt.substring(0, 100)}..."\n\nReason: ${error.message.includes('API key') ? 'API key configuration pending' : 'API temporarily unavailable'}\n\nFor production use, please configure a valid OpenAI API key or use the Emergent Integrations library.`,
+        model: apiModel,
+        provider: 'openai',
+        mock: true,
+        usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+        requestId: uuidv4(),
+      };
+    }
   }
 
   /**
@@ -159,17 +190,30 @@ class AIOrchestrator {
     };
 
     const apiModel = modelMap[model] || 'gemini-pro';
-    const geminiModel = googleAI.getGenerativeModel({ model: apiModel });
 
-    const result = await geminiModel.generateContent(prompt);
-    const response = await result.response;
+    try {
+      const geminiModel = googleAI.getGenerativeModel({ model: apiModel });
+      const result = await geminiModel.generateContent(prompt);
+      const response = await result.response;
 
-    return {
-      text: response.text(),
-      model: apiModel,
-      provider: 'google',
-      requestId: uuidv4(),
-    };
+      return {
+        text: response.text(),
+        model: apiModel,
+        provider: 'google',
+        requestId: uuidv4(),
+      };
+    } catch (error) {
+      // If Google AI fails, return mock response
+      console.warn('Google AI call failed, returning mock response:', error.message);
+      
+      return {
+        text: `[AI Response - Mock Mode]\n\nThis is a simulated Gemini response for: "${prompt.substring(0, 100)}..."\n\nReason: ${error.message.includes('API') ? 'API key configuration pending' : 'API temporarily unavailable'}`,
+        model: apiModel,
+        provider: 'google',
+        mock: true,
+        requestId: uuidv4(),
+      };
+    }
   }
 
   /**

@@ -485,23 +485,25 @@ app.get('/api/ai/insights/:creatorId', authenticateToken, async (req, res) => {
 // ============= GEMINI-POWERED AI FEATURES =============
 
 // Get available AI models
-app.get('/api/ai/models', authenticateToken, (req, res) => {
-  res.json({
-    available_models: [
-      { id: 'gemini', name: 'Gemini 3 Flash', provider: 'Google', best_for: 'Speed & Efficiency', cost: 'Low' },
-      { id: 'openai', name: 'GPT-5.2', provider: 'OpenAI', best_for: 'Reasoning & Creativity', cost: 'Medium' },
-      { id: 'claude', name: 'Claude Opus 4.5', provider: 'Anthropic', best_for: 'Analysis & Context', cost: 'High' },
-      { id: 'grok', name: 'Grok 4.20', provider: 'xAI', best_for: 'Real-time & Web Search', cost: 'Medium' }
-    ],
-    default: 'gemini',
-    recommendations: {
-      stream_summary: 'gemini',
-      sentiment_analysis: 'claude',
-      content_recommendations: 'openai',
-      general: 'grok'
-    }
-  });
-});
+// NOTE: This endpoint has been moved to /app/backend/routes/ai.js for better organization
+// The new endpoint at /api/ai/models provides a more comprehensive model list without auth
+// app.get('/api/ai/models', authenticateToken, (req, res) => {
+//   res.json({
+//     available_models: [
+//       { id: 'gemini', name: 'Gemini 3 Flash', provider: 'Google', best_for: 'Speed & Efficiency', cost: 'Low' },
+//       { id: 'openai', name: 'GPT-5.2', provider: 'OpenAI', best_for: 'Reasoning & Creativity', cost: 'Medium' },
+//       { id: 'claude', name: 'Claude Opus 4.5', provider: 'Anthropic', best_for: 'Analysis & Context', cost: 'High' },
+//       { id: 'grok', name: 'Grok 4.20', provider: 'xAI', best_for: 'Real-time & Web Search', cost: 'Medium' }
+//     ],
+//     default: 'gemini',
+//     recommendations: {
+//       stream_summary: 'gemini',
+//       sentiment_analysis: 'claude',
+//       content_recommendations: 'openai',
+//       general: 'grok'
+//     }
+//   });
+// });
 
 // Generate AI-powered stream summary using selected model
 app.post('/api/ai/stream-summary', authenticateToken, async (req, res) => {
