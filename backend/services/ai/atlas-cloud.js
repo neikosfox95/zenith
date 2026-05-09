@@ -24,9 +24,9 @@ try {
       dangerouslyAllowBrowser: false
     });
     hasAtlasKey = true;
-    console.log('✅ Atlas Cloud client initialized');
+    console.log('✅ Atlas Cloud backup client initialized');
   } else {
-    console.warn('⚠️ Atlas Cloud API key not configured - using fallback providers');
+    console.warn('⚠️ Atlas Cloud not configured - using Emergent LLM Key as primary');
   }
 } catch (e) {
   console.warn('⚠️ Atlas Cloud initialization failed:', e.message);
@@ -364,7 +364,7 @@ class AtlasCloudService {
   }
 
   /**
-   * Generate Text using Atlas Cloud (primary) or fallback
+   * Generate Text using Emergent LLM Key (primary) with Atlas Cloud backup
    */
   async generateText(prompt, options = {}) {
     const {
@@ -379,7 +379,16 @@ class AtlasCloudService {
       throw new Error(`Unknown text model: ${model}`);
     }
 
-    // Try Atlas Cloud first
+    // PRIMARY: Try Emergent LLM Key first (direct provider APIs)
+    if (openaiDirect || googleAI) {
+      const directResult = await this.tryDirectProviders(model, prompt, temperature, maxTokens, modelConfig);
+      if (directResult && !directResult.failed) {
+        return directResult;
+      }
+      console.warn(`Direct provider failed for ${model}, trying Atlas Cloud backup...`);
+    }
+
+    // BACKUP: Try Atlas Cloud if direct providers fail
     if (this.hasAtlas || userApiKey) {
       try {
         const client = userApiKey ? new OpenAI({
@@ -397,39 +406,25 @@ class AtlasCloudService {
         return {
           text: response.choices[0].message.content,
           model: modelConfig.atlasId,
-          provider: 'atlas-cloud',
+          provider: 'atlas-cloud-backup',
           usage: response.usage,
           cost: this.calculateTextCost(model, response.usage),
           requestId: uuidv4(),
-          source: 'atlas-primary'
+          source: 'atlas-backup'
         };
       } catch (error) {
-        console.warn(`Atlas Cloud failed for ${model}, trying fallback:`, error.message);
-        // Fall through to fallback
+        console.warn(`Atlas Cloud backup failed for ${model}:`, error.message);
       }
     }
 
-    // Fallback to direct provider
-    return this.fallbackTextGeneration(model, prompt, temperature, maxTokens, modelConfig);
+    // FINAL FALLBACK: Mock mode
+    return this.mockResponse(model, prompt);
   }
 
   /**
-   * Fallback to direct provider APIs
+   * Try direct provider APIs (Emergent LLM Key)
    */
-  async fallbackTextGeneration(model, prompt, temperature, maxTokens, modelConfig) {
-    if (!openaiDirect && !googleAI) {
-      return {
-        text: `[MOCK MODE]\n\nAtlas Cloud and fallback providers unavailable.\n\nPrompt: "${prompt.substring(0, 100)}..."\n\nPlease configure Atlas Cloud API key or Emergent LLM Key.`,
-        model: model,
-        provider: 'mock',
-        mock: true,
-        usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
-        cost: 0,
-        requestId: uuidv4(),
-        source: 'mock'
-      };
-    }
-
+  async tryDirectProviders(model, prompt, temperature, maxTokens, modelConfig) {
     // Try OpenAI direct for OpenAI/Anthropic models
     if ((modelConfig.provider === 'openai' || modelConfig.provider === 'anthropic') && openaiDirect) {
       try {
@@ -443,14 +438,15 @@ class AtlasCloudService {
         return {
           text: response.choices[0].message.content,
           model: 'gpt-4-turbo-preview',
-          provider: 'openai-direct',
+          provider: 'openai-emergent',
           usage: response.usage,
           cost: this.calculateTextCost(model, response.usage),
           requestId: uuidv4(),
-          source: 'fallback-emergent'
+          source: 'emergent-primary'
         };
       } catch (error) {
-        console.warn('OpenAI fallback failed:', error.message);
+        console.warn('OpenAI Emergent failed:', error.message);
+        return { failed: true };
       }
     }
 
@@ -464,22 +460,29 @@ class AtlasCloudService {
         return {
           text: response.text(),
           model: 'gemini-pro',
-          provider: 'google-direct',
+          provider: 'google-emergent',
           usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
           cost: 0,
           requestId: uuidv4(),
-          source: 'fallback-emergent'
+          source: 'emergent-primary'
         };
       } catch (error) {
-        console.warn('Google fallback failed:', error.message);
+        console.warn('Google Emergent failed:', error.message);
+        return { failed: true };
       }
     }
 
-    // Final fallback: mock
+    return { failed: true };
+  }
+
+  /**
+   * Mock response when all providers fail
+   */
+  mockResponse(model, prompt) {
     return {
-      text: `[FALLBACK MODE]\n\nAll providers unavailable for ${model}.\n\nPrompt: "${prompt.substring(0, 100)}..."`,
+      text: `[MOCK MODE]\n\nAll providers unavailable for ${model}.\n\nPrompt: "${prompt.substring(0, 100)}..."\n\n✅ Emergent LLM Key (Primary): Not available\n⚠️ Atlas Cloud (Backup): ${this.hasAtlas ? 'API credits needed' : 'Not configured'}\n\nPlease configure API keys or add Atlas Cloud credits.`,
       model: model,
-      provider: 'fallback-mock',
+      provider: 'mock',
       mock: true,
       usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
       cost: 0,
