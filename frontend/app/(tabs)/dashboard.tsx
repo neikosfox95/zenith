@@ -1,104 +1,69 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Dimensions, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Image, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTikTokLiveEvents, useCreatorStatus } from '../../src/hooks/realtime';
-import { useCreatorsStore } from '../../src/stores/creatorsStore';
-import { useUIStore } from '../../src/stores/uiStore';
-import { GlassCard, LiveIndicator } from '../../src/components/glass';
-import { TikTokTheme } from '../../theme/TikTokTheme';
-import { creatorsAPI } from '../../src/services/api';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeIn, FadeInUp } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
+import { useDashboard } from '../../src/hooks/realtime';
+import { useDashboardStore } from '../../src/stores/dashboardStore';
+import { useUIStore } from '../../src/stores/uiStore';
+import { TikTokTheme } from '../../theme/TikTokTheme';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 
 export default function DashboardScreen() {
-  const { creators, isLoading, setCreators, setLoading } = useCreatorsStore();
+  const { stats, creators } = useDashboard();
+  const { recentStreams, setRecentStreams } = useDashboardStore();
   const { refreshing, setRefreshing } = useUIStore();
-  const { isConnected } = useTikTokLiveEvents();
-  const { liveCreators, totalLive } = useCreatorStatus();
 
   useEffect(() => {
-    loadCreators();
+    loadDashboardData();
   }, []);
 
-  const loadCreators = async () => {
-    try {
-      setLoading(true);
-      const data = await creatorsAPI.getAll();
-      setCreators(data);
-    } catch (error) {
-      console.error('Failed to load creators:', error);
-    } finally {
-      setLoading(false);
-    }
+  const loadDashboardData = async () => {
+    // TODO: Fetch from API
+    console.log('Loading dashboard data...');
   };
 
   const handleRefresh = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRefreshing(true);
-    await loadCreators();
+    await loadDashboardData();
     setRefreshing(false);
-  };
-
-  const handleCreatorPress = (creator: any) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push(`/creator/${creator.id}`);
   };
 
   const handleAddCreator = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push('/creators');
+    // TODO: Navigate to add creator modal
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
-      <Animated.View entering={FadeIn} style={styles.header}>
-        <View>
-          <Text style={styles.title}>Dashboard</Text>
-          <Text style={styles.subtitle}>
-            {totalLive} Live • {creators.length} Total Creators
-          </Text>
+      {/* Hero Section with Background Image */}
+      <View style={styles.heroContainer}>
+        <Image
+          source={{ uri: 'https://images.unsplash.com/photo-1584291527908-033f4d6542c8?w=800&q=80' }}
+          style={styles.heroBackground}
+          blurRadius={2}
+        />
+        <LinearGradient
+          colors={['rgba(0,0,0,0.4)', 'rgba(0,0,0,0.95)']}
+          style={styles.heroGradient}
+        />
+        <View style={styles.heroContent}>
+          <Animated.Text entering={FadeIn} style={styles.heroTitle}>
+            TikTok Live Monitor
+          </Animated.Text>
+          <Animated.Text entering={FadeIn.delay(100)} style={styles.heroSubtitle}>
+            Track all your creators in real-time
+          </Animated.Text>
         </View>
-        <View style={styles.headerRight}>
-          {isConnected ? (
-            <View style={styles.statusBadge}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>Connected</Text>
-            </View>
-          ) : (
-            <View style={[styles.statusBadge, styles.statusBadgeOffline]}>
-              <View style={[styles.statusDot, styles.statusDotOffline]} />
-              <Text style={styles.statusText}>Offline</Text>
-            </View>
-          )}
-        </View>
-      </Animated.View>
+      </View>
 
-      {/* Quick Stats */}
-      <Animated.View entering={FadeInDown.delay(100)} style={styles.statsContainer}>
-        <GlassCard style={styles.statCard}>
-          <Ionicons name="eye-outline" size={24} color={TikTokTheme.colors.brand.cyan} />
-          <Text style={styles.statValue}>
-            {creators.reduce((sum, c) => sum + (c.viewer_count || 0), 0).toLocaleString()}
-          </Text>
-          <Text style={styles.statLabel}>Total Viewers</Text>
-        </GlassCard>
-
-        <GlassCard style={styles.statCard}>
-          <Ionicons name="trending-up" size={24} color={TikTokTheme.colors.brand.cyan} />
-          <Text style={styles.statValue}>{totalLive}</Text>
-          <Text style={styles.statLabel}>Live Now</Text>
-        </GlassCard>
-      </Animated.View>
-
-      {/* Creators Grid */}
       <ScrollView
-        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
@@ -110,91 +75,138 @@ export default function DashboardScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.grid}>
-          {creators.map((creator, index) => (
-            <Animated.View
-              key={creator.id}
-              entering={FadeInDown.delay(200 + index * 50)}
-            >
-              <TouchableOpacity
-                activeOpacity={0.7}
-                onPress={() => handleCreatorPress(creator)}
+        {/* Quick Stats Grid */}
+        <Animated.View entering={FadeInDown.delay(200)} style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <BlurView intensity={40} style={styles.statBlur}>
+              <LinearGradient
+                colors={['rgba(0, 242, 234, 0.15)', 'rgba(0, 242, 234, 0.05)']}
+                style={styles.statGradient}
               >
-                <GlassCard style={styles.creatorCard}>
-                  {/* Status Badge */}
-                  <View style={styles.creatorHeader}>
-                    <LiveIndicator
-                      isLive={creator.is_live || false}
-                      viewerCount={creator.viewer_count}
-                    />
-                  </View>
+                <Ionicons name="people" size={32} color={TikTokTheme.colors.brand.cyan} />
+                <Text style={styles.statValue}>{stats.total_viewers.toLocaleString()}</Text>
+                <Text style={styles.statLabel}>Total Viewers</Text>
+              </LinearGradient>
+            </BlurView>
+          </View>
 
-                  {/* Avatar Placeholder */}
-                  <View style={styles.avatarContainer}>
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>
-                        {creator.display_name?.charAt(0).toUpperCase() || 'U'}
-                      </Text>
-                    </View>
-                  </View>
+          <View style={styles.statCard}>
+            <BlurView intensity={40} style={styles.statBlur}>
+              <LinearGradient
+                colors={['rgba(254, 44, 85, 0.15)', 'rgba(254, 44, 85, 0.05)']}
+                style={styles.statGradient}
+              >
+                <Ionicons name="videocam" size={32} color={TikTokTheme.colors.brand.pink} />
+                <Text style={styles.statValue}>{stats.live_now}</Text>
+                <Text style={styles.statLabel}>Live Now</Text>
+              </LinearGradient>
+            </BlurView>
+          </View>
+        </Animated.View>
 
-                  {/* Creator Info */}
-                  <Text style={styles.creatorName} numberOfLines={1}>
-                    {creator.display_name}
-                  </Text>
-                  <Text style={styles.creatorUsername} numberOfLines={1}>
-                    @{creator.tiktok_username}
-                  </Text>
-
-                  {/* Stats */}
-                  <View style={styles.creatorStats}>
-                    <View style={styles.statItem}>
-                      <Ionicons
-                        name="people-outline"
-                        size={12}
-                        color={TikTokTheme.colors.text.muted}
-                      />
-                      <Text style={styles.statText}>
-                        {(creator.follower_count || 0) >= 1000
-                          ? `${(creator.follower_count / 1000).toFixed(1)}K`
-                          : creator.follower_count || 0}
-                      </Text>
-                    </View>
-                  </View>
-                </GlassCard>
-              </TouchableOpacity>
-            </Animated.View>
-          ))}
-
-          {/* Add Creator Button */}
-          <Animated.View entering={FadeInDown.delay(200 + creators.length * 50)}>
-            <TouchableOpacity activeOpacity={0.7} onPress={handleAddCreator}>
-              <GlassCard style={[styles.creatorCard, styles.addCard]}>
-                <Ionicons
-                  name="add-circle-outline"
-                  size={48}
-                  color={TikTokTheme.colors.brand.cyan}
-                />
-                <Text style={styles.addText}>Add Creator</Text>
-              </GlassCard>
-            </TouchableOpacity>
-          </Animated.View>
-        </View>
-
-        {/* Empty State */}
-        {creators.length === 0 && !isLoading && (
-          <Animated.View entering={FadeIn} style={styles.emptyState}>
-            <Ionicons
-              name="videocam-outline"
-              size={64}
-              color={TikTokTheme.colors.text.muted}
+        {/* Revenue Card with Chart Background */}
+        <Animated.View entering={FadeInDown.delay(300)} style={styles.revenueSection}>
+          <Text style={styles.sectionTitle}>Today's Revenue</Text>
+          <View style={styles.revenueCard}>
+            <Image
+              source={{ uri: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&q=80' }}
+              style={styles.revenueBackground}
+              blurRadius={3}
             />
-            <Text style={styles.emptyTitle}>No Creators Yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Add your first creator to start monitoring
-            </Text>
-          </Animated.View>
-        )}
+            <BlurView intensity={60} style={styles.revenueBlur}>
+              <LinearGradient
+                colors={['rgba(0, 242, 234, 0.2)', 'rgba(0, 212, 255, 0.1)']}
+                style={styles.revenueContent}
+              >
+                <View style={styles.revenueTop}>
+                  <View>
+                    <Text style={styles.revenueLabel}>Total Earnings</Text>
+                    <Text style={styles.revenueValue}>${(stats.total_revenue / 100).toFixed(2)}</Text>
+                  </View>
+                  <View style={styles.revenueTrend}>
+                    <Ionicons name="trending-up" size={20} color={TikTokTheme.colors.status.success} />
+                    <Text style={styles.revenueTrendText}>+12.5%</Text>
+                  </View>
+                </View>
+                <View style={styles.revenueStats}>
+                  <View>
+                    <Text style={styles.revenueStatLabel}>Gifts Received</Text>
+                    <Text style={styles.revenueStatValue}>{stats.total_gifts}</Text>
+                  </View>
+                  <View style={styles.revenueDivider} />
+                  <View>
+                    <Text style={styles.revenueStatLabel}>Avg. per Stream</Text>
+                    <Text style={styles.revenueStatValue}>${(stats.total_revenue / Math.max(stats.total_streams, 1) / 100).toFixed(2)}</Text>
+                  </View>
+                </View>
+              </LinearGradient>
+            </BlurView>
+          </View>
+        </Animated.View>
+
+        {/* Active Creators Section */}
+        <Animated.View entering={FadeInDown.delay(400)} style={styles.creatorsSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Active Creators</Text>
+            <TouchableOpacity onPress={handleAddCreator} style={styles.addButton}>
+              <Ionicons name="add-circle" size={24} color={TikTokTheme.colors.brand.cyan} />
+            </TouchableOpacity>
+          </View>
+
+          {creators.length > 0 ? (
+            <View style={styles.creatorsGrid}>
+              {creators.map((creator, index) => (
+                <Animated.View
+                  key={creator.username}
+                  entering={FadeInUp.delay(500 + index * 100)}
+                  style={styles.creatorCard}
+                >
+                  <Image
+                    source={{ uri: 'https://images.unsplash.com/photo-1516223725307-6f76b9ec8742?w=400&q=80' }}
+                    style={styles.creatorBackground}
+                    blurRadius={4}
+                  />
+                  <BlurView intensity={50} style={styles.creatorBlur}>
+                    <View style={styles.creatorContent}>
+                      <View style={styles.creatorAvatar}>
+                        <Ionicons name="person" size={24} color={TikTokTheme.colors.brand.cyan} />
+                      </View>
+                      <Text style={styles.creatorName} numberOfLines={1}>{creator.username}</Text>
+                      {creator.is_live ? (
+                        <View style={styles.liveIndicator}>
+                          <View style={styles.liveDot} />
+                          <Text style={styles.liveText}>LIVE</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.offlineText}>Offline</Text>
+                      )}
+                      <Text style={styles.creatorStats}>{creator.viewer_count} viewers</Text>
+                    </View>
+                  </BlurView>
+                </Animated.View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Image
+                source={{ uri: 'https://images.unsplash.com/photo-1604941878418-b0fbf86e3590?w=400&q=80' }}
+                style={styles.emptyImage}
+                blurRadius={2}
+              />
+              <LinearGradient
+                colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.9)']}
+                style={styles.emptyOverlay}
+              >
+                <Ionicons name="person-add" size={64} color={TikTokTheme.colors.text.muted} />
+                <Text style={styles.emptyTitle}>No Creators Yet</Text>
+                <Text style={styles.emptyText}>Add creators to start monitoring</Text>
+                <TouchableOpacity onPress={handleAddCreator} style={styles.emptyButton}>
+                  <Text style={styles.emptyButtonText}>Add Creator</Text>
+                </TouchableOpacity>
+              </LinearGradient>
+            </View>
+          )}
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -205,168 +217,285 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: TikTokTheme.colors.background.primary,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  heroContainer: {
+    height: 180,
+    position: 'relative',
+  },
+  heroBackground: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  heroGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  heroContent: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: TikTokTheme.spacing.base,
-    paddingVertical: TikTokTheme.spacing.base,
   },
-  title: {
-    fontSize: TikTokTheme.typography.fontSize['2xl'],
-    fontWeight: TikTokTheme.typography.fontWeight.black,
+  heroTitle: {
+    fontSize: 32,
+    fontWeight: '900',
     color: TikTokTheme.colors.text.primary,
+    marginBottom: 8,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
   },
-  subtitle: {
-    fontSize: TikTokTheme.typography.fontSize.sm,
-    color: TikTokTheme.colors.text.muted,
-    marginTop: 4,
+  heroSubtitle: {
+    fontSize: 16,
+    color: TikTokTheme.colors.text.secondary,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
-  headerRight: {
+  scrollContent: {
+    padding: TikTokTheme.spacing.base,
+    paddingBottom: 100,
+  },
+  statsGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 242, 234, 0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: TikTokTheme.borderRadius.full,
-  },
-  statusBadgeOffline: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: TikTokTheme.colors.brand.cyan,
-    marginRight: 6,
-  },
-  statusDotOffline: {
-    backgroundColor: TikTokTheme.colors.text.muted,
-  },
-  statusText: {
-    fontSize: TikTokTheme.typography.fontSize.xs,
-    fontWeight: TikTokTheme.typography.fontWeight.semibold,
-    color: TikTokTheme.colors.text.primary,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: TikTokTheme.spacing.base,
     gap: TikTokTheme.spacing.base,
     marginBottom: TikTokTheme.spacing.base,
   },
   statCard: {
     flex: 1,
-    alignItems: 'center',
+    height: 140,
+    borderRadius: TikTokTheme.borderRadius.lg,
+    overflow: 'hidden',
+    elevation: 4,
+  },
+  statBlur: {
+    flex: 1,
+  },
+  statGradient: {
+    flex: 1,
     padding: TikTokTheme.spacing.base,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   statValue: {
-    fontSize: TikTokTheme.typography.fontSize['2xl'],
-    fontWeight: TikTokTheme.typography.fontWeight.black,
+    fontSize: 28,
+    fontWeight: '900',
     color: TikTokTheme.colors.text.primary,
     marginTop: 8,
   },
   statLabel: {
-    fontSize: TikTokTheme.typography.fontSize.xs,
+    fontSize: 12,
     color: TikTokTheme.colors.text.muted,
     marginTop: 4,
+    textAlign: 'center',
   },
-  scrollView: {
+  revenueSection: {
+    marginBottom: TikTokTheme.spacing.base,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: TikTokTheme.colors.text.primary,
+    marginBottom: TikTokTheme.spacing.xs,
+  },
+  revenueCard: {
+    height: 160,
+    borderRadius: TikTokTheme.borderRadius.lg,
+    overflow: 'hidden',
+    elevation: 4,
+  },
+  revenueBackground: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  revenueBlur: {
     flex: 1,
   },
-  scrollContent: {
-    paddingHorizontal: TikTokTheme.spacing.base,
-    paddingBottom: TikTokTheme.spacing.xl,
+  revenueContent: {
+    flex: 1,
+    padding: TikTokTheme.spacing.base,
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  grid: {
+  revenueTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  revenueLabel: {
+    fontSize: 14,
+    color: TikTokTheme.colors.text.secondary,
+  },
+  revenueValue: {
+    fontSize: 36,
+    fontWeight: '900',
+    color: TikTokTheme.colors.text.primary,
+    marginTop: 4,
+  },
+  revenueTrend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 255, 136, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
+  },
+  revenueTrendText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: TikTokTheme.colors.status.success,
+  },
+  revenueStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  revenueStatLabel: {
+    fontSize: 12,
+    color: TikTokTheme.colors.text.muted,
+  },
+  revenueStatValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: TikTokTheme.colors.text.primary,
+    marginTop: 2,
+  },
+  revenueDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  creatorsSection: {
+    marginBottom: TikTokTheme.spacing.base,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: TikTokTheme.spacing.xs,
+  },
+  addButton: {
+    padding: 4,
+  },
+  creatorsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: TikTokTheme.spacing.base,
   },
   creatorCard: {
     width: CARD_WIDTH,
+    height: 180,
+    borderRadius: TikTokTheme.borderRadius.lg,
+    overflow: 'hidden',
+    elevation: 4,
+  },
+  creatorBackground: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  creatorBlur: {
+    flex: 1,
+  },
+  creatorContent: {
+    flex: 1,
     padding: TikTokTheme.spacing.base,
-  },
-  creatorHeader: {
-    marginBottom: TikTokTheme.spacing.base,
-  },
-  avatarContainer: {
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: TikTokTheme.spacing.base,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  avatar: {
+  creatorAvatar: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: TikTokTheme.colors.brand.cyan,
+    backgroundColor: 'rgba(0, 242, 234, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  avatarText: {
-    fontSize: TikTokTheme.typography.fontSize['2xl'],
-    fontWeight: TikTokTheme.typography.fontWeight.black,
-    color: TikTokTheme.colors.background.primary,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: TikTokTheme.colors.brand.cyan,
   },
   creatorName: {
-    fontSize: TikTokTheme.typography.fontSize.base,
-    fontWeight: TikTokTheme.typography.fontWeight.bold,
+    fontSize: 16,
+    fontWeight: '700',
     color: TikTokTheme.colors.text.primary,
-    textAlign: 'center',
+    marginBottom: 4,
   },
-  creatorUsername: {
-    fontSize: TikTokTheme.typography.fontSize.sm,
+  liveIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: TikTokTheme.colors.status.live,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+    marginVertical: 4,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: TikTokTheme.colors.background.primary,
+  },
+  liveText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: TikTokTheme.colors.background.primary,
+  },
+  offlineText: {
+    fontSize: 12,
     color: TikTokTheme.colors.text.muted,
-    textAlign: 'center',
-    marginTop: 2,
+    marginVertical: 4,
   },
   creatorStats: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: TikTokTheme.spacing.base,
-    gap: TikTokTheme.spacing.base,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statText: {
-    fontSize: TikTokTheme.typography.fontSize.xs,
-    color: TikTokTheme.colors.text.muted,
-  },
-  addCard: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: 180,
-    borderStyle: 'dashed',
-    borderWidth: 2,
-    borderColor: 'rgba(0, 242, 234, 0.3)',
-  },
-  addText: {
-    fontSize: TikTokTheme.typography.fontSize.sm,
-    fontWeight: TikTokTheme.typography.fontWeight.semibold,
-    color: TikTokTheme.colors.brand.cyan,
-    marginTop: 8,
+    fontSize: 12,
+    color: TikTokTheme.colors.text.secondary,
   },
   emptyState: {
+    height: 300,
+    borderRadius: TikTokTheme.borderRadius.lg,
+    overflow: 'hidden',
+    elevation: 2,
+  },
+  emptyImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  emptyOverlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 64,
+    padding: TikTokTheme.spacing.xl,
   },
   emptyTitle: {
-    fontSize: TikTokTheme.typography.fontSize.xl,
-    fontWeight: TikTokTheme.typography.fontWeight.bold,
+    fontSize: 24,
+    fontWeight: '700',
     color: TikTokTheme.colors.text.primary,
-    marginTop: TikTokTheme.spacing.base,
+    marginTop: 16,
+    marginBottom: 8,
   },
-  emptySubtitle: {
-    fontSize: TikTokTheme.typography.fontSize.sm,
-    color: TikTokTheme.colors.text.muted,
-    marginTop: 8,
+  emptyText: {
+    fontSize: 14,
+    color: TikTokTheme.colors.text.secondary,
+    marginBottom: 24,
     textAlign: 'center',
+  },
+  emptyButton: {
+    backgroundColor: TikTokTheme.colors.brand.cyan,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: TikTokTheme.borderRadius.md,
+    elevation: 4,
+  },
+  emptyButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: TikTokTheme.colors.background.primary,
   },
 });
