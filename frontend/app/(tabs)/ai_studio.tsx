@@ -1,53 +1,21 @@
 // ============================================================
-// AI STUDIO TAB - ZENITH GRADE SUPER APP
-// Complete AI Interface: Text, Image, Video, Voice, Music, Music Video, MCPs
+// AI STUDIO TAB - ZENITH GRADE SUPER APP (Phase 2)
+// Routes to AI Studio Home with Atlas Cloud Integration
 // ============================================================
 
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  StyleSheet,
-  ActivityIndicator,
-  Modal,
-  FlatList,
-  Image
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import axios from 'axios';
-import Constants from 'expo-constants';
-
-const API_URL = Constants.expoConfig?.extra?.backendUrl || process.env.EXPO_PUBLIC_BACKEND_URL;
+import React, { useEffect } from 'react';
+import { useRouter } from 'expo-router';
 
 export default function AIStudioScreen() {
-  const [activeCategory, setActiveCategory] = useState('text');
-  const [models, setModels] = useState([]);
-  const [selectedModel, setSelectedModel] = useState(null);
-  const [prompt, setPrompt] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-
-  const categories = [
-    { id: 'text', name: 'Text Gen', icon: '💬', count: '40+' },
-    { id: 'image', name: 'Image', icon: '🎨', count: '10+' },
-    { id: 'video', name: 'Video', icon: '🎬', count: '10+' },
-    { id: 'voice', name: 'Voice/TTS', icon: '🎤', count: '10+' },
-    { id: 'music', name: 'Music', icon: '🎵', count: '18+' },
-    { id: 'music-video', name: 'Music Video', icon: '📹', count: '10+' },
-    { id: 'mcp', name: 'MCPs', icon: '🔗', count: '95+' },
-    { id: 'mythos', name: 'Mythos', icon: '🧠', count: 'Reasoning' }
-  ];
+  const router = useRouter();
 
   useEffect(() => {
-    loadModels();
-  }, [activeCategory]);
+    // Automatically navigate to AI Studio Home
+    router.replace('/(tabs)/ai-studio-home');
+  }, []);
 
-  const loadModels = async () => {
-    try {
-      const endpoint = getModelsEndpoint(activeCategory);
+  return null;
+}
       const response = await axios.get(`${API_URL}/api/ai-studio/${endpoint}`);
       
       let loadedModels = [];

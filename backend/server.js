@@ -49,7 +49,8 @@ import phase28Routes from './phase28_routes.js';
 import phase29Routes from './phase29_routes.js';
 import phase30Routes from './phase30_routes.js';
 import aiStudioRoutes from './ai_studio_routes.js';
-import { setupSocketIOTests } from './socketio_test_routes.js';
+import aiStudioAPIRoutes from './routes/ai-studio.js';
+import { setupSocketIOTests} from './socketio_test_routes.js';
 import analyticsRoutes from './routes/analytics.js';
 import analyticsEngine from './services/analytics-engine.js';
 import creatorRoutes from './routes/creators.js';
@@ -183,6 +184,11 @@ async function connectDB() {
     console.log('🎨 Setting up AI Studio (Text, Image, Video, Voice, Music, Music Video, MCPs) routes...');
     app.use('/api/ai-studio', aiStudioRoutes);
     console.log('✅ AI Studio routes loaded - 100+ AI Models integrated!');
+    
+    // AI STUDIO API ROUTES (Phase 2 - Atlas Cloud Integration)
+    console.log('☁️ Setting up AI Studio API (Atlas Cloud + Fallback) routes...');
+    app.use('/api/ai-studio', aiStudioAPIRoutes);
+    console.log('✅ AI Studio API routes loaded - Atlas Cloud primary + Emergent fallback!');
     
     // PHASE 6: SOCKET.IO TESTING ROUTES
     console.log('🔌 Setting up Socket.IO Testing routes (Phase 6)...');
