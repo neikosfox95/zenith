@@ -1,100 +1,237 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Switch, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '../../src/contexts/ThemeContext';
-import { useAuth } from '../../src/contexts/AuthContext';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { TikTokTheme } from '../../theme/TikTokTheme';
 
-export default function Settings() {
-  const { theme, isDark, toggleTheme } = useTheme();
-  const { user, logout } = useAuth();
-  const router = useRouter();
+const { width } = Dimensions.get('window');
 
-  const handleLogout = () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Logout',
-        style: 'destructive',
-        onPress: async () => {
-          await logout();
-          router.replace('/(auth)/login');
-        },
-      },
-    ]);
+export default function SettingsScreen() {
+  const [notifications, setNotifications] = useState(true);
+  const [soundEffects, setSoundEffects] = useState(true);
+  const [darkMode, setDarkMode] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+
+  const handleToggle = (setter: (val: boolean) => void, currentValue: boolean) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setter(!currentValue);
   };
 
-  const SettingItem = ({ icon, title, value, onPress }: any) => (
-    <TouchableOpacity
-      style={[styles.settingItem, { backgroundColor: theme.card }]}
-      onPress={onPress}
-    >
-      <View style={styles.settingLeft}>
-        <View style={[styles.iconContainer, { backgroundColor: theme.primary + '20' }]}>
-          <Ionicons name={icon} size={24} color={theme.primary} />
+  const SettingItem = ({ 
+    icon, 
+    title, 
+    subtitle, 
+    value, 
+    onToggle, 
+    delay 
+  }: { 
+    icon: string; 
+    title: string; 
+    subtitle: string; 
+    value: boolean; 
+    onToggle: () => void;
+    delay: number;
+  }) => (
+    <Animated.View entering={FadeInDown.delay(delay)} style={styles.settingCard}>
+      <BlurView intensity={40} style={styles.settingBlur}>
+        <View style={styles.settingContent}>
+          <View style={styles.settingLeft}>
+            <View style={[styles.iconContainer, { backgroundColor: `${TikTokTheme.colors.brand.cyan}20` }]}>
+              <Ionicons name={icon as any} size={24} color={TikTokTheme.colors.brand.cyan} />
+            </View>
+            <View style={styles.textContainer}>
+              <Text style={styles.settingTitle}>{title}</Text>
+              <Text style={styles.settingSubtitle}>{subtitle}</Text>
+            </View>
+          </View>
+          <Switch
+            value={value}
+            onValueChange={onToggle}
+            trackColor={{ false: '#3e3e3e', true: TikTokTheme.colors.brand.cyan }}
+            thumbColor={value ? TikTokTheme.colors.background.primary : '#f4f3f4'}
+            ios_backgroundColor="#3e3e3e"
+          />
         </View>
-        <Text style={[styles.settingTitle, { color: theme.text }]}>{title}</Text>
-      </View>
-      {value && <Text style={[styles.settingValue, { color: theme.textSecondary }]}>{value}</Text>}
-      <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
-    </TouchableOpacity>
+      </BlurView>
+    </Animated.View>
+  );
+
+  const ActionButton = ({ icon, title, subtitle, color, onPress, delay }: any) => (
+    <Animated.View entering={FadeInDown.delay(delay)}>
+      <TouchableOpacity onPress={onPress} style={styles.actionButton}>
+        <BlurView intensity={40} style={styles.actionBlur}>
+          <View style={styles.actionContent}>
+            <View style={[styles.actionIcon, { backgroundColor: `${color}20` }]}>
+              <Ionicons name={icon} size={24} color={color} />
+            </View>
+            <View style={styles.actionText}>
+              <Text style={styles.actionTitle}>{title}</Text>
+              <Text style={styles.actionSubtitle}>{subtitle}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={TikTokTheme.colors.text.muted} />
+          </View>
+        </BlurView>
+      </TouchableOpacity>
+    </Animated.View>
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Settings</Text>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Hero Section */}
+      <View style={styles.heroContainer}>
+        <Image
+          source={{ uri: 'https://images.unsplash.com/photo-1579548122080-c35fd6820ecb?w=800&q=80' }}
+          style={styles.heroBackground}
+          blurRadius={3}
+        />
+        <LinearGradient
+          colors={['rgba(0,0,0,0.4)', 'rgba(0,0,0,0.95)']}
+          style={styles.heroGradient}
+        />
+        <View style={styles.heroContent}>
+          <Animated.View entering={FadeIn} style={styles.settingsIcon}>
+            <Ionicons name="settings" size={32} color={TikTokTheme.colors.brand.cyan} />
+          </Animated.View>
+          <Animated.Text entering={FadeIn.delay(100)} style={styles.heroTitle}>
+            Settings
+          </Animated.Text>
+          <Animated.Text entering={FadeIn.delay(200)} style={styles.heroSubtitle}>
+            Customize your experience
+          </Animated.Text>
+        </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={[styles.profileCard, { backgroundColor: theme.card }]}>
-          <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
-            <Text style={styles.avatarText}>{user?.username?.charAt(0).toUpperCase()}</Text>
-          </View>
-          <Text style={[styles.username, { color: theme.text }]}>{user?.username}</Text>
-          <Text style={[styles.email, { color: theme.textSecondary }]}>{user?.email}</Text>
-        </View>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* App Settings Section */}
+        <Animated.View entering={FadeInDown.delay(300)}>
+          <Text style={styles.sectionTitle}>App Settings</Text>
+        </Animated.View>
 
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>Appearance</Text>
-          <TouchableOpacity
-            style={[styles.settingItem, { backgroundColor: theme.card }]}
-            onPress={toggleTheme}
+        <SettingItem
+          icon="notifications"
+          title="Push Notifications"
+          subtitle="Get notified when creators go live"
+          value={notifications}
+          onToggle={() => handleToggle(setNotifications, notifications)}
+          delay={350}
+        />
+
+        <SettingItem
+          icon="volume-high"
+          title="Sound Effects"
+          subtitle="Play sounds for new events"
+          value={soundEffects}
+          onToggle={() => handleToggle(setSoundEffects, soundEffects)}
+          delay={400}
+        />
+
+        <SettingItem
+          icon="moon"
+          title="Dark Mode"
+          subtitle="Enable dark theme"
+          value={darkMode}
+          onToggle={() => handleToggle(setDarkMode, darkMode)}
+          delay={450}
+        />
+
+        <SettingItem
+          icon="refresh"
+          title="Auto Refresh"
+          subtitle="Automatically refresh data"
+          value={autoRefresh}
+          onToggle={() => handleToggle(setAutoRefresh, autoRefresh)}
+          delay={500}
+        />
+
+        {/* Account Section */}
+        <Animated.View entering={FadeInDown.delay(550)} style={{ marginTop: 24 }}>
+          <Text style={styles.sectionTitle}>Account</Text>
+        </Animated.View>
+
+        <ActionButton
+          icon="person"
+          title="Profile"
+          subtitle="Manage your account"
+          color={TikTokTheme.colors.brand.cyan}
+          onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
+          delay={600}
+        />
+
+        <ActionButton
+          icon="lock-closed"
+          title="Privacy & Security"
+          subtitle="Control your data"
+          color="#A855F7"
+          onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
+          delay={650}
+        />
+
+        <ActionButton
+          icon="key"
+          title="API Keys"
+          subtitle="Manage integrations"
+          color="#3B82F6"
+          onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
+          delay={700}
+        />
+
+        {/* About Section */}
+        <Animated.View entering={FadeInDown.delay(750)} style={{ marginTop: 24 }}>
+          <Text style={styles.sectionTitle}>About</Text>
+        </Animated.View>
+
+        <ActionButton
+          icon="information-circle"
+          title="App Info"
+          subtitle="Version 1.0.0 (May 2026)"
+          color="#10B981"
+          onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
+          delay={800}
+        />
+
+        <ActionButton
+          icon="help-circle"
+          title="Help & Support"
+          subtitle="Get assistance"
+          color="#F59E0B"
+          onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
+          delay={850}
+        />
+
+        <ActionButton
+          icon="document-text"
+          title="Terms & Privacy"
+          subtitle="Legal information"
+          color="#6366F1"
+          onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)}
+          delay={900}
+        />
+
+        {/* Danger Zone */}
+        <Animated.View entering={FadeInDown.delay(950)} style={{ marginTop: 24 }}>
+          <Text style={[styles.sectionTitle, { color: TikTokTheme.colors.status.error }]}>Danger Zone</Text>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(1000)}>
+          <TouchableOpacity 
+            style={styles.dangerButton}
+            onPress={() => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)}
           >
-            <View style={styles.settingLeft}>
-              <View style={[styles.iconContainer, { backgroundColor: theme.primary + '20' }]}>
-                <Ionicons name={isDark ? 'moon' : 'sunny'} size={24} color={theme.primary} />
+            <BlurView intensity={40} style={styles.dangerBlur}>
+              <View style={styles.dangerContent}>
+                <Ionicons name="log-out" size={24} color={TikTokTheme.colors.status.error} />
+                <Text style={styles.dangerText}>Sign Out</Text>
               </View>
-              <Text style={[styles.settingTitle, { color: theme.text }]}>Theme</Text>
-            </View>
-            <Text style={[styles.settingValue, { color: theme.textSecondary }]}>
-              {isDark ? 'Dark' : 'Light'}
-            </Text>
-            <Ionicons name="chevron-forward" size={20} color={theme.textSecondary} />
+            </BlurView>
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>App Info</Text>
-          <View style={[styles.settingItem, { backgroundColor: theme.card }]}>
-            <View style={styles.settingLeft}>
-              <View style={[styles.iconContainer, { backgroundColor: theme.primary + '20' }]}>
-                <Ionicons name="information-circle" size={24} color={theme.primary} />
-              </View>
-              <Text style={[styles.settingTitle, { color: theme.text }]}>Version</Text>
-            </View>
-            <Text style={[styles.settingValue, { color: theme.textSecondary }]}>1.0.0</Text>
-          </View>
-        </View>
-
-        <TouchableOpacity
-          style={[styles.logoutButton, { backgroundColor: theme.error }]}
-          onPress={handleLogout}
-        >
-          <Ionicons name="log-out-outline" size={24} color="#FFF" />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -103,94 +240,162 @@ export default function Settings() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: TikTokTheme.colors.background.primary,
   },
-  header: {
-    padding: 20,
+  heroContainer: {
+    height: 180,
+    position: 'relative',
   },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
+  heroBackground: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
   },
-  content: {
-    padding: 20,
+  heroGradient: {
+    ...StyleSheet.absoluteFillObject,
   },
-  profileCard: {
-    alignItems: 'center',
-    padding: 24,
-    borderRadius: 16,
-    marginBottom: 24,
-  },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  heroContent: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
   },
-  avatarText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#FFF',
+  settingsIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(0, 242, 234, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: TikTokTheme.colors.brand.cyan,
   },
-  username: {
-    fontSize: 24,
-    fontWeight: 'bold',
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: TikTokTheme.colors.text.primary,
     marginBottom: 4,
   },
-  email: {
+  heroSubtitle: {
     fontSize: 14,
+    color: TikTokTheme.colors.text.secondary,
   },
-  section: {
-    marginBottom: 24,
+  scrollContent: {
+    padding: TikTokTheme.spacing.base,
+    paddingBottom: 100,
   },
   sectionTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    marginBottom: 8,
-    paddingHorizontal: 4,
+    fontSize: 18,
+    fontWeight: '700',
+    color: TikTokTheme.colors.text.primary,
+    marginBottom: 12,
   },
-  settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
+  settingCard: {
+    height: 80,
+    borderRadius: TikTokTheme.borderRadius.md,
+    overflow: 'hidden',
+    marginBottom: 12,
+    elevation: 2,
   },
-  settingLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  settingBlur: {
     flex: 1,
   },
+  settingContent: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: TikTokTheme.spacing.base,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  settingLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+  },
+  textContainer: {
+    flex: 1,
   },
   settingTitle: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
+    color: TikTokTheme.colors.text.primary,
+    marginBottom: 2,
   },
-  settingValue: {
-    fontSize: 14,
-    marginRight: 8,
+  settingSubtitle: {
+    fontSize: 12,
+    color: TikTokTheme.colors.text.secondary,
   },
-  logoutButton: {
+  actionButton: {
+    height: 70,
+    borderRadius: TikTokTheme.borderRadius.md,
+    overflow: 'hidden',
+    marginBottom: 12,
+    elevation: 2,
+  },
+  actionBlur: {
+    flex: 1,
+  },
+  actionContent: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 16,
+    paddingHorizontal: TikTokTheme.spacing.base,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    gap: 12,
   },
-  logoutText: {
-    color: '#FFF',
+  actionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionText: {
+    flex: 1,
+  },
+  actionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    marginLeft: 8,
+    color: TikTokTheme.colors.text.primary,
+    marginBottom: 2,
+  },
+  actionSubtitle: {
+    fontSize: 12,
+    color: TikTokTheme.colors.text.secondary,
+  },
+  dangerButton: {
+    height: 56,
+    borderRadius: TikTokTheme.borderRadius.md,
+    overflow: 'hidden',
+    marginBottom: 12,
+    elevation: 2,
+  },
+  dangerBlur: {
+    flex: 1,
+  },
+  dangerContent: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: `${TikTokTheme.colors.status.error}40`,
+  },
+  dangerText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: TikTokTheme.colors.status.error,
   },
 });
