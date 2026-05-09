@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
 import { TouchableOpacity, Text, StyleSheet, StyleProp, ViewStyle, TextStyle, View } from 'react-native';
-import { BlurView } from '@react-native-community/blur';
+import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { TikTokTheme } from '../../../theme/TikTokTheme';
 
