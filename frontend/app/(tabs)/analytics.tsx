@@ -1,531 +1,241 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  RefreshControl,
-  Dimensions,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '../../src/contexts/ThemeContext';
-import { useSocket } from '../../src/contexts/SocketContext';
-import { creatorsAPI, analyticsAPI, streamsAPI } from '../../src/services/api';
+import { useAnalytics } from '../../src/hooks/realtime';
+import { useAnalyticsStore } from '../../src/stores/analyticsStore';
+import { useUIStore } from '../../src/stores/uiStore';
+import { GlassCard } from '../../src/components/glass';
+import { TikTokTheme } from '../../theme/TikTokTheme';
+import { analyticsAPI } from '../../src/services/api';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { VictoryLine, VictoryChart, VictoryTheme, VictoryAxis, VictoryArea } from 'victory-native';
 
 const { width } = Dimensions.get('window');
+const CHART_WIDTH = width - 48;
 
-export default function Analytics() {
-  const { theme } = useTheme();
-  const { socket } = useSocket();
-  const [selectedTab, setSelectedTab] = useState<'overview' | 'revenue' | 'engagement' | 'growth'>('overview');
-  const [creators, setCreators] = useState<any[]>([]);
-  const [selectedCreator, setSelectedCreator] = useState<string | null>(null);
-  const [streams, setStreams] = useState<any[]>([]);
-  const [revenueData, setRevenueData] = useState<any>(null);
-  const [followerGrowth, setFollowerGrowth] = useState<any>(null);
-  const [milestones, setMilestones] = useState<any[]>([]);
-  const [historicalData, setHistoricalData] = useState<any>(null);
-  const [activityFeed, setActivityFeed] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+export default function AnalyticsScreen() {
+  const { summary } = useAnalytics();
+  const { topGifters, revenueHistory, setTopGifters, setRevenueHistory } = useAnalyticsStore();
+  const { refreshing, setRefreshing } = useUIStore();
+  const [aiInsight, setAiInsight] = useState('');
 
   useEffect(() => {
-    loadCreators();
+    loadAnalytics();
+    generateAIInsight();
   }, []);
 
-  useEffect(() => {
-    if (selectedCreator) {
-      loadAnalyticsData();
-    }
-  }, [selectedCreator]);
-
-  useEffect(() => {
-    if (socket) {
-      socket.on('milestone_achieved', handleMilestone);
-      socket.on('new_activity', handleNewActivity);
-
-      return () => {
-        socket.off('milestone_achieved', handleMilestone);
-        socket.off('new_activity', handleNewActivity);
-      };
-    }
-  }, [socket]);
-
-  const loadCreators = async () => {
+  const loadAnalytics = async () => {
     try {
-      const data = await creatorsAPI.getCreators();
-      setCreators(data);
-      if (data.length > 0 && !selectedCreator) {
-        setSelectedCreator(data[0]._id);
-      }
+      const [giftersData, revenueData] = await Promise.all([
+        analyticsAPI.getTopGifters(10),
+        analyticsAPI.getRevenueHistory(7),
+      ]);
+      setTopGifters(giftersData);
+      setRevenueHistory(revenueData);
     } catch (error) {
-      console.error('Error loading creators:', error);
+      console.error('Failed to load analytics:', error);
     }
   };
 
-  const loadAnalyticsData = async () => {
-    if (!selectedCreator) return;
-
-    try {
-      setLoading(true);
-      const [
-        revenueRes,
-        followerRes,
-        milestonesRes,
-        historicalRes,
-        activityRes,
-        streamsRes,
-      ] = await Promise.all([
-        analyticsAPI.getRevenueAnalytics(selectedCreator, 'all'),
-        analyticsAPI.getFollowerGrowth(selectedCreator, 30),
-        analyticsAPI.getCreatorMilestones(selectedCreator),
-        analyticsAPI.getHistoricalData(selectedCreator, 10),
-        analyticsAPI.getActivityFeed(50),
-        streamsAPI.getStreams(),
-      ]);
-
-      setRevenueData(revenueRes);
-      setFollowerGrowth(followerRes);
-      setMilestones(milestonesRes);
-      setHistoricalData(historicalRes);
-      setActivityFeed(activityRes);
-      setStreams(streamsRes);
-    } catch (error) {
-      console.error('Error loading analytics:', error);
-    } finally {
-      setLoading(false);
-    }
+  const generateAIInsight = async () => {
+    // TODO: Call AI API for insights
+    setAiInsight('Peak engagement detected during evening hours. Consider scheduling streams between 7-9 PM for maximum revenue.');
   };
 
   const handleRefresh = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRefreshing(true);
-    await loadAnalyticsData();
+    await loadAnalytics();
+    await generateAIInsight();
     setRefreshing(false);
   };
 
-  const handleMilestone = (milestone: any) => {
-    setMilestones((prev) => [milestone, ...prev]);
+  const formatCurrency = (value: number) => {
+    return `$${(value / 100).toFixed(2)}`;
   };
 
-  const handleNewActivity = (activity: any) => {
-    setActivityFeed((prev) => [activity, ...prev].slice(0, 50));
+  const formatNumber = (value: number) => {
+    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+    return value.toString();
   };
 
-  const formatNumber = (num: number) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toString();
-  };
-
-  const formatCurrency = (diamonds: number) => {
-    const dollars = diamonds * 0.005; // Approximate conversion
-    return `$${dollars.toFixed(2)}`;
-  };
-
-  const renderStatCard = (title: string, value: string, icon: any, color: string, subtitle?: string) => (
-    <View style={[styles.statCard, { backgroundColor: theme.card }]}>
-      <View style={[styles.statIconContainer, { backgroundColor: color + '20' }]}>
-        <Ionicons name={icon} size={24} color={color} />
-      </View>
-      <Text style={[styles.statValue, { color: theme.text }]}>{value}</Text>
-      <Text style={[styles.statTitle, { color: theme.textSecondary }]}>{title}</Text>
-      {subtitle && (
-        <Text style={[styles.statSubtitle, { color: theme.textSecondary }]}>{subtitle}</Text>
-      )}
-    </View>
-  );
-
-  const renderOverviewTab = () => (
-    <View>
-      {/* Revenue Overview */}
-      {revenueData && (
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>💰 Revenue Overview</Text>
-          <View style={styles.statsGrid}>
-            {renderStatCard(
-              'Total Revenue',
-              formatCurrency(revenueData.total_revenue),
-              'cash',
-              '#4CAF50',
-              `${formatNumber(revenueData.total_revenue)} diamonds`
-            )}
-            {renderStatCard(
-              'Total Gifts',
-              formatNumber(revenueData.total_gifts),
-              'gift',
-              '#FF9800'
-            )}
-          </View>
-        </View>
-      )}
-
-      {/* Follower Growth */}
-      {followerGrowth && (
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>📈 Growth Metrics</Text>
-          <View style={styles.statsGrid}>
-            {renderStatCard(
-              'New Followers',
-              formatNumber(followerGrowth.total_new_followers),
-              'person-add',
-              '#2196F3',
-              'Last 30 days'
-            )}
-            {renderStatCard(
-              'Total Streams',
-              historicalData?.total_streams || 0,
-              'videocam',
-              '#9C27B0'
-            )}
-          </View>
-        </View>
-      )}
-
-      {/* Recent Milestones */}
-      {milestones.length > 0 && (
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>🏆 Recent Milestones</Text>
-          {milestones.slice(0, 5).map((milestone, index) => (
-            <View key={index} style={[styles.milestoneCard, { backgroundColor: theme.card }]}>
-              <View style={styles.milestoneIcon}>
-                <Text style={styles.milestoneEmoji}>
-                  {milestone.metric_type === 'diamonds' ? '💎' :
-                   milestone.metric_type === 'viewers' ? '👥' :
-                   milestone.metric_type === 'gifts' ? '🎁' : '⭐'}
-                </Text>
-              </View>
-              <View style={styles.milestoneInfo}>
-                <Text style={[styles.milestoneTitle, { color: theme.text }]}>
-                  {milestone.milestone_value} {milestone.metric_type}!
-                </Text>
-                <Text style={[styles.milestoneDate, { color: theme.textSecondary }]}>
-                  {new Date(milestone.achieved_at).toLocaleDateString()}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-
-  const renderRevenueTab = () => (
-    <View>
-      {revenueData && (
-        <>
-          {/* Revenue Stats */}
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>💰 Revenue Breakdown</Text>
-            <View style={[styles.revenueCard, { backgroundColor: theme.card }]}>
-              <Text style={[styles.revenueAmount, { color: '#4CAF50' }]}>
-                {formatCurrency(revenueData.total_revenue)}
-              </Text>
-              <Text style={[styles.revenueLabel, { color: theme.textSecondary }]}>
-                Total Earnings ({formatNumber(revenueData.total_revenue)} diamonds)
-              </Text>
-            </View>
-          </View>
-
-          {/* Top Gifts */}
-          {revenueData.gift_breakdown && revenueData.gift_breakdown.length > 0 && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>🎁 Top Gifts</Text>
-              {revenueData.gift_breakdown.map((gift: any, index: number) => (
-                <View key={index} style={[styles.giftCard, { backgroundColor: theme.card }]}>
-                  <View style={styles.giftRank}>
-                    <Text style={styles.giftRankText}>#{index + 1}</Text>
-                  </View>
-                  <View style={styles.giftInfo}>
-                    <Text style={[styles.giftName, { color: theme.text }]}>{gift._id}</Text>
-                    <Text style={[styles.giftStats, { color: theme.textSecondary }]}>
-                      {gift.count} gifts • {formatNumber(gift.revenue)} diamonds
-                    </Text>
-                  </View>
-                  <Text style={[styles.giftValue, { color: '#4CAF50' }]}>
-                    {formatCurrency(gift.revenue)}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
-
-          {/* Top Spenders */}
-          {revenueData.top_spenders && revenueData.top_spenders.length > 0 && (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>👑 Top Spenders</Text>
-              {revenueData.top_spenders.slice(0, 10).map((spender: any, index: number) => (
-                <View key={index} style={[styles.spenderCard, { backgroundColor: theme.card }]}>
-                  <View style={[styles.spenderRank, { backgroundColor: index < 3 ? '#FFD700' : theme.surface }]}>
-                    <Text style={[styles.spenderRankText, { color: index < 3 ? '#000' : theme.text }]}>
-                      #{index + 1}
-                    </Text>
-                  </View>
-                  <View style={styles.spenderInfo}>
-                    <Text style={[styles.spenderName, { color: theme.text }]}>
-                      {spender.nickname || spender._id}
-                    </Text>
-                    <Text style={[styles.spenderStats, { color: theme.textSecondary }]}>
-                      {spender.gift_count} gifts sent
-                    </Text>
-                  </View>
-                  <View style={styles.spenderValue}>
-                    <Text style={[styles.spenderDiamonds, { color: '#9C27B0' }]}>
-                      {formatNumber(spender.total_spent)} 💎
-                    </Text>
-                    <Text style={[styles.spenderMoney, { color: '#4CAF50' }]}>
-                      {formatCurrency(spender.total_spent)}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-        </>
-      )}
-    </View>
-  );
-
-  const renderEngagementTab = () => (
-    <View>
-      {/* Activity Feed */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: theme.text }]}>⚡ Live Activity</Text>
-        {activityFeed.slice(0, 20).map((activity, index) => (
-          <View key={index} style={[styles.activityCard, { backgroundColor: theme.card }]}>
-            <View style={styles.activityIcon}>
-              <Text style={styles.activityEmoji}>
-                {activity.type === 'gift' ? '🎁' :
-                 activity.type === 'chat' ? '💬' :
-                 activity.type === 'follow' ? '⭐' :
-                 activity.type === 'share' ? '🔗' : '👤'}
-              </Text>
-            </View>
-            <View style={styles.activityInfo}>
-              <Text style={[styles.activityText, { color: theme.text }]}>
-                {activity.type === 'gift' && activity.data.nickname && (
-                  <Text>
-                    <Text style={{ fontWeight: 'bold' }}>{activity.data.nickname}</Text> sent {activity.data.gift_name} 
-                    ({activity.data.diamonds} 💎)
-                  </Text>
-                )}
-                {activity.type === 'chat' && activity.data.nickname && (
-                  <Text>
-                    <Text style={{ fontWeight: 'bold' }}>{activity.data.nickname}</Text>: {activity.data.message}
-                  </Text>
-                )}
-                {activity.type === 'follow' && activity.data.nickname && (
-                  <Text>
-                    <Text style={{ fontWeight: 'bold' }}>{activity.data.nickname}</Text> followed
-                  </Text>
-                )}
-              </Text>
-              <Text style={[styles.activityTime, { color: theme.textSecondary }]}>
-                {new Date(activity.timestamp).toLocaleTimeString()}
-              </Text>
-            </View>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-
-  const renderGrowthTab = () => (
-    <View>
-      {/* Historical Performance */}
-      {historicalData && historicalData.streams && (
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>📊 Stream History</Text>
-          {historicalData.streams.map((stream: any, index: number) => (
-            <View key={index} style={[styles.streamCard, { backgroundColor: theme.card }]}>
-              <View style={styles.streamHeader}>
-                <View style={styles.streamDate}>
-                  <Ionicons name="calendar" size={16} color={theme.primary} />
-                  <Text style={[styles.streamDateText, { color: theme.text }]}>
-                    {new Date(stream.start_time).toLocaleDateString()}
-                  </Text>
-                </View>
-                <View style={[styles.streamStatus, { backgroundColor: '#4CAF50' + '20' }]}>
-                  <Text style={[styles.streamStatusText, { color: '#4CAF50' }]}>
-                    {stream.duration} min
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.streamStats}>
-                <View style={styles.streamStat}>
-                  <Ionicons name="eye" size={16} color={theme.textSecondary} />
-                  <Text style={[styles.streamStatText, { color: theme.text }]}>
-                    {formatNumber(stream.peak_viewers)}
-                  </Text>
-                </View>
-                <View style={styles.streamStat}>
-                  <Ionicons name="gift" size={16} color="#FF9800" />
-                  <Text style={[styles.streamStatText, { color: theme.text }]}>
-                    {stream.total_gifts}
-                  </Text>
-                </View>
-                <View style={styles.streamStat}>
-                  <Ionicons name="chatbubble" size={16} color="#4CAF50" />
-                  <Text style={[styles.streamStatText, { color: theme.text }]}>
-                    {stream.total_chats}
-                  </Text>
-                </View>
-                <View style={styles.streamStat}>
-                  <Ionicons name="diamond" size={16} color="#9C27B0" />
-                  <Text style={[styles.streamStatText, { color: theme.text }]}>
-                    {formatNumber(stream.total_gifts_value || 0)}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-
-  const renderTabContent = () => {
-    if (loading && !refreshing) {
-      return (
-        <View style={styles.centerContainer}>
-          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Loading analytics...</Text>
-        </View>
-      );
-    }
-
-    switch (selectedTab) {
-      case 'overview':
-        return renderOverviewTab();
-      case 'revenue':
-        return renderRevenueTab();
-      case 'engagement':
-        return renderEngagementTab();
-      case 'growth':
-        return renderGrowthTab();
-      default:
-        return renderOverviewTab();
-    }
-  };
+  // Prepare chart data
+  const chartData = revenueHistory.map((item, index) => ({
+    x: index + 1,
+    y: item.revenue / 100,
+  }));
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Analytics</Text>
-        <Ionicons name="bar-chart" size={28} color={theme.primary} />
-      </View>
-
-      {/* Creator Selector */}
-      {creators.length > 0 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.creatorSelector}
-          contentContainerStyle={styles.creatorSelectorContent}
-        >
-          {creators.map((creator) => (
-            <TouchableOpacity
-              key={creator._id}
-              style={[
-                styles.creatorChip,
-                {
-                  backgroundColor:
-                    selectedCreator === creator._id ? theme.primary : theme.card,
-                },
-              ]}
-              onPress={() => setSelectedCreator(creator._id)}
-            >
-              <Text
-                style={[
-                  styles.creatorChipText,
-                  {
-                    color: selectedCreator === creator._id ? '#FFF' : theme.text,
-                  },
-                ]}
-              >
-                @{creator.tiktok_username}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      )}
-
-      {/* Tab Selector */}
-      <View style={styles.tabSelector}>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            selectedTab === 'overview' && { borderBottomColor: theme.primary, borderBottomWidth: 3 },
-          ]}
-          onPress={() => setSelectedTab('overview')}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              { color: selectedTab === 'overview' ? theme.primary : theme.textSecondary },
-            ]}
-          >
-            Overview
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            selectedTab === 'revenue' && { borderBottomColor: theme.primary, borderBottomWidth: 3 },
-          ]}
-          onPress={() => setSelectedTab('revenue')}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              { color: selectedTab === 'revenue' ? theme.primary : theme.textSecondary },
-            ]}
-          >
-            Revenue
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            selectedTab === 'engagement' && { borderBottomColor: theme.primary, borderBottomWidth: 3 },
-          ]}
-          onPress={() => setSelectedTab('engagement')}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              { color: selectedTab === 'engagement' ? theme.primary : theme.textSecondary },
-            ]}
-          >
-            Activity
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            selectedTab === 'growth' && { borderBottomColor: theme.primary, borderBottomWidth: 3 },
-          ]}
-          onPress={() => setSelectedTab('growth')}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              { color: selectedTab === 'growth' ? theme.primary : theme.textSecondary },
-            ]}
-          >
-            History
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Content */}
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
-        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.primary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={TikTokTheme.colors.brand.cyan}
+            colors={[TikTokTheme.colors.brand.cyan]}
+          />
         }
+        showsVerticalScrollIndicator={false}
       >
-        {renderTabContent()}
+        {/* Header */}
+        <Animated.View entering={FadeIn}>
+          <Text style={styles.title}>Analytics</Text>
+          <Text style={styles.subtitle}>Performance Overview</Text>
+        </Animated.View>
+
+        {/* Key Metrics */}
+        <Animated.View entering={FadeInDown.delay(100)} style={styles.metricsGrid}>
+          <GlassCard style={styles.metricCard}>
+            <View style={[styles.metricIcon, { backgroundColor: 'rgba(0, 242, 234, 0.1)' }]}>
+              <Ionicons name="cash-outline" size={24} color={TikTokTheme.colors.brand.cyan} />
+            </View>
+            <Text style={styles.metricValue}>{formatCurrency(summary.total_revenue)}</Text>
+            <Text style={styles.metricLabel}>Total Revenue</Text>
+          </GlassCard>
+
+          <GlassCard style={styles.metricCard}>
+            <View style={[styles.metricIcon, { backgroundColor: 'rgba(168, 85, 247, 0.1)' }]}>
+              <Ionicons name="gift-outline" size={24} color="#A855F7" />
+            </View>
+            <Text style={styles.metricValue}>{formatNumber(summary.total_gifts)}</Text>
+            <Text style={styles.metricLabel}>Total Gifts</Text>
+          </GlassCard>
+
+          <GlassCard style={styles.metricCard}>
+            <View style={[styles.metricIcon, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
+              <Ionicons name="eye-outline" size={24} color="#3B82F6" />
+            </View>
+            <Text style={styles.metricValue}>{formatNumber(summary.total_viewers)}</Text>
+            <Text style={styles.metricLabel}>Total Viewers</Text>
+          </GlassCard>
+
+          <GlassCard style={styles.metricCard}>
+            <View style={[styles.metricIcon, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
+              <Ionicons name="trending-up" size={24} color="#10B981" />
+            </View>
+            <Text style={styles.metricValue}>{formatNumber(summary.peak_viewers)}</Text>
+            <Text style={styles.metricLabel}>Peak Viewers</Text>
+          </GlassCard>
+        </Animated.View>
+
+        {/* AI Insight */}
+        {aiInsight && (
+          <Animated.View entering={FadeInDown.delay(200)}>
+            <GlassCard style={styles.insightCard}>
+              <View style={styles.insightHeader}>
+                <View style={styles.aiIcon}>
+                  <Ionicons name="sparkles" size={20} color={TikTokTheme.colors.brand.cyan} />
+                </View>
+                <Text style={styles.insightTitle}>AI Insight</Text>
+              </View>
+              <Text style={styles.insightText}>{aiInsight}</Text>
+            </GlassCard>
+          </Animated.View>
+        )}
+
+        {/* Revenue Chart */}
+        <Animated.View entering={FadeInDown.delay(300)}>
+          <Text style={styles.sectionTitle}>Revenue Trend (Last 7 Days)</Text>
+          <GlassCard style={styles.chartCard}>
+            {chartData.length > 0 ? (
+              <VictoryChart
+                width={CHART_WIDTH - 32}
+                height={200}
+                theme={VictoryTheme.material}
+                padding={{ top: 20, bottom: 40, left: 50, right: 20 }}
+              >
+                <VictoryAxis
+                  style={{
+                    axis: { stroke: 'rgba(255, 255, 255, 0.1)' },
+                    tickLabels: { fill: TikTokTheme.colors.text.muted, fontSize: 10 },
+                    grid: { stroke: 'rgba(255, 255, 255, 0.05)' },
+                  }}
+                />
+                <VictoryAxis
+                  dependentAxis
+                  style={{
+                    axis: { stroke: 'rgba(255, 255, 255, 0.1)' },
+                    tickLabels: { fill: TikTokTheme.colors.text.muted, fontSize: 10 },
+                    grid: { stroke: 'rgba(255, 255, 255, 0.05)' },
+                  }}
+                />
+                <VictoryArea
+                  data={chartData}
+                  style={{
+                    data: {
+                      fill: 'url(#gradient)',
+                      stroke: TikTokTheme.colors.brand.cyan,
+                      strokeWidth: 2,
+                    },
+                  }}
+                  interpolation="monotoneX"
+                />
+              </VictoryChart>
+            ) : (
+              <View style={styles.emptyChart}>
+                <Ionicons name="bar-chart-outline" size={48} color={TikTokTheme.colors.text.muted} />
+                <Text style={styles.emptyChartText}>No data available</Text>
+              </View>
+            )}
+          </GlassCard>
+        </Animated.View>
+
+        {/* Top Gifters */}
+        <Animated.View entering={FadeInDown.delay(400)}>
+          <Text style={styles.sectionTitle}>Top Gifters</Text>
+          <GlassCard style={styles.leaderboardCard}>
+            {topGifters.length > 0 ? (
+              topGifters.slice(0, 5).map((gifter, index) => (
+                <View key={index} style={styles.gifterRow}>
+                  <View style={styles.gifterLeft}>
+                    <View style={[
+                      styles.rank,
+                      index === 0 && styles.rankGold,
+                      index === 1 && styles.rankSilver,
+                      index === 2 && styles.rankBronze,
+                    ]}>
+                      <Text style={styles.rankText}>#{index + 1}</Text>
+                    </View>
+                    <Text style={styles.gifterName} numberOfLines={1}>
+                      {gifter.username}
+                    </Text>
+                  </View>
+                  <View style={styles.gifterRight}>
+                    <Text style={styles.gifterDiamonds}>💎 {gifter.total_diamonds}</Text>
+                    <Text style={styles.gifterCount}>{gifter.gift_count} gifts</Text>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="trophy-outline" size={48} color={TikTokTheme.colors.text.muted} />
+                <Text style={styles.emptyText}>No gifters yet</Text>
+              </View>
+            )}
+          </GlassCard>
+        </Animated.View>
+
+        {/* Stream Stats */}
+        <Animated.View entering={FadeInDown.delay(500)}>
+          <Text style={styles.sectionTitle}>Stream Statistics</Text>
+          <View style={styles.statsRow}>
+            <GlassCard style={styles.statCard}>
+              <Ionicons name="videocam-outline" size={20} color={TikTokTheme.colors.brand.cyan} />
+              <Text style={styles.statValue}>{summary.total_streams}</Text>
+              <Text style={styles.statLabel}>Total Streams</Text>
+            </GlassCard>
+            <GlassCard style={styles.statCard}>
+              <Ionicons name="time-outline" size={20} color={TikTokTheme.colors.brand.cyan} />
+              <Text style={styles.statValue}>{Math.round(summary.average_duration / 60)}m</Text>
+              <Text style={styles.statLabel}>Avg Duration</Text>
+            </GlassCard>
+          </View>
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -534,273 +244,191 @@ export default function Analytics() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: TikTokTheme.colors.background.primary,
   },
-  header: {
+  scrollContent: {
+    padding: TikTokTheme.spacing.base,
+    paddingBottom: TikTokTheme.spacing['2xl'],
+  },
+  title: {
+    fontSize: TikTokTheme.typography.fontSize['2xl'],
+    fontWeight: TikTokTheme.typography.fontWeight.black,
+    color: TikTokTheme.colors.text.primary,
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: TikTokTheme.typography.fontSize.sm,
+    color: TikTokTheme.colors.text.muted,
+    marginBottom: TikTokTheme.spacing.base,
+  },
+  metricsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    paddingBottom: 12,
+    flexWrap: 'wrap',
+    gap: TikTokTheme.spacing.base,
+    marginBottom: TikTokTheme.spacing.base,
   },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-  },
-  creatorSelector: {
-    maxHeight: 60,
-    marginBottom: 16,
-  },
-  creatorSelectorContent: {
-    paddingHorizontal: 20,
-    gap: 8,
-  },
-  creatorChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  creatorChipText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  tabSelector: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
+  metricCard: {
+    width: (width - 48) / 2,
+    padding: TikTokTheme.spacing.base,
     alignItems: 'center',
   },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  section: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  statIconContainer: {
+  metricIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: TikTokTheme.spacing.xs,
   },
-  statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  statTitle: {
-    fontSize: 11,
-    textAlign: 'center',
-  },
-  statSubtitle: {
-    fontSize: 9,
-    marginTop: 2,
-    textAlign: 'center',
-  },
-  milestoneCard: {
-    flexDirection: 'row',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  milestoneIcon: {
-    marginRight: 12,
-  },
-  milestoneEmoji: {
-    fontSize: 32,
-  },
-  milestoneInfo: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  milestoneTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  milestoneDate: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  revenueCard: {
-    padding: 24,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  revenueAmount: {
-    fontSize: 36,
-    fontWeight: 'bold',
-  },
-  revenueLabel: {
-    fontSize: 14,
-    marginTop: 8,
-  },
-  giftCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  giftRank: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFD700',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  giftRankText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  giftInfo: {
-    flex: 1,
-  },
-  giftName: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  giftStats: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  giftValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  spenderCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  spenderRank: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  spenderRankText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  spenderInfo: {
-    flex: 1,
-  },
-  spenderName: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  spenderStats: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  spenderValue: {
-    alignItems: 'flex-end',
-  },
-  spenderDiamonds: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  spenderMoney: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  activityCard: {
-    flexDirection: 'row',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  activityIcon: {
-    marginRight: 12,
-  },
-  activityEmoji: {
-    fontSize: 24,
-  },
-  activityInfo: {
-    flex: 1,
-  },
-  activityText: {
-    fontSize: 14,
-  },
-  activityTime: {
-    fontSize: 11,
+  metricValue: {
+    fontSize: TikTokTheme.typography.fontSize.xl,
+    fontWeight: TikTokTheme.typography.fontWeight.black,
+    color: TikTokTheme.colors.text.primary,
     marginTop: 4,
   },
-  streamCard: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
+  metricLabel: {
+    fontSize: TikTokTheme.typography.fontSize.xs,
+    color: TikTokTheme.colors.text.muted,
+    textAlign: 'center',
+    marginTop: 4,
   },
-  streamHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+  insightCard: {
+    padding: TikTokTheme.spacing.base,
+    marginBottom: TikTokTheme.spacing.base,
   },
-  streamDate: {
+  insightHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    marginBottom: TikTokTheme.spacing.xs,
   },
-  streamDateText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  streamStatus: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  streamStatusText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  streamStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  streamStat: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  streamStatText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  centerContainer: {
-    flex: 1,
+  aiIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 242, 234, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    marginRight: TikTokTheme.spacing.xs,
   },
-  loadingText: {
-    fontSize: 14,
+  insightTitle: {
+    fontSize: TikTokTheme.typography.fontSize.base,
+    fontWeight: TikTokTheme.typography.fontWeight.bold,
+    color: TikTokTheme.colors.text.primary,
+  },
+  insightText: {
+    fontSize: TikTokTheme.typography.fontSize.sm,
+    color: TikTokTheme.colors.text.secondary,
+    lineHeight: 20,
+  },
+  sectionTitle: {
+    fontSize: TikTokTheme.typography.fontSize.lg,
+    fontWeight: TikTokTheme.typography.fontWeight.bold,
+    color: TikTokTheme.colors.text.primary,
+    marginBottom: TikTokTheme.spacing.xs,
+    marginTop: TikTokTheme.spacing.base,
+  },
+  chartCard: {
+    padding: TikTokTheme.spacing.base,
+    marginBottom: TikTokTheme.spacing.base,
+  },
+  emptyChart: {
+    height: 200,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyChartText: {
+    fontSize: TikTokTheme.typography.fontSize.sm,
+    color: TikTokTheme.colors.text.muted,
+    marginTop: 8,
+  },
+  leaderboardCard: {
+    padding: TikTokTheme.spacing.base,
+    marginBottom: TikTokTheme.spacing.base,
+  },
+  gifterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: TikTokTheme.spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  gifterLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  rank: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: TikTokTheme.spacing.xs,
+  },
+  rankGold: {
+    backgroundColor: 'rgba(255, 215, 0, 0.2)',
+  },
+  rankSilver: {
+    backgroundColor: 'rgba(192, 192, 192, 0.2)',
+  },
+  rankBronze: {
+    backgroundColor: 'rgba(205, 127, 50, 0.2)',
+  },
+  rankText: {
+    fontSize: TikTokTheme.typography.fontSize.xs,
+    fontWeight: TikTokTheme.typography.fontWeight.bold,
+    color: TikTokTheme.colors.text.primary,
+  },
+  gifterName: {
+    flex: 1,
+    fontSize: TikTokTheme.typography.fontSize.sm,
+    fontWeight: TikTokTheme.typography.fontWeight.semibold,
+    color: TikTokTheme.colors.text.primary,
+  },
+  gifterRight: {
+    alignItems: 'flex-end',
+  },
+  gifterDiamonds: {
+    fontSize: TikTokTheme.typography.fontSize.sm,
+    fontWeight: TikTokTheme.typography.fontWeight.bold,
+    color: TikTokTheme.colors.brand.cyan,
+  },
+  gifterCount: {
+    fontSize: TikTokTheme.typography.fontSize.xs,
+    color: TikTokTheme.colors.text.muted,
+    marginTop: 2,
+  },
+  emptyState: {
+    paddingVertical: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: TikTokTheme.typography.fontSize.sm,
+    color: TikTokTheme.colors.text.muted,
+    marginTop: 8,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: TikTokTheme.spacing.base,
+  },
+  statCard: {
+    flex: 1,
+    padding: TikTokTheme.spacing.base,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: TikTokTheme.typography.fontSize.xl,
+    fontWeight: TikTokTheme.typography.fontWeight.black,
+    color: TikTokTheme.colors.text.primary,
+    marginTop: 8,
+  },
+  statLabel: {
+    fontSize: TikTokTheme.typography.fontSize.xs,
+    color: TikTokTheme.colors.text.muted,
+    marginTop: 4,
+    textAlign: 'center',
   },
 });
