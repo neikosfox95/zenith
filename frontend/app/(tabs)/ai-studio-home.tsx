@@ -35,8 +35,8 @@ export default function AIStudioHome() {
   const loadData = async () => {
     try {
       const [statusRes, usageRes] = await Promise.all([
-        axios.get(`${BACKEND_URL}/api/ai-studio/status`),
-        axios.get(`${BACKEND_URL}/api/ai-studio/usage`)
+        axios.get(`${BACKEND_URL}/api/ai-studio/v2/status`),
+        axios.get(`${BACKEND_URL}/api/ai-studio/v2/usage`)
       ]);
       setStatus(statusRes.data);
       setUsage(usageRes.data.usage);

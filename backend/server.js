@@ -185,10 +185,10 @@ async function connectDB() {
     app.use('/api/ai-studio', aiStudioRoutes);
     console.log('✅ AI Studio routes loaded - 100+ AI Models integrated!');
     
-    // AI STUDIO API ROUTES (Phase 2 - Atlas Cloud Integration)
-    console.log('☁️ Setting up AI Studio API (Atlas Cloud + Fallback) routes...');
-    app.use('/api/ai-studio', aiStudioAPIRoutes);
-    console.log('✅ AI Studio API routes loaded - Atlas Cloud primary + Emergent fallback!');
+    // AI STUDIO V2 API ROUTES (Phase 2 - Atlas Cloud Integration)
+    console.log('☁️ Setting up AI Studio V2 API (Atlas Cloud + Fallback) routes...');
+    app.use('/api/ai-studio/v2', aiStudioAPIRoutes);
+    console.log('✅ AI Studio V2 API routes loaded - Atlas Cloud primary + Emergent fallback!');
     
     // PHASE 6: SOCKET.IO TESTING ROUTES
     console.log('🔌 Setting up Socket.IO Testing routes (Phase 6)...');
