@@ -55,7 +55,8 @@ const initialState = {
   lastSync: 0,
 };
 
-export const useAnalyticsStore = create<AnalyticsState>()(n  persist(
+export const useAnalyticsStore = create<AnalyticsState>()(
+  persist(
     (set) => ({
       ...initialState,
       

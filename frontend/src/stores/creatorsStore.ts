@@ -39,7 +39,8 @@ const initialState = {
   error: null,
 };
 
-export const useCreatorsStore = create<CreatorsState>()(n  persist(
+export const useCreatorsStore = create<CreatorsState>()(
+  persist(
     (set) => ({
       ...initialState,
       

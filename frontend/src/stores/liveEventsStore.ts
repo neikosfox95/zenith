@@ -45,7 +45,8 @@ const initialState = {
   lastUpdate: Date.now(),
 };
 
-export const useLiveEventsStore = create<LiveEventsState>()(n  persist(
+export const useLiveEventsStore = create<LiveEventsState>()(
+  persist(
     (set, get) => ({
       ...initialState,
       
