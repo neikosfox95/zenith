@@ -1,248 +1,199 @@
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  RefreshControl,
-  ScrollView,
-} from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Dimensions, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '../../src/contexts/ThemeContext';
-import { useSocket } from '../../src/contexts/SocketContext';
+import { useTikTokLiveEvents, useCreatorStatus } from '../../src/hooks/realtime';
+import { useCreatorsStore } from '../../src/stores/creatorsStore';
+import { useUIStore } from '../../src/stores/uiStore';
+import { GlassCard, LiveIndicator } from '../../src/components/glass';
+import { TikTokTheme } from '../../theme/TikTokTheme';
 import { creatorsAPI } from '../../src/services/api';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 
-interface Creator {
-  _id: string;
-  tiktok_username: string;
-  is_live: boolean;
-  current_viewers: number;
-}
+const { width } = Dimensions.get('window');
+const CARD_WIDTH = (width - 48) / 2;
 
-interface LiveEvent {
-  creator_id: string;
-  tiktok_username: string;
-  stream_id: string;
-}
-
-export default function Dashboard() {
-  const { theme } = useTheme();
-  const { socket, connected } = useSocket();
-  const router = useRouter();
-  const [creators, setCreators] = useState<Creator[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [liveCount, setLiveCount] = useState(0);
-  const [totalViewers, setTotalViewers] = useState(0);
+export default function DashboardScreen() {
+  const { creators, isLoading, setCreators, setLoading } = useCreatorsStore();
+  const { refreshing, setRefreshing } = useUIStore();
+  const { isConnected } = useTikTokLiveEvents();
+  const { liveCreators, totalLive } = useCreatorStatus();
 
   useEffect(() => {
     loadCreators();
   }, []);
 
-  useEffect(() => {
-    if (socket) {
-      socket.on('creator_live', handleCreatorLive);
-      socket.on('creator_offline', handleCreatorOffline);
-      socket.on('viewer_update', handleViewerUpdate);
-
-      return () => {
-        socket.off('creator_live', handleCreatorLive);
-        socket.off('creator_offline', handleCreatorOffline);
-        socket.off('viewer_update', handleViewerUpdate);
-      };
-    }
-  }, [socket]);
-
-  useEffect(() => {
-    updateStats();
-  }, [creators]);
-
   const loadCreators = async () => {
     try {
-      const data = await creatorsAPI.getCreators();
+      setLoading(true);
+      const data = await creatorsAPI.getAll();
       setCreators(data);
     } catch (error) {
-      console.error('Error loading creators:', error);
+      console.error('Failed to load creators:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleRefresh = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRefreshing(true);
     await loadCreators();
     setRefreshing(false);
   };
 
-  const handleCreatorLive = (event: LiveEvent) => {
-    setCreators((prev) =>
-      prev.map((c) =>
-        c._id === event.creator_id ? { ...c, is_live: true } : c
-      )
-    );
+  const handleCreatorPress = (creator: any) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push(`/creator/${creator.id}`);
   };
 
-  const handleCreatorOffline = (event: LiveEvent) => {
-    setCreators((prev) =>
-      prev.map((c) =>
-        c._id === event.creator_id ? { ...c, is_live: false, current_viewers: 0 } : c
-      )
-    );
+  const handleAddCreator = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push('/creators');
   };
-
-  const handleViewerUpdate = (event: { creator_id: string; viewer_count: number }) => {
-    setCreators((prev) =>
-      prev.map((c) =>
-        c._id === event.creator_id ? { ...c, current_viewers: event.viewer_count } : c
-      )
-    );
-  };
-
-  const updateStats = () => {
-    const live = creators.filter((c) => c.is_live).length;
-    const viewers = creators.reduce((sum, c) => sum + (c.current_viewers || 0), 0);
-    setLiveCount(live);
-    setTotalViewers(viewers);
-  };
-
-  const formatNumber = (num: number) => {
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M';
-    }
-    if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K';
-    }
-    return num.toString();
-  };
-
-  const renderStatCard = (title: string, value: string | number, icon: string, color: string) => (
-    <View style={[styles.statCard, { backgroundColor: theme.card }]}>
-      <View style={[styles.statIcon, { backgroundColor: color + '20' }]}>
-        <Ionicons name={icon as any} size={24} color={color} />
-      </View>
-      <Text style={[styles.statValue, { color: theme.text }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: theme.textSecondary }]}>{title}</Text>
-    </View>
-  );
-
-  const renderCreatorCard = ({ item }: { item: Creator }) => (
-    <TouchableOpacity
-      style={[styles.creatorCard, { backgroundColor: theme.card }]}
-      onPress={() => {
-        if (item.is_live) {
-          // Navigate to stream details
-        }
-      }}
-    >
-      <View style={styles.creatorHeader}>
-        <View style={styles.creatorInfo}>
-          <Ionicons name="logo-tiktok" size={32} color={theme.primary} />
-          <View style={styles.creatorText}>
-            <Text style={[styles.creatorName, { color: theme.text }]}>@{item.tiktok_username}</Text>
-            <View style={styles.statusRow}>
-              <View
-                style={[
-                  styles.statusDot,
-                  { backgroundColor: item.is_live ? theme.success : theme.textSecondary },
-                ]}
-              />
-              <Text style={[styles.statusText, { color: theme.textSecondary }]}>
-                {item.is_live ? 'LIVE NOW' : 'Offline'}
-              </Text>
-            </View>
-          </View>
-        </View>
-        {item.is_live && (
-          <View style={[styles.liveBadge, { backgroundColor: theme.error }]}>
-            <Ionicons name="videocam" size={16} color="#FFF" />
-          </View>
-        )}
-      </View>
-      {item.is_live && (
-        <View style={styles.viewerRow}>
-          <Ionicons name="eye" size={16} color={theme.textSecondary} />
-          <Text style={[styles.viewerText, { color: theme.text }]}>
-            {formatNumber(item.current_viewers)} viewers
-          </Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-
-  const liveCreators = creators.filter((c) => c.is_live);
-  const offlineCreators = creators.filter((c) => !c.is_live);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.header}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
+      <Animated.View entering={FadeIn} style={styles.header}>
         <View>
-          <Text style={[styles.headerTitle, { color: theme.text }]}>Dashboard</Text>
-          <View style={styles.connectionRow}>
-            <View
-              style={[
-                styles.connectionDot,
-                { backgroundColor: connected ? theme.success : theme.error },
-              ]}
-            />
-            <Text style={[styles.connectionText, { color: theme.textSecondary }]}>
-              {connected ? 'Connected' : 'Disconnected'}
-            </Text>
-          </View>
+          <Text style={styles.title}>Dashboard</Text>
+          <Text style={styles.subtitle}>
+            {totalLive} Live • {creators.length} Total Creators
+          </Text>
         </View>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/creators')}>
-          <Ionicons name="add-circle" size={32} color={theme.primary} />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.primary} />
-        }
-      >
-        <View style={styles.statsContainer}>
-          {renderStatCard('Total Creators', creators.length, 'people', theme.primary)}
-          {renderStatCard('Live Now', liveCount, 'radio', theme.error)}
-          {renderStatCard('Total Viewers', formatNumber(totalViewers), 'eye', theme.secondary)}
-        </View>
-
-        {liveCreators.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: theme.text }]}>Live Now</Text>
-              <View style={[styles.livePulse, { backgroundColor: theme.error }]} />
+        <View style={styles.headerRight}>
+          {isConnected ? (
+            <View style={styles.statusBadge}>
+              <View style={styles.statusDot} />
+              <Text style={styles.statusText}>Connected</Text>
             </View>
-            {liveCreators.map((creator) => (
-              <View key={creator._id}>{renderCreatorCard({ item: creator })}</View>
-            ))}
-          </View>
-        )}
+          ) : (
+            <View style={[styles.statusBadge, styles.statusBadgeOffline]}>
+              <View style={[styles.statusDot, styles.statusDotOffline]} />
+              <Text style={styles.statusText}>Offline</Text>
+            </View>
+          )}
+        </View>
+      </Animated.View>
 
-        {offlineCreators.length > 0 && (
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Offline</Text>
-            {offlineCreators.map((creator) => (
-              <View key={creator._id}>{renderCreatorCard({ item: creator })}</View>
-            ))}
-          </View>
-        )}
+      {/* Quick Stats */}
+      <Animated.View entering={FadeInDown.delay(100)} style={styles.statsContainer}>
+        <GlassCard style={styles.statCard}>
+          <Ionicons name="eye-outline" size={24} color={TikTokTheme.colors.brand.cyan} />
+          <Text style={styles.statValue}>
+            {creators.reduce((sum, c) => sum + (c.viewer_count || 0), 0).toLocaleString()}
+          </Text>
+          <Text style={styles.statLabel}>Total Viewers</Text>
+        </GlassCard>
 
-        {creators.length === 0 && !loading && (
-          <View style={styles.emptyState}>
-            <Ionicons name="people-outline" size={64} color={theme.textSecondary} />
-            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-              No creators added yet
-            </Text>
-            <TouchableOpacity
-              style={[styles.addButton, { backgroundColor: theme.primary }]}
-              onPress={() => router.push('/(tabs)/creators')}
+        <GlassCard style={styles.statCard}>
+          <Ionicons name="trending-up" size={24} color={TikTokTheme.colors.brand.cyan} />
+          <Text style={styles.statValue}>{totalLive}</Text>
+          <Text style={styles.statLabel}>Live Now</Text>
+        </GlassCard>
+      </Animated.View>
+
+      {/* Creators Grid */}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={TikTokTheme.colors.brand.cyan}
+            colors={[TikTokTheme.colors.brand.cyan]}
+          />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.grid}>
+          {creators.map((creator, index) => (
+            <Animated.View
+              key={creator.id}
+              entering={FadeInDown.delay(200 + index * 50)}
             >
-              <Text style={styles.addButtonText}>Add Creator</Text>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => handleCreatorPress(creator)}
+              >
+                <GlassCard style={styles.creatorCard}>
+                  {/* Status Badge */}
+                  <View style={styles.creatorHeader}>
+                    <LiveIndicator
+                      isLive={creator.is_live || false}
+                      viewerCount={creator.viewer_count}
+                    />
+                  </View>
+
+                  {/* Avatar Placeholder */}
+                  <View style={styles.avatarContainer}>
+                    <View style={styles.avatar}>
+                      <Text style={styles.avatarText}>
+                        {creator.display_name?.charAt(0).toUpperCase() || 'U'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Creator Info */}
+                  <Text style={styles.creatorName} numberOfLines={1}>
+                    {creator.display_name}
+                  </Text>
+                  <Text style={styles.creatorUsername} numberOfLines={1}>
+                    @{creator.tiktok_username}
+                  </Text>
+
+                  {/* Stats */}
+                  <View style={styles.creatorStats}>
+                    <View style={styles.statItem}>
+                      <Ionicons
+                        name="people-outline"
+                        size={12}
+                        color={TikTokTheme.colors.text.muted}
+                      />
+                      <Text style={styles.statText}>
+                        {(creator.follower_count || 0) >= 1000
+                          ? `${(creator.follower_count / 1000).toFixed(1)}K`
+                          : creator.follower_count || 0}
+                      </Text>
+                    </View>
+                  </View>
+                </GlassCard>
+              </TouchableOpacity>
+            </Animated.View>
+          ))}
+
+          {/* Add Creator Button */}
+          <Animated.View entering={FadeInDown.delay(200 + creators.length * 50)}>
+            <TouchableOpacity activeOpacity={0.7} onPress={handleAddCreator}>
+              <GlassCard style={[styles.creatorCard, styles.addCard]}>
+                <Ionicons
+                  name="add-circle-outline"
+                  size={48}
+                  color={TikTokTheme.colors.brand.cyan}
+                />
+                <Text style={styles.addText}>Add Creator</Text>
+              </GlassCard>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
+        </View>
+
+        {/* Empty State */}
+        {creators.length === 0 && !isLoading && (
+          <Animated.View entering={FadeIn} style={styles.emptyState}>
+            <Ionicons
+              name="videocam-outline"
+              size={64}
+              color={TikTokTheme.colors.text.muted}
+            />
+            <Text style={styles.emptyTitle}>No Creators Yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Add your first creator to start monitoring
+            </Text>
+          </Animated.View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -252,151 +203,170 @@ export default function Dashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: TikTokTheme.colors.background.primary,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: TikTokTheme.spacing.base,
+    paddingVertical: TikTokTheme.spacing.base,
   },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
+  title: {
+    fontSize: TikTokTheme.typography.fontSize['2xl'],
+    fontWeight: TikTokTheme.typography.fontWeight.black,
+    color: TikTokTheme.colors.text.primary,
   },
-  connectionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  subtitle: {
+    fontSize: TikTokTheme.typography.fontSize.sm,
+    color: TikTokTheme.colors.text.muted,
     marginTop: 4,
   },
-  connectionDot: {
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 242, 234, 0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: TikTokTheme.borderRadius.full,
+  },
+  statusBadgeOffline: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  statusDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
+    backgroundColor: TikTokTheme.colors.brand.cyan,
     marginRight: 6,
   },
-  connectionText: {
-    fontSize: 12,
+  statusDotOffline: {
+    backgroundColor: TikTokTheme.colors.text.muted,
+  },
+  statusText: {
+    fontSize: TikTokTheme.typography.fontSize.xs,
+    fontWeight: TikTokTheme.typography.fontWeight.semibold,
+    color: TikTokTheme.colors.text.primary,
   },
   statsContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 24,
-    gap: 12,
+    paddingHorizontal: TikTokTheme.spacing.base,
+    gap: TikTokTheme.spacing.base,
+    marginBottom: TikTokTheme.spacing.base,
   },
   statCard: {
     flex: 1,
-    padding: 16,
-    borderRadius: 16,
     alignItems: 'center',
-  },
-  statIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
+    padding: TikTokTheme.spacing.base,
   },
   statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    fontSize: TikTokTheme.typography.fontSize['2xl'],
+    fontWeight: TikTokTheme.typography.fontWeight.black,
+    color: TikTokTheme.colors.text.primary,
+    marginTop: 8,
   },
   statLabel: {
-    fontSize: 12,
-    textAlign: 'center',
+    fontSize: TikTokTheme.typography.fontSize.xs,
+    color: TikTokTheme.colors.text.muted,
+    marginTop: 4,
   },
-  section: {
-    paddingHorizontal: 20,
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginRight: 8,
-  },
-  livePulse: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  creatorCard: {
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 12,
-  },
-  creatorHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  creatorInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  scrollView: {
     flex: 1,
   },
-  creatorText: {
-    marginLeft: 12,
+  scrollContent: {
+    paddingHorizontal: TikTokTheme.spacing.base,
+    paddingBottom: TikTokTheme.spacing.xl,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: TikTokTheme.spacing.base,
+  },
+  creatorCard: {
+    width: CARD_WIDTH,
+    padding: TikTokTheme.spacing.base,
+  },
+  creatorHeader: {
+    marginBottom: TikTokTheme.spacing.base,
+  },
+  avatarContainer: {
+    alignItems: 'center',
+    marginBottom: TikTokTheme.spacing.base,
+  },
+  avatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: TikTokTheme.colors.brand.cyan,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: TikTokTheme.typography.fontSize['2xl'],
+    fontWeight: TikTokTheme.typography.fontWeight.black,
+    color: TikTokTheme.colors.background.primary,
   },
   creatorName: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
+    fontSize: TikTokTheme.typography.fontSize.base,
+    fontWeight: TikTokTheme.typography.fontWeight.bold,
+    color: TikTokTheme.colors.text.primary,
+    textAlign: 'center',
   },
-  statusRow: {
+  creatorUsername: {
+    fontSize: TikTokTheme.typography.fontSize.sm,
+    color: TikTokTheme.colors.text.muted,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  creatorStats: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: TikTokTheme.spacing.base,
+    gap: TikTokTheme.spacing.base,
+  },
+  statItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 6,
+  statText: {
+    fontSize: TikTokTheme.typography.fontSize.xs,
+    color: TikTokTheme.colors.text.muted,
   },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  liveBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  addCard: {
     justifyContent: 'center',
     alignItems: 'center',
+    minHeight: 180,
+    borderStyle: 'dashed',
+    borderWidth: 2,
+    borderColor: 'rgba(0, 242, 234, 0.3)',
   },
-  viewerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  viewerText: {
-    marginLeft: 6,
-    fontSize: 14,
-    fontWeight: '500',
+  addText: {
+    fontSize: TikTokTheme.typography.fontSize.sm,
+    fontWeight: TikTokTheme.typography.fontWeight.semibold,
+    color: TikTokTheme.colors.brand.cyan,
+    marginTop: 8,
   },
   emptyState: {
-    alignItems: 'center',
+    flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
     paddingVertical: 64,
   },
-  emptyText: {
-    fontSize: 16,
-    marginTop: 16,
-    marginBottom: 24,
+  emptyTitle: {
+    fontSize: TikTokTheme.typography.fontSize.xl,
+    fontWeight: TikTokTheme.typography.fontWeight.bold,
+    color: TikTokTheme.colors.text.primary,
+    marginTop: TikTokTheme.spacing.base,
   },
-  addButton: {
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 24,
-  },
-  addButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
+  emptySubtitle: {
+    fontSize: TikTokTheme.typography.fontSize.sm,
+    color: TikTokTheme.colors.text.muted,
+    marginTop: 8,
+    textAlign: 'center',
   },
 });
