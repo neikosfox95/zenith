@@ -5,6 +5,7 @@
 
 import express from 'express';
 import atlasCloud from '../services/ai/atlas-cloud.js';
+import providerTracker from '../services/ai/provider-tracker.js';
 import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
@@ -70,7 +71,7 @@ router.get('/status', async (req, res) => {
 
 /**
  * POST /api/ai-studio/generate/text
- * Generate text using Atlas Cloud primary + fallback
+ * Generate text using Emergent LLM Key (primary) with Atlas Cloud backup
  */
 router.post('/generate/text', async (req, res) => {
   try {
@@ -88,6 +89,19 @@ router.post('/generate/text', async (req, res) => {
       temperature: temperature || 0.7,
       maxTokens: maxTokens || 4000,
       userApiKey: userApiKey || null
+    });
+
+    // Track provider usage
+    providerTracker.track({
+      type: 'text',
+      model: model || 'gpt-5.5-pro',
+      provider: result.provider,
+      source: result.source,
+      cost: result.cost || 0,
+      tokens: result.usage?.total_tokens || 0,
+      success: !result.mock,
+      prompt,
+      result: result.text
     });
 
     res.json({
@@ -317,6 +331,50 @@ router.post('/api-keys', async (req, res) => {
       message: 'API key saved successfully',
       provider: provider || 'atlas-cloud',
       masked: `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}`
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/ai-studio/provider-analytics
+ * Get provider usage statistics and cost tracking
+ */
+router.get('/provider-analytics', async (req, res) => {
+  try {
+    const stats = providerTracker.getStats();
+    const breakdown = providerTracker.getBreakdownByType();
+
+    res.json({
+      success: true,
+      analytics: {
+        ...stats,
+        breakdownByType: breakdown
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/ai-studio/provider-analytics/reset
+ * Reset provider tracking statistics
+ */
+router.post('/provider-analytics/reset', async (req, res) => {
+  try {
+    providerTracker.reset();
+    res.json({
+      success: true,
+      message: 'Provider analytics reset successfully'
     });
   } catch (error) {
     res.status(500).json({

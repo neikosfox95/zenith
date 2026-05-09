@@ -52,6 +52,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="ai-studio-home" options={{ href: null }} />
       <Tabs.Screen name="ai-model-gallery" options={{ href: null }} />
       <Tabs.Screen name="ai-usage-dashboard" options={{ href: null }} />
+      <Tabs.Screen name="ai-provider-analytics" options={{ href: null }} />
       <Tabs.Screen name="ai-text-generator" options={{ href: null }} />
       <Tabs.Screen name="ai-image-generator" options={{ href: null }} />
       <Tabs.Screen name="ai-video-generator" options={{ href: null }} />
