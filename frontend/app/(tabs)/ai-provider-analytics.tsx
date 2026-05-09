@@ -47,7 +47,7 @@ export default function AIProviderAnalytics() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size=\"large\" color={TikTokColors.cyan} />
+        <ActivityIndicator size="large" color={TikTokColors.cyan} />
         <Text style={styles.loadingText}>Loading Provider Analytics...</Text>
       </View>
     );
