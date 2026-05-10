@@ -75,7 +75,7 @@ export default function AITextGenerator() {
         <ScrollView
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps=\"handled\"
+          keyboardShouldPersistTaps="handled"
         >
           {/* Header */}
           <Animated.View entering={FadeInDown.delay(100).duration(600)} style={styles.header}>
@@ -85,7 +85,7 @@ export default function AITextGenerator() {
                 <Text style={styles.headerSubtitle}>7 AI Models Available</Text>
               </View>
               <TouchableOpacity style={styles.historyButton}>
-                <Ionicons name=\"time\" size={24} color=\"#00F2EA\" />
+                <Ionicons name="time" size={24} color="#00F2EA" />
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -116,14 +116,14 @@ export default function AITextGenerator() {
                       ]}
                     >
                       <View style={[styles.modelIcon, { backgroundColor: `${model.color}30` }]}>
-                        <Ionicons name=\"sparkles\" size={20} color={model.color} />
+                        <Ionicons name="sparkles" size={20} color={model.color} />
                       </View>
                       <Text style={styles.modelName}>{model.name}</Text>
                       <Text style={styles.modelProvider}>{model.provider}</Text>
                       <Text style={styles.modelCost}>{model.cost}</Text>
                       {selectedModel.id === model.id && (
                         <View style={[styles.selectedBadge, { backgroundColor: model.color }]}>
-                          <Ionicons name=\"checkmark\" size={12} color=\"#FFFFFF\" />
+                          <Ionicons name="checkmark" size={12} color="#FFFFFF" />
                         </View>
                       )}
                     </LinearGradient>
@@ -142,8 +142,8 @@ export default function AITextGenerator() {
             >
               <TextInput
                 style={styles.promptInput}
-                placeholder=\"Enter your prompt here...\"
-                placeholderTextColor=\"rgba(255, 255, 255, 0.4)\"
+                placeholder="Enter your prompt here..."
+                placeholderTextColor="rgba(255, 255, 255, 0.4)"
                 value={prompt}
                 onChangeText={setPrompt}
                 multiline
@@ -152,7 +152,7 @@ export default function AITextGenerator() {
               <View style={styles.promptFooter}>
                 <Text style={styles.promptCount}>{prompt.length} characters</Text>
                 <TouchableOpacity onPress={() => setPrompt('')}>
-                  <Ionicons name=\"close-circle\" size={20} color=\"rgba(255, 255, 255, 0.4)\" />
+                  <Ionicons name="close-circle" size={20} color="rgba(255, 255, 255, 0.4)" />
                 </TouchableOpacity>
               </View>
             </LinearGradient>
@@ -170,12 +170,12 @@ export default function AITextGenerator() {
                 <View style={styles.settingButtons}>
                   <TouchableOpacity onPress={() => setTemperature(Math.max(0, temperature - 0.1))}>
                     <View style={styles.settingButton}>
-                      <Ionicons name=\"remove\" size={16} color=\"#FFFFFF\" />
+                      <Ionicons name="remove" size={16} color="#FFFFFF" />
                     </View>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => setTemperature(Math.min(1, temperature + 0.1))}>
                     <View style={styles.settingButton}>
-                      <Ionicons name=\"add\" size={16} color=\"#FFFFFF\" />
+                      <Ionicons name="add" size={16} color="#FFFFFF" />
                     </View>
                   </TouchableOpacity>
                 </View>
@@ -185,12 +185,12 @@ export default function AITextGenerator() {
                 <View style={styles.settingButtons}>
                   <TouchableOpacity onPress={() => setMaxTokens(Math.max(100, maxTokens - 500))}>
                     <View style={styles.settingButton}>
-                      <Ionicons name=\"remove\" size={16} color=\"#FFFFFF\" />
+                      <Ionicons name="remove" size={16} color="#FFFFFF" />
                     </View>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => setMaxTokens(Math.min(4000, maxTokens + 500))}>
                     <View style={styles.settingButton}>
-                      <Ionicons name=\"add\" size={16} color=\"#FFFFFF\" />
+                      <Ionicons name="add" size={16} color="#FFFFFF" />
                     </View>
                   </TouchableOpacity>
                 </View>
@@ -209,9 +209,9 @@ export default function AITextGenerator() {
                 style={styles.generateButton}
               >
                 {loading ? (
-                  <ActivityIndicator color=\"#FFFFFF\" size=\"small\" />
+                  <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
-                  <><Ionicons name=\"flash\" size={24} color=\"#FFFFFF\" />
+                  <><Ionicons name="flash" size={24} color="#FFFFFF" />
                   <Text style={styles.generateText}>Generate with {selectedModel.name}</Text></>
                 )}
               </LinearGradient>
@@ -231,11 +231,11 @@ export default function AITextGenerator() {
                 </ScrollView>
                 <View style={styles.resultFooter}>
                   <TouchableOpacity style={styles.resultButton}>
-                    <Ionicons name=\"copy\" size={18} color=\"#00F2EA\" />
+                    <Ionicons name="copy" size={18} color="#00F2EA" />
                     <Text style={styles.resultButtonText}>Copy</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.resultButton}>
-                    <Ionicons name=\"share\" size={18} color=\"#00F2EA\" />
+                    <Ionicons name="share" size={18} color="#00F2EA" />
                     <Text style={styles.resultButtonText}>Share</Text>
                   </TouchableOpacity>
                 </View>

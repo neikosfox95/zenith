@@ -8,7 +8,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Keyboard, AppState, Dimensions } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import { cacheManager, performanceMonitor, networkMonitor } from './GodTierFramework';
+import { cacheManager, performanceMonitor, networkMonitor } from '../utils/GodTierFramework';
 
 // ============================================================
 // useApiCall - Advanced API hook with caching, retry, offline

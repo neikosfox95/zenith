@@ -67,7 +67,7 @@ export default function AIProviderAnalytics() {
               <Text style={styles.headerSubtitle}>Real-Time Cost Tracking</Text>
             </View>
             <TouchableOpacity style={styles.resetButton} onPress={resetAnalytics}>
-              <Ionicons name=\"refresh\" size={24} color=\"#FF6B6B\" />
+              <Ionicons name="refresh" size={24} color="#FF6B6B" />
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -95,13 +95,13 @@ export default function AIProviderAnalytics() {
           <Text style={styles.sectionTitle}>Provider Breakdown</Text>
           
           {/* Emergent Primary */}
-          <ProviderCard provider=\"emergent\" data={byProvider?.emergent} color=\"#10B981\" delay={350} />
+          <ProviderCard provider="emergent" data={byProvider?.emergent} color="#10B981" delay={350} />
           
           {/* Atlas Backup */}
-          <ProviderCard provider=\"atlas\" data={byProvider?.atlas} color=\"#3B82F6\" delay={400} />
+          <ProviderCard provider="atlas" data={byProvider?.atlas} color="#3B82F6" delay={400} />
           
           {/* Mock Fallback */}
-          <ProviderCard provider=\"mock\" data={byProvider?.mock} color=\"#6B7280\" delay={450} />
+          <ProviderCard provider="mock" data={byProvider?.mock} color="#6B7280" delay={450} />
         </Animated.View>
 
         {/* Recent Requests */}
