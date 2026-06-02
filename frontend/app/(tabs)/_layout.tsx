@@ -90,6 +90,10 @@ export default function TabsLayout() {
       <Tabs.Screen name="phase29" options={{ href: null }} />
       <Tabs.Screen name="phase30" options={{ href: null }} />
 
+      {/* Batch 2 Enhanced Screens - God Tier Framework Reference Implementations */}
+      <Tabs.Screen name="dashboard-enhanced" options={{ href: null }} />
+      <Tabs.Screen name="live-monitoring-enhanced" options={{ href: null }} />
+
       {/* Settings Tab */}
       <Tabs.Screen
         name="settings"
