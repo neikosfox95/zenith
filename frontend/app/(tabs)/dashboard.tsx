@@ -34,14 +34,16 @@ function DashboardScreenContent() {
   // God Tier: Responsive design
   const { isTablet } = useResponsive();
 
-  // God Tier: API call with caching
+  // God Tier: API call with caching (engine status only - not dashboard stats)
   const { data: apiStats, loading: loadingStats, refetch: refetchStats } = useApiCall({
     url: `${BACKEND_URL}/api/analytics/status`,
     cache: true,
     cacheTTL: 60000, // 1 minute cache
     onSuccess: (data) => {
       analyticsTracker.track('dashboard_stats_loaded', { creators: data?.creators || 0 });
-      setCachedStats(data);
+      if (data && typeof data.total_viewers === 'number') {
+        setCachedStats(data);
+      }
     }
   });
 
@@ -55,8 +57,11 @@ function DashboardScreenContent() {
     };
   }, []);
 
-  // Use cached data when offline
-  const displayStats = !isConnected && cachedStats ? cachedStats : (apiStats || stats);
+  // Use cached data when offline; only trust API payloads with the expected stats shape
+  const hasStatsShape = (s: any) => s && typeof s.total_viewers === 'number';
+  const displayStats = !isConnected && hasStatsShape(cachedStats)
+    ? cachedStats
+    : (hasStatsShape(apiStats) ? apiStats : stats);
   const displayCreators = !isConnected && cachedCreators.length > 0 ? cachedCreators : creators;
 
   // Cache creators when online

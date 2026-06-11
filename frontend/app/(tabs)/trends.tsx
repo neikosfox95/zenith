@@ -188,7 +188,7 @@ Shared: ${new Date().toLocaleString()}
           <BlurView intensity={40} style={styles.chartBlur}>
             <Text style={styles.chartTitle}>Weekly Revenue Trend</Text>
             {displayTrendData.length > 0 ? (
-              <VictoryChart theme={VictoryTheme.material} height={200} width={width - 64}>
+              <VictoryChart theme={VictoryTheme.material} height={200} width={Math.max(width - 64, 280)}>
                 <VictoryLine
                   data={displayTrendData}
                   style={{

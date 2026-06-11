@@ -326,4 +326,83 @@ router.get('/creators', async (req, res) => {
   }
 });
 
+// ============================================================
+// GLOBAL TOP GIFTERS (across all creators)
+// ============================================================
+
+router.get('/top-gifters', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const db = await getDb();
+
+    const topGifters = await db.collection('top_gifters')
+      .find({})
+      .sort({ total_diamonds: -1 })
+      .limit(limit)
+      .toArray();
+
+    res.json({
+      success: true,
+      topGifters
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// ============================================================
+// GLOBAL REVENUE HISTORY (daily aggregate, all creators)
+// ============================================================
+
+router.get('/revenue-history', async (req, res) => {
+  try {
+    const days = parseInt(req.query.days) || 7;
+    const db = await getDb();
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const rows = await db.collection('gifts_tracking').aggregate([
+      { $match: { created_at: { $gte: since } } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$created_at' } },
+          revenue_usd: { $sum: '$creator_payout' },
+          gifts: { $sum: 1 },
+          diamonds: { $sum: '$diamond_count' }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]).toArray();
+
+    // Fill missing days with zeros so charts always have `days` points
+    const byDate = Object.fromEntries(rows.map(r => [r._id, r]));
+    const history = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+      const key = d.toISOString().slice(0, 10);
+      const row = byDate[key];
+      history.push({
+        date: key,
+        revenue: Math.round((row?.revenue_usd || 0) * 100), // cents
+        gifts: row?.gifts || 0,
+        diamonds: row?.diamonds || 0
+      });
+    }
+
+    res.json({
+      success: true,
+      history
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;

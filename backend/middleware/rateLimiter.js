@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 /**
  * Sprint 1 & 2 OPTIMIZED: Near-100% Effective Rate Limiting
@@ -8,7 +8,7 @@ import rateLimit from 'express-rate-limit';
 
 // Custom key generator that combines IP and optional user ID for authenticated requests
 const keyGenerator = (req) => {
-  const ip = req.ip || req.connection.remoteAddress || 'unknown';
+  const ip = req.ip ? ipKeyGenerator(req.ip) : 'unknown';
   const userId = req.user?.userId || req.userId || '';
   return `${ip}:${userId}`;
 };
@@ -71,7 +71,7 @@ export const authLimiter = rateLimit({
   max: 10,
   // Enhanced key generator for auth - includes request path for better isolation
   keyGenerator: (req) => {
-    const ip = req.ip || req.connection.remoteAddress || 'unknown';
+    const ip = req.ip ? ipKeyGenerator(req.ip) : 'unknown';
     const userId = req.user?.userId || req.userId || '';
     const path = req.path || '';
     return `auth:${ip}:${userId}:${path}`;

@@ -99,6 +99,14 @@ export const fansAPI = {
 };
 
 export const analyticsAPI = {
+  getTopGifters: async (limit: number = 10) => {
+    const response = await api.get(`/analytics/top-gifters?limit=${limit}`);
+    return response.data?.topGifters || [];
+  },
+  getRevenueHistory: async (days: number = 7) => {
+    const response = await api.get(`/analytics/revenue-history?days=${days}`);
+    return response.data?.history || [];
+  },
   getStreamAnalytics: async (streamId: string) => {
     const response = await api.get(`/streams/${streamId}/analytics`);
     return response.data;
