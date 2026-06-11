@@ -240,6 +240,7 @@ function CreatorsScreenContent() {
                         testID={`creators-delete-button-${creator.username}`}
                         onPress={() => handleDeleteCreator(creator.id)}
                         style={styles.deleteButton}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                       >
                         <Ionicons name="trash-outline" size={18} color={TikTokTheme.colors.status.error} />
                       </TouchableOpacity>
