@@ -117,6 +117,22 @@ class PerformanceMonitor {
     return { avg, min, max, count: metrics.length };
   }
 
+  getAllMetrics() {
+    const result: Array<{ label: string; avg: number; min: number; max: number; count: number }> = [];
+    this.metrics.forEach((durations, label) => {
+      if (durations.length === 0) return;
+      const avg = durations.reduce((a, b) => a + b, 0) / durations.length;
+      result.push({
+        label,
+        avg,
+        min: Math.min(...durations),
+        max: Math.max(...durations),
+        count: durations.length,
+      });
+    });
+    return result.sort((a, b) => b.avg - a.avg);
+  }
+
   reset() {
     this.metrics.clear();
   }

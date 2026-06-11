@@ -101,6 +101,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="alerts-enhanced" options={{ href: null }} />
       <Tabs.Screen name="trends-enhanced" options={{ href: null }} />
       <Tabs.Screen name="history-enhanced" options={{ href: null }} />
+      <Tabs.Screen name="god-tier-metrics" options={{ href: null }} />
 
       {/* Settings Tab */}
       <Tabs.Screen
