@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Image, Dimensions, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,10 +7,22 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { TikTokTheme } from '../../theme/TikTokTheme';
+import { GodTierErrorBoundary, performanceMonitor, analyticsTracker } from '../../src/utils/GodTierFramework';
+import { GodTierMetricsBadge } from '../../src/components/GodTierMetricsBadge';
+import { useNetwork } from '../../src/hooks/GodTierHooks';
 
 const { width } = Dimensions.get('window');
 
-export default function GifterProfilesScreen() {
+function GifterProfilesScreenContent() {
+  // God Tier: Network detection
+  const { isConnected } = useNetwork();
+
+  // God Tier: Performance monitoring & screen analytics
+  useEffect(() => {
+    const stopTimer = performanceMonitor.startTimer('gifter_profiles_screen');
+    analyticsTracker.screenView('gifter_profiles');
+    return () => stopTimer();
+  }, []);
   const [refreshing, setRefreshing] = useState(false);
   const [gifters] = useState([
     { 
@@ -71,6 +83,7 @@ export default function GifterProfilesScreen() {
   ]);
 
   const handleRefresh = async () => {
+    analyticsTracker.buttonClick('refresh_gifter_profiles');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRefreshing(true);
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -91,6 +104,13 @@ export default function GifterProfilesScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Offline Banner */}
+      {!isConnected && (
+        <Animated.View entering={FadeInDown} style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline" size={16} color={TikTokTheme.colors.background.primary} />
+          <Text style={styles.offlineText}>Offline Mode - Live data paused</Text>
+        </Animated.View>
+      )}
       <View style={styles.heroContainer}>
         <Image
           source={{ uri: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80' }}
@@ -151,8 +171,12 @@ export default function GifterProfilesScreen() {
         {gifters.map((gifter, index) => (
           <Animated.View key={gifter.id} entering={FadeInDown.delay(450 + index * 50)}>
             <TouchableOpacity 
+              testID={`gifter-profiles-card-${gifter.id}`}
               style={styles.gifterCard}
-              onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+              onPress={() => {
+                analyticsTracker.buttonClick('gifter_profile_open', { gifter: gifter.username });
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
               activeOpacity={0.8}
             >
               <Image
@@ -207,6 +231,8 @@ export default function GifterProfilesScreen() {
 }
 
 const styles = StyleSheet.create({
+  offlineBanner: { backgroundColor: TikTokTheme.colors.status.warning, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, gap: 8 },
+  offlineText: { fontSize: 12, fontWeight: '600', color: TikTokTheme.colors.background.primary },
   container: { flex: 1, backgroundColor: TikTokTheme.colors.background.primary },
   heroContainer: { height: 160, position: 'relative' },
   heroBackground: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
@@ -242,3 +268,12 @@ const styles = StyleSheet.create({
   gifterStatText: { fontSize: 12, color: TikTokTheme.colors.text.secondary, fontWeight: '600' },
   viewButton: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5 },
 });
+
+export default function GifterProfilesScreen() {
+  return (
+    <GodTierErrorBoundary>
+      <GifterProfilesScreenContent />
+      <GodTierMetricsBadge />
+    </GodTierErrorBoundary>
+  );
+}

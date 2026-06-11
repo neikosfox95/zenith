@@ -90,17 +90,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="phase29" options={{ href: null }} />
       <Tabs.Screen name="phase30" options={{ href: null }} />
 
-      {/* Batch 2 Enhanced Screens - God Tier Framework Reference Implementations */}
-      <Tabs.Screen name="dashboard-enhanced" options={{ href: null }} />
-      <Tabs.Screen name="live-monitoring-enhanced" options={{ href: null }} />
-      <Tabs.Screen name="analytics-enhanced" options={{ href: null }} />
-      <Tabs.Screen name="fan-club-enhanced" options={{ href: null }} />
-      <Tabs.Screen name="settings-enhanced" options={{ href: null }} />
-      <Tabs.Screen name="creators-enhanced" options={{ href: null }} />
-      <Tabs.Screen name="fans-enhanced" options={{ href: null }} />
-      <Tabs.Screen name="alerts-enhanced" options={{ href: null }} />
-      <Tabs.Screen name="trends-enhanced" options={{ href: null }} />
-      <Tabs.Screen name="history-enhanced" options={{ href: null }} />
+      {/* God Tier dev observability screen */}
       <Tabs.Screen name="god-tier-metrics" options={{ href: null }} />
 
       {/* Settings Tab */}

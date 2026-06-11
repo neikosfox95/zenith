@@ -7,7 +7,12 @@ import crypto from 'crypto';
 
 class CacheManager {
   constructor(redisUrl = 'redis://localhost:6379') {
-    this.redis = new Redis(redisUrl);
+    this.redis = new Redis(redisUrl, {
+      lazyConnect: true,
+      enableOfflineQueue: false,
+      maxRetriesPerRequest: 0,
+      retryStrategy: () => null,
+    });
     this.memoryCache = new Map();
     this.memoryCacheMaxSize = 1000;
     this.isConnected = false;
@@ -17,9 +22,13 @@ class CacheManager {
       console.log('✅ Cache Manager connected to Redis');
     });
 
-    this.redis.on('error', (err) => {
-      console.error('❌ Cache Manager Redis error:', err);
+    this.redis.on('error', () => {
+      // Redis optional - fall back to in-memory cache silently
       this.isConnected = false;
+    });
+
+    this.redis.connect().catch(() => {
+      console.warn('⚠️ Cache Manager: Redis unavailable, using in-memory cache only');
     });
   }
 

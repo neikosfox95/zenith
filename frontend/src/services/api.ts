@@ -28,8 +28,10 @@ export const creatorsAPI = {
     return response.data;
   },
   getCreators: async () => {
-    const response = await api.get('/creators');
-    return response.data;
+    const response = await api.get('/creators/list');
+    const creators = response.data?.creators || [];
+    // Normalize: legacy screens expect `tiktok_username`
+    return creators.map((c: any) => ({ ...c, tiktok_username: c.tiktok_username || c.username }));
   },
   deleteCreator: async (creatorId: string) => {
     const response = await api.delete(`/creators/${creatorId}`);

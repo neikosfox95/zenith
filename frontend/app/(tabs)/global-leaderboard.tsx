@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Image, TouchableOpacity, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,10 +7,22 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { TikTokTheme } from '../../theme/TikTokTheme';
+import { GodTierErrorBoundary, performanceMonitor, analyticsTracker } from '../../src/utils/GodTierFramework';
+import { GodTierMetricsBadge } from '../../src/components/GodTierMetricsBadge';
+import { useNetwork } from '../../src/hooks/GodTierHooks';
 
 const { width } = Dimensions.get('window');
 
-export default function GlobalLeaderboardScreen() {
+function GlobalLeaderboardScreenContent() {
+  // God Tier: Network detection
+  const { isConnected } = useNetwork();
+
+  // God Tier: Performance monitoring & screen analytics
+  useEffect(() => {
+    const stopTimer = performanceMonitor.startTimer('global_leaderboard_screen');
+    analyticsTracker.screenView('global_leaderboard');
+    return () => stopTimer();
+  }, []);
   const [refreshing, setRefreshing] = useState(false);
   const [timeframe, setTimeframe] = useState('week');
   const [topCreators] = useState([
@@ -72,6 +84,7 @@ export default function GlobalLeaderboardScreen() {
   ]);
 
   const handleRefresh = async () => {
+    analyticsTracker.buttonClick('refresh_global_leaderboard');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRefreshing(true);
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -100,6 +113,13 @@ export default function GlobalLeaderboardScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Offline Banner */}
+      {!isConnected && (
+        <Animated.View entering={FadeInDown} style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline" size={16} color={TikTokTheme.colors.background.primary} />
+          <Text style={styles.offlineText}>Offline Mode - Live data paused</Text>
+        </Animated.View>
+      )}
       <View style={styles.heroContainer}>
         <Image
           source={{ uri: 'https://images.unsplash.com/photo-1615507184109-662bbacd09cb?w=800&q=80' }}
@@ -135,8 +155,10 @@ export default function GlobalLeaderboardScreen() {
           {['today', 'week', 'month', 'all'].map((tf) => (
             <TouchableOpacity
               key={tf}
+              testID={`global-leaderboard-timeframe-${tf}`}
               style={[styles.timeframeChip, timeframe === tf && styles.timeframeActive]}
               onPress={() => {
+                analyticsTracker.buttonClick('global_leaderboard_timeframe', { timeframe: tf });
                 setTimeframe(tf);
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               }}
@@ -200,8 +222,12 @@ export default function GlobalLeaderboardScreen() {
         {topCreators.map((creator, index) => (
           <Animated.View key={creator.rank} entering={FadeInDown.delay(550 + index * 50)}>
             <TouchableOpacity 
+              testID={`global-leaderboard-creator-${creator.rank}`}
               style={styles.creatorCard}
-              onPress={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+              onPress={() => {
+                analyticsTracker.buttonClick('global_leaderboard_creator_open', { creator: creator.username });
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
               activeOpacity={0.8}
             >
               <Image
@@ -263,6 +289,8 @@ export default function GlobalLeaderboardScreen() {
 }
 
 const styles = StyleSheet.create({
+  offlineBanner: { backgroundColor: TikTokTheme.colors.status.warning, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, gap: 8 },
+  offlineText: { fontSize: 12, fontWeight: '600', color: TikTokTheme.colors.background.primary },
   container: { flex: 1, backgroundColor: TikTokTheme.colors.background.primary },
   heroContainer: { height: 160, position: 'relative' },
   heroBackground: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
@@ -309,3 +337,12 @@ const styles = StyleSheet.create({
   revenueValue: { fontSize: 18, fontWeight: '900', color: '#10B981', marginBottom: 2 },
   revenueLabel: { fontSize: 10, color: TikTokTheme.colors.text.muted },
 });
+
+export default function GlobalLeaderboardScreen() {
+  return (
+    <GodTierErrorBoundary>
+      <GlobalLeaderboardScreenContent />
+      <GodTierMetricsBadge />
+    </GodTierErrorBoundary>
+  );
+}

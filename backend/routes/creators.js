@@ -1,11 +1,11 @@
 // ============================================================
-// CREATOR MANAGEMENT API ROUTES
+// CREATOR MANAGEMENT API ROUTES (MongoDB-backed)
 // Manage multiple TikTok creators for monitoring
 // ============================================================
 
 import express from 'express';
-import { query } from '../lib/database.js';
 import axios from 'axios';
+import { getDb } from '../lib/mongo.js';
 
 const router = express.Router();
 
@@ -26,30 +26,26 @@ router.post('/add', async (req, res) => {
       });
     }
 
-    // Check if creator already exists in database
-    const existingCreator = await query(`
-      SELECT * FROM creators WHERE username = $1
-    `, [username]);
+    const db = await getDb();
 
-    if (existingCreator.rows.length > 0) {
-      const creator = existingCreator.rows[0];
-      
+    // Check if creator already exists in database
+    const existing = await db.collection('tracked_creators').findOne({ username });
+
+    if (existing) {
       // If already tracking, return existing
-      if (creator.tracking_status === 'active') {
+      if (existing.tracking_status === 'active') {
         return res.status(200).json({
           success: true,
           message: 'Creator already being tracked',
-          creator
+          creator: existing
         });
       }
 
       // Reactivate if was paused
-      await query(`
-        UPDATE creators
-        SET tracking_status = 'active',
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = $1
-      `, [creator.id]);
+      await db.collection('tracked_creators').updateOne(
+        { _id: existing._id },
+        { $set: { tracking_status: 'active', updated_at: new Date() } }
+      );
 
       // Connect to TikTok service
       try {
@@ -62,20 +58,24 @@ router.post('/add', async (req, res) => {
         success: true,
         message: 'Creator reactivated',
         creator: {
-          ...creator,
+          ...existing,
           tracking_status: 'active'
         }
       });
     }
 
     // Create new creator in database
-    const result = await query(`
-      INSERT INTO creators (username, display_name, tracking_status)
-      VALUES ($1, $2, 'active')
-      RETURNING *
-    `, [username, displayName || username]);
-
-    const newCreator = result.rows[0];
+    const doc = {
+      username,
+      display_name: displayName || username,
+      tracking_status: 'active',
+      is_live: false,
+      last_live_at: null,
+      created_at: new Date(),
+      updated_at: new Date()
+    };
+    const result = await db.collection('tracked_creators').insertOne(doc);
+    const newCreator = { _id: result.insertedId, ...doc };
 
     // Connect to TikTok service
     try {
@@ -116,27 +116,21 @@ router.post('/remove', async (req, res) => {
       });
     }
 
-    // Check if creator exists
-    const result = await query(`
-      SELECT * FROM creators WHERE username = $1
-    `, [username]);
+    const db = await getDb();
 
-    if (result.rows.length === 0) {
+    const creator = await db.collection('tracked_creators').findOne({ username });
+    if (!creator) {
       return res.status(404).json({
         success: false,
         error: 'Creator not found'
       });
     }
 
-    const creator = result.rows[0];
-
     // Update status to stopped (don't delete - keep historical data)
-    await query(`
-      UPDATE creators
-      SET tracking_status = 'stopped',
-          updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1
-    `, [creator.id]);
+    await db.collection('tracked_creators').updateOne(
+      { _id: creator._id },
+      { $set: { tracking_status: 'stopped', updated_at: new Date() } }
+    );
 
     // Disconnect from TikTok service
     try {
@@ -179,16 +173,15 @@ router.post('/pause', async (req, res) => {
       });
     }
 
-    // Update status to paused
-    const result = await query(`
-      UPDATE creators
-      SET tracking_status = 'paused',
-          updated_at = CURRENT_TIMESTAMP
-      WHERE username = $1
-      RETURNING *
-    `, [username]);
+    const db = await getDb();
 
-    if (result.rows.length === 0) {
+    const result = await db.collection('tracked_creators').findOneAndUpdate(
+      { username },
+      { $set: { tracking_status: 'paused', updated_at: new Date() } },
+      { returnDocument: 'after' }
+    );
+
+    if (!result) {
       return res.status(404).json({
         success: false,
         error: 'Creator not found'
@@ -205,7 +198,7 @@ router.post('/pause', async (req, res) => {
     res.json({
       success: true,
       message: 'Creator tracking paused',
-      creator: result.rows[0]
+      creator: result
     });
 
   } catch (error) {
@@ -224,30 +217,26 @@ router.post('/pause', async (req, res) => {
 router.get('/list', async (req, res) => {
   try {
     const { status } = req.query; // Filter by status: active, paused, stopped
+    const db = await getDb();
 
-    let sql = 'SELECT * FROM creators';
-    const params = [];
+    const filter = status ? { tracking_status: status } : {};
 
-    if (status) {
-      sql += ' WHERE tracking_status = $1';
-      params.push(status);
-    }
-
-    sql += ' ORDER BY last_live_at DESC NULLS LAST, created_at DESC';
-
-    const result = await query(sql, params);
+    const rows = await db.collection('tracked_creators')
+      .find(filter)
+      .sort({ last_live_at: -1, created_at: -1 })
+      .toArray();
 
     // Get TikTok service connection status for each creator
     let tiktokConnections = [];
     try {
-      const response = await axios.get(`${TIKTOK_SERVICE_URL}/connections`);
+      const response = await axios.get(`${TIKTOK_SERVICE_URL}/connections`, { timeout: 2000 });
       tiktokConnections = response.data.connections || [];
     } catch (error) {
-      console.error('[Creator Management] Failed to get TikTok connections:', error.message);
+      // TikTok service optional in preview environment
     }
 
     // Merge database data with connection status
-    const creators = result.rows.map(creator => {
+    const creators = rows.map(creator => {
       const connection = tiktokConnections.find(c => c.username === creator.username);
       return {
         ...creator,
@@ -281,24 +270,20 @@ router.get('/list', async (req, res) => {
 router.get('/:username', async (req, res) => {
   try {
     const { username } = req.params;
+    const db = await getDb();
 
-    const result = await query(`
-      SELECT * FROM creators WHERE username = $1
-    `, [username]);
-
-    if (result.rows.length === 0) {
+    const creator = await db.collection('tracked_creators').findOne({ username });
+    if (!creator) {
       return res.status(404).json({
         success: false,
         error: 'Creator not found'
       });
     }
 
-    const creator = result.rows[0];
-
     // Get TikTok service connection status
     let connectionStatus = null;
     try {
-      const response = await axios.get(`${TIKTOK_SERVICE_URL}/stats/${username}`);
+      const response = await axios.get(`${TIKTOK_SERVICE_URL}/stats/${username}`, { timeout: 2000 });
       connectionStatus = response.data;
     } catch (error) {
       // Not connected or not found
@@ -344,30 +329,34 @@ router.post('/bulk-add', async (req, res) => {
       });
     }
 
+    const db = await getDb();
     const results = [];
 
     for (const username of usernames) {
       try {
         // Check if exists
-        const existing = await query(`
-          SELECT * FROM creators WHERE username = $1
-        `, [username]);
+        const existing = await db.collection('tracked_creators').findOne({ username });
 
-        if (existing.rows.length > 0) {
+        if (existing) {
           results.push({
             username,
             status: 'already_exists',
-            creator: existing.rows[0]
+            creator: existing
           });
           continue;
         }
 
         // Create new creator
-        const result = await query(`
-          INSERT INTO creators (username, tracking_status)
-          VALUES ($1, 'active')
-          RETURNING *
-        `, [username]);
+        const doc = {
+          username,
+          display_name: username,
+          tracking_status: 'active',
+          is_live: false,
+          last_live_at: null,
+          created_at: new Date(),
+          updated_at: new Date()
+        };
+        const inserted = await db.collection('tracked_creators').insertOne(doc);
 
         // Connect to TikTok service
         try {
@@ -379,7 +368,7 @@ router.post('/bulk-add', async (req, res) => {
         results.push({
           username,
           status: 'added',
-          creator: result.rows[0]
+          creator: { _id: inserted.insertedId, ...doc }
         });
 
       } catch (error) {

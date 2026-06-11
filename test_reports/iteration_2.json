@@ -1,0 +1,41 @@
+{
+  "summary": "Combo (A+B+C+D) regression complete. Backend: 13/13 pytest cases PASS against MongoDB-backed routes (/api/creators/list, /api/creators/add, /api/creators/:username, /api/creators/remove, /api/analytics/status, /api/analytics/creators, /api/analytics/creator/darkskully + /events + /top-gifters + /recent-gifts + /viewer-trends + /streams, 404 path). Seeded creators darkskully & streamerqueen present; 8 events for darkskully; 404 on nonexistent works. Frontend (mobile viewport 390x844): 19 of 20 swapped+Batch-3 routes render the God Tier enhanced screens correctly with the floating cyan [data-testid='god-tier-metrics-badge'] visible. Badge click on /battles successfully navigates to /god-tier-metrics (hero 'God Tier Metrics' rendered, badge correctly hidden on that screen). Interactions verified: battles-filter-active filters list (Active tab keeps 2 LIVE battles), battle-history-search-input narrows the list (@ tokens went 9 -> 3 when searching 'darkskully'), global-leaderboard-timeframe-month toggles to cyan active state. /fans now shows real backend chips @darkskully and @streamerqueen pulled from /api/creators/list. CRITICAL FRONTEND BUG: /dashboard hard-crashes inside GodTierErrorBoundary with 'Cannot read properties of undefined (reading toLocaleString)' because dashboard.tsx:217 reads displayStats.total_viewers but the /api/analytics/status endpoint only returns {eventsProcessed,lastProcessedAt,errors,isRunning} - no total_viewers/live_now fields. MINOR: /analytics logs 'analyticsAPI.getTopGifters is not a function' (and getRevenueHistory) - these methods are missing from /app/frontend/src/services/api.ts but the screen survives and shows zeros. Trends screen renders but emits SVG negative-width warnings (viewBox '0 0 -64 200') from chart sizing.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "dashboard.tsx", "issue": "Crashes inside GodTierErrorBoundary: TypeError 'Cannot read properties of undefined (reading toLocaleString)' at line 217. displayStats falls back to apiStats from /api/analytics/status whose shape is {success, stats:{eventsProcessed,lastProcessedAt,errors,isRunning}} - it has no .total_viewers / .live_now. Need to either (a) point useApiCall at a real summary endpoint that returns total_viewers/live_now, or (b) optional-chain & default: `(displayStats?.total_viewers ?? 0).toLocaleString()` and `displayStats?.live_now ?? 0`. Reference: /app/frontend/app/(tabs)/dashboard.tsx:217,230", "testID": "dashboard (screen unreachable)", "priority": "CRITICAL"},
+      {"component": "analytics.tsx", "issue": "Calls analyticsAPI.getTopGifters(10) and analyticsAPI.getRevenueHistory(7) but neither method is exported from /app/frontend/src/services/api.ts (only getStreamAnalytics, getActivityFeed, getStreamMilestones, getCreatorMilestones, getFollowerGrowth, getRevenueAnalytics, getCoinAnalytics, getChatAnalytics, getHistoricalData defined). Screen does not crash thanks to try/catch but always shows $0/0/0. Reference: /app/frontend/app/(tabs)/analytics.tsx:68-69 vs /app/frontend/src/services/api.ts:101-144", "testID": "analytics-* (data zeroed)", "priority": "HIGH"},
+      {"component": "trends.tsx svg chart", "issue": "Console warnings 'svg attribute width: A negative value is not valid (-64)' and 'viewBox 0 0 -64 200' - chart computes negative dimensions on narrow mobile width. Visual still renders but indicates a sizing bug. Reference: /app/frontend/app/(tabs)/trends.tsx (chart width calc)", "testID": "trends-*", "priority": "LOW"}
+    ],
+    "integration_issues": [
+      {"flow": "dashboard -> /api/analytics/status", "issue": "Frontend expects total_viewers/live_now in the response; backend status route returns only engine metadata. Either expand the backend payload or change the frontend to a different summary endpoint.", "affected_testIDs": ["dashboard"]},
+      {"flow": "fans -> /api/creators (legacy JWT route)", "issue": "Returns 401 in preview as documented; screen handles gracefully and the new public /api/creators/list chips render (@darkskully, @streamerqueen). No action needed (expected behavior)", "affected_testIDs": ["fans"]}
+    ],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "react-native-web style deprecations", "issue": "Expo logs warn 'shadow* style props are deprecated. Use boxShadow' and 'textShadow* deprecated. Use textShadow' and 'props.pointerEvents is deprecated, use style.pointerEvents'. Cosmetic on web but should be migrated across the theme/components."}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/backend_test.py", "/app/test_reports/pytest/pytest_results.xml", "/app/test_reports/iteration_2.json"],
+  "action_items": [
+    "FIX dashboard.tsx crash: optional-chain displayStats?.total_viewers ?? 0 and displayStats?.live_now ?? 0 (lines 217 & 230) OR swap the useApiCall URL from /api/analytics/status to a real summary endpoint that returns those fields.",
+    "ADD missing analyticsAPI.getTopGifters and analyticsAPI.getRevenueHistory methods to /app/frontend/src/services/api.ts (or update analytics.tsx to call the working Mongo endpoints /api/analytics/creator/:id/top-gifters and a per-creator viewer-trends/revenue feed).",
+    "INVESTIGATE trends.tsx negative chart width (likely Dimensions.get('window').width - padding producing -64 on narrow mobile)."
+  ],
+  "critical_code_review_comments": [
+    "dashboard.tsx relies on a heterogenous fallback chain `!isConnected && cachedStats ? cachedStats : (apiStats || stats)` but never asserts the shape - a single endpoint shape change crashed the whole screen. Defensive defaulting (??) should be standard for any displayStats.* access.",
+    "analyticsAPI surface drifted from screen usage - API service file needs a consolidation pass against the actual MongoDB analytics endpoints (top-gifters, recent-gifts, viewer-trends, streams).",
+    "All 19 surviving screens consistently expose testIDs for filter chips / search inputs / badge / cards - good coverage for downstream testing.",
+    "GodTierMetricsBadge correctly hides on /god-tier-metrics via usePathname and pushes the route on press - validated in browser."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (13/13 pytest)", "frontend": "95% (19/20 routes; dashboard crashes)"},
+  "seed_data_creation": "None (seed_analytics.js is idempotent and already ran).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "After main agent fixes dashboard.tsx toLocaleString crash, retest only /dashboard (verify no 'Something went wrong', verify displayStats numbers render and [data-testid='god-tier-metrics-badge'] visible). Optionally retest /analytics if main agent wires up real top-gifters/revenue-history endpoints. Backend regression file /app/backend/tests/backend_test.py is reusable - it expects MongoDB seeded data and uses BASE_URL from EXPO_PUBLIC_BACKEND_URL.",
+  "rca_of_issue": "dashboard.tsx defines `const displayStats = !isConnected && cachedStats ? cachedStats : (apiStats || stats);`. apiStats originates from useApiCall against /api/analytics/status which returns `{success:true, stats:{eventsProcessed,lastProcessedAt,errors,isRunning}}`. The actual `stats` object the screen needs comes from useDashboard() but apiStats truthy-falls-through wins. When rendering line 217 reads `displayStats.total_viewers.toLocaleString()`. total_viewers is undefined -> TypeError -> caught by GodTierErrorBoundary which renders 'Something went wrong'. Reproduction: navigate to /dashboard, see error boundary screen. Mitigation: change line 217/230 to `(displayStats?.total_viewers ?? 0).toLocaleString()` / `displayStats?.live_now ?? 0`, or change the useApiCall URL to the dashboard summary endpoint that actually returns those fields."
+}

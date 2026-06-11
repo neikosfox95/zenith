@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,10 +7,22 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeIn, FadeInLeft } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { TikTokTheme } from '../../theme/TikTokTheme';
+import { GodTierErrorBoundary, performanceMonitor, analyticsTracker } from '../../src/utils/GodTierFramework';
+import { GodTierMetricsBadge } from '../../src/components/GodTierMetricsBadge';
+import { useNetwork } from '../../src/hooks/GodTierHooks';
 
 const { width } = Dimensions.get('window');
 
-export default function FanActivitiesScreen() {
+function FanActivitiesScreenContent() {
+  // God Tier: Network detection
+  const { isConnected } = useNetwork();
+
+  // God Tier: Performance monitoring & screen analytics
+  useEffect(() => {
+    const stopTimer = performanceMonitor.startTimer('fan_activities_screen');
+    analyticsTracker.screenView('fan_activities');
+    return () => stopTimer();
+  }, []);
   const [refreshing, setRefreshing] = useState(false);
   const [activities] = useState([
     { id: 1, type: 'gift', user: '@superfan123', action: 'sent 1000 diamonds', time: new Date(Date.now() - 1000 * 60 * 5), icon: 'gift', color: '#FFD700' },
@@ -24,6 +36,7 @@ export default function FanActivitiesScreen() {
   ]);
 
   const handleRefresh = async () => {
+    analyticsTracker.buttonClick('refresh_fan_activities');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRefreshing(true);
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -41,6 +54,13 @@ export default function FanActivitiesScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Offline Banner */}
+      {!isConnected && (
+        <Animated.View entering={FadeInDown} style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline" size={16} color={TikTokTheme.colors.background.primary} />
+          <Text style={styles.offlineText}>Offline Mode - Live data paused</Text>
+        </Animated.View>
+      )}
       <View style={styles.heroContainer}>
         <Image
           source={{ uri: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80' }}
@@ -101,6 +121,8 @@ export default function FanActivitiesScreen() {
 }
 
 const styles = StyleSheet.create({
+  offlineBanner: { backgroundColor: TikTokTheme.colors.status.warning, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, gap: 8 },
+  offlineText: { fontSize: 12, fontWeight: '600', color: TikTokTheme.colors.background.primary },
   container: { flex: 1, backgroundColor: TikTokTheme.colors.background.primary },
   heroContainer: { height: 160, position: 'relative' },
   heroBackground: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
@@ -122,3 +144,12 @@ const styles = StyleSheet.create({
   activityTime: { fontSize: 11, color: TikTokTheme.colors.text.muted },
   timelineConnector: { position: 'absolute', left: 35, top: 72, width: 2, height: 16, backgroundColor: 'rgba(0, 242, 234, 0.3)' },
 });
+
+export default function FanActivitiesScreen() {
+  return (
+    <GodTierErrorBoundary>
+      <FanActivitiesScreenContent />
+      <GodTierMetricsBadge />
+    </GodTierErrorBoundary>
+  );
+}

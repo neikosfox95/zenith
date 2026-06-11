@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Image, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Image, TouchableOpacity, Dimensions, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeIn, FadeInUp } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { GodTierErrorBoundary, performanceMonitor, analyticsTracker } from '../../src/utils/GodTierFramework';
+import { GodTierMetricsBadge } from '../../src/components/GodTierMetricsBadge';
+import { useApiCall, useNetwork, useLocalStorage, useResponsive } from '../../src/hooks/GodTierHooks';
 import { useDashboard } from '../../src/hooks/realtime';
 import { useDashboardStore } from '../../src/stores/dashboardStore';
 import { useUIStore } from '../../src/stores/uiStore';
@@ -13,22 +16,75 @@ import { TikTokTheme } from '../../theme/TikTokTheme';
 
 const { width, height } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
-export default function DashboardScreen() {
+function DashboardScreenContent() {
   const { stats, creators } = useDashboard();
   const { recentStreams, setRecentStreams } = useDashboardStore();
   const { refreshing, setRefreshing } = useUIStore();
+  const [showQuickActions, setShowQuickActions] = useState(false);
+  
+  // God Tier: Network detection
+  const { isConnected } = useNetwork();
+  
+  // God Tier: Cached dashboard data
+  const [cachedStats, setCachedStats] = useLocalStorage('dashboard_stats', null);
+  const [cachedCreators, setCachedCreators] = useLocalStorage('dashboard_creators', []);
+  
+  // God Tier: Responsive design
+  const { isTablet } = useResponsive();
+
+  // God Tier: API call with caching
+  const { data: apiStats, loading: loadingStats, refetch: refetchStats } = useApiCall({
+    url: `${BACKEND_URL}/api/analytics/status`,
+    cache: true,
+    cacheTTL: 60000, // 1 minute cache
+    onSuccess: (data) => {
+      analyticsTracker.track('dashboard_stats_loaded', { creators: data?.creators || 0 });
+      setCachedStats(data);
+    }
+  });
+
+  // God Tier: Performance monitoring
+  useEffect(() => {
+    const stopTimer = performanceMonitor.startTimer('dashboard_screen');
+    analyticsTracker.screenView('dashboard');
+    
+    return () => {
+      stopTimer();
+    };
+  }, []);
+
+  // Use cached data when offline
+  const displayStats = !isConnected && cachedStats ? cachedStats : (apiStats || stats);
+  const displayCreators = !isConnected && cachedCreators.length > 0 ? cachedCreators : creators;
+
+  // Cache creators when online
+  useEffect(() => {
+    if (isConnected && creators.length > 0) {
+      setCachedCreators(creators);
+    }
+  }, [creators, isConnected]);
 
   useEffect(() => {
     loadDashboardData();
   }, []);
 
   const loadDashboardData = async () => {
-    // TODO: Fetch from API
-    console.log('Loading dashboard data...');
+    const startTimer = performanceMonitor.startTimer('load_dashboard_data');
+    try {
+      console.log('Loading dashboard data...');
+      await refetchStats();
+    } catch (error) {
+      console.error('Dashboard load error:', error);
+      analyticsTracker.track('dashboard_load_failed', { error: String(error) });
+    } finally {
+      startTimer();
+    }
   };
 
   const handleRefresh = async () => {
+    analyticsTracker.buttonClick('refresh_dashboard');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRefreshing(true);
     await loadDashboardData();
@@ -36,12 +92,46 @@ export default function DashboardScreen() {
   };
 
   const handleAddCreator = () => {
+    analyticsTracker.buttonClick('add_creator_button');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     // TODO: Navigate to add creator modal
   };
 
+  const handleExportDashboard = async () => {
+    analyticsTracker.buttonClick('export_dashboard');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
+    const exportData = `
+Dashboard Export
+================
+Total Viewers: ${displayStats.total_viewers}
+Live Now: ${displayStats.live_now}
+Total Revenue: $${(displayStats.total_revenue / 100).toFixed(2)}
+Creators: ${displayCreators.length}
+Exported: ${new Date().toLocaleString()}
+    `.trim();
+    
+    try {
+      await Share.share({
+        message: exportData,
+        title: 'Dashboard Export',
+      });
+      analyticsTracker.track('dashboard_exported');
+    } catch (error) {
+      console.error('Export failed:', error);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Offline Mode Banner */}
+      {!isConnected && (
+        <Animated.View entering={FadeInDown} style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline" size={16} color={TikTokTheme.colors.background.primary} />
+          <Text style={styles.offlineText}>Offline Mode - Showing cached data</Text>
+        </Animated.View>
+      )}
+
       {/* Hero Section with Background Image */}
       <View style={styles.heroContainer}>
         <Image
@@ -61,7 +151,40 @@ export default function DashboardScreen() {
             Track all your creators in real-time
           </Animated.Text>
         </View>
+        
+        {/* Quick Actions Button */}
+        <TouchableOpacity 
+          style={styles.quickActionsButton}
+          onPress={() => {
+            analyticsTracker.buttonClick('quick_actions_toggle');
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setShowQuickActions(!showQuickActions);
+          }}
+        >
+          <Ionicons 
+            name={showQuickActions ? "close" : "ellipsis-horizontal"} 
+            size={24} 
+            color={TikTokTheme.colors.text.primary} 
+          />
+        </TouchableOpacity>
       </View>
+
+      {/* Quick Actions Menu */}
+      {showQuickActions && (
+        <Animated.View entering={FadeInDown} style={styles.quickActionsMenu}>
+          <BlurView intensity={80} style={styles.quickActionsBlur}>
+            <TouchableOpacity style={styles.quickActionItem} onPress={handleExportDashboard}>
+              <Ionicons name="share-outline" size={20} color={TikTokTheme.colors.brand.cyan} />
+              <Text style={styles.quickActionText}>Export Dashboard</Text>
+            </TouchableOpacity>
+            <View style={styles.quickActionDivider} />
+            <TouchableOpacity style={styles.quickActionItem} onPress={handleRefresh}>
+              <Ionicons name="refresh" size={20} color={TikTokTheme.colors.brand.cyan} />
+              <Text style={styles.quickActionText}>Refresh Data</Text>
+            </TouchableOpacity>
+          </BlurView>
+        </Animated.View>
+      )}
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
@@ -75,33 +198,42 @@ export default function DashboardScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Quick Stats Grid */}
+        {/* Quick Stats Grid with Skeleton Loader */}
         <Animated.View entering={FadeInDown.delay(200)} style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <BlurView intensity={40} style={styles.statBlur}>
-              <LinearGradient
-                colors={['rgba(0, 242, 234, 0.15)', 'rgba(0, 242, 234, 0.05)']}
-                style={styles.statGradient}
-              >
-                <Ionicons name="people" size={32} color={TikTokTheme.colors.brand.cyan} />
-                <Text style={styles.statValue}>{stats.total_viewers.toLocaleString()}</Text>
-                <Text style={styles.statLabel}>Total Viewers</Text>
-              </LinearGradient>
-            </BlurView>
-          </View>
+          {loadingStats ? (
+            <>
+              <View style={[styles.statCard, styles.skeleton]} />
+              <View style={[styles.statCard, styles.skeleton]} />
+            </>
+          ) : (
+            <>
+              <View style={styles.statCard}>
+                <BlurView intensity={40} style={styles.statBlur}>
+                  <LinearGradient
+                    colors={['rgba(0, 242, 234, 0.15)', 'rgba(0, 242, 234, 0.05)']}
+                    style={styles.statGradient}
+                  >
+                    <Ionicons name="people" size={32} color={TikTokTheme.colors.brand.cyan} />
+                    <Text style={styles.statValue}>{displayStats.total_viewers.toLocaleString()}</Text>
+                    <Text style={styles.statLabel}>Total Viewers</Text>
+                  </LinearGradient>
+                </BlurView>
+              </View>
 
-          <View style={styles.statCard}>
-            <BlurView intensity={40} style={styles.statBlur}>
-              <LinearGradient
-                colors={['rgba(254, 44, 85, 0.15)', 'rgba(254, 44, 85, 0.05)']}
-                style={styles.statGradient}
-              >
-                <Ionicons name="videocam" size={32} color={TikTokTheme.colors.brand.pink} />
-                <Text style={styles.statValue}>{stats.live_now}</Text>
-                <Text style={styles.statLabel}>Live Now</Text>
-              </LinearGradient>
-            </BlurView>
-          </View>
+              <View style={styles.statCard}>
+                <BlurView intensity={40} style={styles.statBlur}>
+                  <LinearGradient
+                    colors={['rgba(254, 44, 85, 0.15)', 'rgba(254, 44, 85, 0.05)']}
+                    style={styles.statGradient}
+                  >
+                    <Ionicons name="videocam" size={32} color={TikTokTheme.colors.brand.pink} />
+                    <Text style={styles.statValue}>{displayStats.live_now}</Text>
+                    <Text style={styles.statLabel}>Live Now</Text>
+                  </LinearGradient>
+                </BlurView>
+              </View>
+            </>
+          )}
         </Animated.View>
 
         {/* Revenue Card with Chart Background */}
@@ -121,7 +253,7 @@ export default function DashboardScreen() {
                 <View style={styles.revenueTop}>
                   <View>
                     <Text style={styles.revenueLabel}>Total Earnings</Text>
-                    <Text style={styles.revenueValue}>${(stats.total_revenue / 100).toFixed(2)}</Text>
+                    <Text style={styles.revenueValue}>${(displayStats.total_revenue / 100).toFixed(2)}</Text>
                   </View>
                   <View style={styles.revenueTrend}>
                     <Ionicons name="trending-up" size={20} color={TikTokTheme.colors.status.success} />
@@ -131,12 +263,12 @@ export default function DashboardScreen() {
                 <View style={styles.revenueStats}>
                   <View>
                     <Text style={styles.revenueStatLabel}>Gifts Received</Text>
-                    <Text style={styles.revenueStatValue}>{stats.total_gifts}</Text>
+                    <Text style={styles.revenueStatValue}>{displayStats.total_gifts}</Text>
                   </View>
                   <View style={styles.revenueDivider} />
                   <View>
                     <Text style={styles.revenueStatLabel}>Avg. per Stream</Text>
-                    <Text style={styles.revenueStatValue}>${(stats.total_revenue / Math.max(stats.total_streams, 1) / 100).toFixed(2)}</Text>
+                    <Text style={styles.revenueStatValue}>${(displayStats.total_revenue / Math.max(displayStats.total_streams, 1) / 100).toFixed(2)}</Text>
                   </View>
                 </View>
               </LinearGradient>
@@ -153,9 +285,9 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
 
-          {creators.length > 0 ? (
+          {displayCreators.length > 0 ? (
             <View style={styles.creatorsGrid}>
-              {creators.map((creator, index) => (
+              {displayCreators.map((creator, index) => (
                 <Animated.View
                   key={creator.username}
                   entering={FadeInUp.delay(500 + index * 100)}
@@ -212,10 +344,33 @@ export default function DashboardScreen() {
   );
 }
 
+// God Tier Error Boundary Export
+export default function DashboardScreen() {
+  return (
+    <GodTierErrorBoundary>
+      <DashboardScreenContent />
+      <GodTierMetricsBadge />
+    </GodTierErrorBoundary>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: TikTokTheme.colors.background.primary,
+  },
+  offlineBanner: {
+    backgroundColor: TikTokTheme.colors.status.warning,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    gap: 8,
+  },
+  offlineText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: TikTokTheme.colors.background.primary,
   },
   heroContainer: {
     height: 180,
@@ -251,6 +406,47 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
+  quickActionsButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  quickActionsMenu: {
+    marginHorizontal: 16,
+    marginTop: -16,
+    marginBottom: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
+    elevation: 8,
+  },
+  quickActionsBlur: {
+    padding: 4,
+  },
+  quickActionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  quickActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: TikTokTheme.colors.text.primary,
+  },
+  quickActionDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    marginVertical: 4,
+  },
   scrollContent: {
     padding: TikTokTheme.spacing.base,
     paddingBottom: 100,
@@ -259,6 +455,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: TikTokTheme.spacing.base,
     marginBottom: TikTokTheme.spacing.base,
+  },
+  skeleton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   statCard: {
     flex: 1,

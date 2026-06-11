@@ -1,21 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  RefreshControl,
-  Dimensions,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '../../src/contexts/ThemeContext';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { GodTierErrorBoundary, performanceMonitor, analyticsTracker } from '../../src/utils/GodTierFramework';
+import { GodTierMetricsBadge } from '../../src/components/GodTierMetricsBadge';
+import { useNetwork, useLocalStorage } from '../../src/hooks/GodTierHooks';
 import { useSocket } from '../../src/contexts/SocketContext';
 import { creatorsAPI, fansAPI } from '../../src/services/api';
-import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
-
-const { width } = Dimensions.get('window');
+import { TikTokTheme } from '../../theme/TikTokTheme';
 
 interface Fan {
   _id: string;
@@ -56,10 +52,11 @@ interface FanClubStats {
   top_fans: Fan[];
 }
 
-export default function FanClubScreen() {
-  const { theme } = useTheme();
+type TabKey = 'all' | 'super' | 'leaderboard';
+
+function FansScreenContent() {
   const { socket } = useSocket();
-  const [selectedTab, setSelectedTab] = useState<'all' | 'super' | 'leaderboard'>('super');
+  const [selectedTab, setSelectedTab] = useState<TabKey>('super');
   const [creators, setCreators] = useState<Creator[]>([]);
   const [selectedCreator, setSelectedCreator] = useState<string | null>(null);
   const [fans, setFans] = useState<Fan[]>([]);
@@ -68,6 +65,21 @@ export default function FanClubScreen() {
   const [stats, setStats] = useState<FanClubStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // God Tier: Network detection
+  const { isConnected } = useNetwork();
+
+  // God Tier: Cached data for offline support
+  const [cachedStats, setCachedStats] = useLocalStorage<FanClubStats | null>('fans_stats', null);
+  const [cachedSuperFans, setCachedSuperFans] = useLocalStorage<Fan[]>('fans_super', []);
+  const [cachedLeaderboard, setCachedLeaderboard] = useLocalStorage<Fan[]>('fans_leaderboard', []);
+
+  // God Tier: Performance monitoring & screen analytics
+  useEffect(() => {
+    const stopTimer = performanceMonitor.startTimer('fans_screen');
+    analyticsTracker.screenView('fans');
+    return () => stopTimer();
+  }, []);
 
   useEffect(() => {
     loadCreators();
@@ -91,21 +103,43 @@ export default function FanClubScreen() {
     }
   }, [socket]);
 
+  // Cache data when online
+  useEffect(() => {
+    if (isConnected) {
+      if (stats) setCachedStats(stats);
+      if (superFans.length > 0) setCachedSuperFans(superFans);
+      if (leaderboard.length > 0) setCachedLeaderboard(leaderboard);
+    }
+  }, [stats, superFans, leaderboard, isConnected]);
+
+  const displayStats = !isConnected && cachedStats ? cachedStats : stats;
+  const displaySuperFans = !isConnected && cachedSuperFans.length > 0 ? cachedSuperFans : superFans;
+  const displayLeaderboard = !isConnected && cachedLeaderboard.length > 0 ? cachedLeaderboard : leaderboard;
+
   const loadCreators = async () => {
+    const stopTimer = performanceMonitor.startTimer('load_fans_creators');
     try {
       const data = await creatorsAPI.getCreators();
       setCreators(data);
       if (data.length > 0 && !selectedCreator) {
         setSelectedCreator(data[0]._id);
+      } else if (data.length === 0) {
+        setLoading(false);
       }
+      analyticsTracker.track('fans_creators_loaded', { count: data.length });
     } catch (error) {
       console.error('Error loading creators:', error);
+      analyticsTracker.track('fans_creators_load_failed', { error: String(error) });
+      setLoading(false);
+    } finally {
+      stopTimer();
     }
   };
 
   const loadFanData = async () => {
     if (!selectedCreator) return;
 
+    const stopTimer = performanceMonitor.startTimer('load_fan_data');
     try {
       setLoading(true);
       const [fansData, superFansData, leaderboardData, statsData] = await Promise.all([
@@ -119,26 +153,37 @@ export default function FanClubScreen() {
       setSuperFans(superFansData);
       setLeaderboard(leaderboardData);
       setStats(statsData);
+      analyticsTracker.track('fan_data_loaded', { fans: fansData.length });
     } catch (error) {
       console.error('Error loading fan data:', error);
+      analyticsTracker.track('fan_data_load_failed', { error: String(error) });
     } finally {
       setLoading(false);
+      stopTimer();
     }
   };
 
   const handleRefresh = async () => {
+    analyticsTracker.buttonClick('refresh_fans');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRefreshing(true);
     await loadFanData();
     setRefreshing(false);
   };
 
+  const handleTabChange = (tab: TabKey) => {
+    analyticsTracker.buttonClick('fans_tab_change', { tab });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedTab(tab);
+  };
+
   const handleFanTierUpgrade = (event: any) => {
-    console.log('Fan tier upgrade:', event);
+    analyticsTracker.track('fan_tier_upgrade_received', event);
     loadFanData();
   };
 
   const handleBadgeEarned = (event: any) => {
-    console.log('Badge earned:', event);
+    analyticsTracker.track('badge_earned_received', event);
     loadFanData();
   };
 
@@ -160,122 +205,118 @@ export default function FanClubScreen() {
   };
 
   const renderFanCard = (fan: Fan, rank?: number) => (
-    <TouchableOpacity
-      key={fan._id}
-      style={[styles.fanCard, { backgroundColor: theme.card }]}
-    >
-      <View style={styles.fanHeader}>
-        {rank && (
-          <View style={styles.rankBadge}>
-            <Text style={styles.rankText}>#{rank}</Text>
-          </View>
-        )}
-        <View style={styles.fanAvatar}>
-          <Text style={styles.avatarEmoji}>{getTierIcon(fan.tier)}</Text>
-        </View>
-        <View style={styles.fanInfo}>
-          <Text style={[styles.fanName, { color: theme.text }]} numberOfLines={1}>
-            {fan.nickname || fan.username}
-          </Text>
-          <Text style={[styles.fanUsername, { color: theme.textSecondary }]} numberOfLines={1}>
-            @{fan.username}
-          </Text>
-        </View>
-        <View style={[styles.tierBadge, { backgroundColor: fan.tier_info.color + '20' }]}>
-          <Text style={[styles.tierText, { color: fan.tier_info.color }]}>
-            {fan.tier_info.name}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.fanStats}>
-        <View style={styles.statItem}>
-          <Ionicons name="diamond" size={16} color="#9C27B0" />
-          <Text style={[styles.statValue, { color: theme.text }]}>
-            {formatNumber(fan.total_diamonds)}
-          </Text>
-          <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Diamonds</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Ionicons name="gift" size={16} color="#FF9800" />
-          <Text style={[styles.statValue, { color: theme.text }]}>
-            {fan.total_gifts}
-          </Text>
-          <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Gifts</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Ionicons name="chatbubble" size={16} color="#4CAF50" />
-          <Text style={[styles.statValue, { color: theme.text }]}>
-            {fan.chat_count}
-          </Text>
-          <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Chats</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Ionicons name="eye" size={16} color="#2196F3" />
-          <Text style={[styles.statValue, { color: theme.text }]}>
-            {fan.stream_joins}
-          </Text>
-          <Text style={[styles.statLabel, { color: theme.textSecondary }]}>Streams</Text>
-        </View>
-      </View>
-
-      {fan.badges && fan.badges.length > 0 && (
-        <View style={styles.badgesContainer}>
-          <Text style={[styles.badgesTitle, { color: theme.textSecondary }]}>Badges:</Text>
-          <View style={styles.badgesList}>
-            {fan.badges.slice(0, 5).map((badge) => (
-              <View key={badge.id} style={[styles.badge, { backgroundColor: theme.surface }]}>
-                <Text style={styles.badgeIcon}>{badge.icon}</Text>
-              </View>
-            ))}
-            {fan.badges.length > 5 && (
-              <View style={[styles.badge, { backgroundColor: theme.surface }]}>
-                <Text style={[styles.badgeMore, { color: theme.textSecondary }]}>
-                  +{fan.badges.length - 5}
-                </Text>
+    <View key={fan._id} testID={`fans-card-${fan.username}`} style={styles.fanCard}>
+      <BlurView intensity={40} style={styles.fanBlur}>
+        <View style={styles.fanCardInner}>
+          <View style={styles.fanHeader}>
+            {rank && (
+              <View style={[
+                styles.rankBadge,
+                rank === 1 && styles.rankGold,
+                rank === 2 && styles.rankSilver,
+                rank === 3 && styles.rankBronze,
+              ]}>
+                <Text style={styles.rankText}>#{rank}</Text>
               </View>
             )}
+            <View style={styles.fanAvatar}>
+              <Text style={styles.avatarEmoji}>{getTierIcon(fan.tier)}</Text>
+            </View>
+            <View style={styles.fanInfo}>
+              <Text style={styles.fanName} numberOfLines={1}>
+                {fan.nickname || fan.username}
+              </Text>
+              <Text style={styles.fanUsername} numberOfLines={1}>
+                @{fan.username}
+              </Text>
+            </View>
+            <View style={[styles.tierBadge, { backgroundColor: (fan.tier_info?.color || TikTokTheme.colors.brand.cyan) + '20' }]}>
+              <Text style={[styles.tierText, { color: fan.tier_info?.color || TikTokTheme.colors.brand.cyan }]}>
+                {fan.tier_info?.name || fan.tier}
+              </Text>
+            </View>
           </View>
+
+          <View style={styles.fanStats}>
+            <View style={styles.statItem}>
+              <Ionicons name="diamond" size={16} color="#A855F7" />
+              <Text style={styles.statValue}>{formatNumber(fan.total_diamonds)}</Text>
+              <Text style={styles.statLabel}>Diamonds</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Ionicons name="gift" size={16} color="#FFD700" />
+              <Text style={styles.statValue}>{fan.total_gifts}</Text>
+              <Text style={styles.statLabel}>Gifts</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Ionicons name="chatbubble" size={16} color="#10B981" />
+              <Text style={styles.statValue}>{fan.chat_count}</Text>
+              <Text style={styles.statLabel}>Chats</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Ionicons name="eye" size={16} color={TikTokTheme.colors.brand.cyan} />
+              <Text style={styles.statValue}>{fan.stream_joins}</Text>
+              <Text style={styles.statLabel}>Streams</Text>
+            </View>
+          </View>
+
+          {fan.badges && fan.badges.length > 0 && (
+            <View style={styles.badgesContainer}>
+              <Text style={styles.badgesTitle}>Badges:</Text>
+              <View style={styles.badgesList}>
+                {fan.badges.slice(0, 5).map((badge) => (
+                  <View key={badge.id} style={styles.badge}>
+                    <Text style={styles.badgeIcon}>{badge.icon}</Text>
+                  </View>
+                ))}
+                {fan.badges.length > 5 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeMore}>+{fan.badges.length - 5}</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          )}
         </View>
-      )}
-    </TouchableOpacity>
+      </BlurView>
+    </View>
   );
 
   const renderStatsOverview = () => {
-    if (!stats) return null;
+    if (!displayStats) return null;
 
     return (
-      <View style={styles.statsOverview}>
-        <View style={[styles.statCard, { backgroundColor: theme.card }]}>
-          <Ionicons name="people" size={32} color={theme.primary} />
-          <Text style={[styles.statCardValue, { color: theme.text }]}>
-            {stats.total_fans}
-          </Text>
-          <Text style={[styles.statCardLabel, { color: theme.textSecondary }]}>
-            Total Fans
-          </Text>
+      <Animated.View entering={FadeInDown.delay(300)} style={styles.statsOverview}>
+        <View testID="fans-total-fans-card" style={styles.statCard}>
+          <BlurView intensity={40} style={styles.statCardBlur}>
+            <LinearGradient colors={['rgba(0, 242, 234, 0.15)', 'rgba(0, 242, 234, 0.05)']} style={styles.statCardContent}>
+              <Ionicons name="people" size={28} color={TikTokTheme.colors.brand.cyan} />
+              <Text style={styles.statCardValue}>{displayStats.total_fans}</Text>
+              <Text style={styles.statCardLabel}>Total Fans</Text>
+            </LinearGradient>
+          </BlurView>
         </View>
-        <View style={[styles.statCard, { backgroundColor: theme.card }]}>
-          <Text style={styles.statCardEmoji}>👑</Text>
-          <Text style={[styles.statCardValue, { color: theme.text }]}>
-            {stats.top_fans.length}
-          </Text>
-          <Text style={[styles.statCardLabel, { color: theme.textSecondary }]}>
-            VIP Fans
-          </Text>
+        <View testID="fans-vip-fans-card" style={styles.statCard}>
+          <BlurView intensity={40} style={styles.statCardBlur}>
+            <LinearGradient colors={['rgba(255, 215, 0, 0.15)', 'rgba(255, 215, 0, 0.05)']} style={styles.statCardContent}>
+              <Ionicons name="trophy" size={28} color="#FFD700" />
+              <Text style={styles.statCardValue}>{displayStats.top_fans?.length ?? 0}</Text>
+              <Text style={styles.statCardLabel}>VIP Fans</Text>
+            </LinearGradient>
+          </BlurView>
         </View>
-        <View style={[styles.statCard, { backgroundColor: theme.card }]}>
-          <Ionicons name="diamond" size={32} color="#9C27B0" />
-          <Text style={[styles.statCardValue, { color: theme.text }]}>
-            {formatNumber(
-              stats.tier_distribution.reduce((sum, t) => sum + t.total_diamonds, 0)
-            )}
-          </Text>
-          <Text style={[styles.statCardLabel, { color: theme.textSecondary }]}>
-            Total Diamonds
-          </Text>
+        <View testID="fans-total-diamonds-card" style={styles.statCard}>
+          <BlurView intensity={40} style={styles.statCardBlur}>
+            <LinearGradient colors={['rgba(168, 85, 247, 0.15)', 'rgba(168, 85, 247, 0.05)']} style={styles.statCardContent}>
+              <Ionicons name="diamond" size={28} color="#A855F7" />
+              <Text style={styles.statCardValue}>
+                {formatNumber(displayStats.tier_distribution?.reduce((sum, t) => sum + t.total_diamonds, 0) ?? 0)}
+              </Text>
+              <Text style={styles.statCardLabel}>Total Diamonds</Text>
+            </LinearGradient>
+          </BlurView>
         </View>
-      </View>
+      </Animated.View>
     );
   };
 
@@ -283,82 +324,69 @@ export default function FanClubScreen() {
     if (loading && !refreshing) {
       return (
         <View style={styles.centerContainer}>
-          <Text style={[styles.loadingText, { color: theme.textSecondary }]}>Loading fans...</Text>
+          <Text style={styles.loadingText}>Loading fans...</Text>
         </View>
       );
     }
 
-    if (selectedTab === 'super') {
-      return (
-        <View style={styles.tabContent}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>
-              Super Fans 👑
-            </Text>
-            <Text style={[styles.sectionSubtitle, { color: theme.textSecondary }]}>
-              Your top supporters
-            </Text>
-          </View>
-          {superFans.length > 0 ? (
-            superFans.map((fan) => renderFanCard(fan))
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-                No super fans yet
-              </Text>
-            </View>
-          )}
+    const tabConfig: Record<TabKey, { title: string; subtitle?: string; data: Fan[]; ranked: boolean; empty: string }> = {
+      super: { title: 'Super Fans 👑', subtitle: 'Your top supporters', data: displaySuperFans, ranked: false, empty: 'No super fans yet' },
+      leaderboard: { title: 'Leaderboard 🏆', subtitle: 'Top contributors', data: displayLeaderboard, ranked: true, empty: 'No leaderboard data yet' },
+      all: { title: `All Fans (${fans.length})`, data: fans.slice(0, 50), ranked: false, empty: 'No fans yet' },
+    };
+
+    const config = tabConfig[selectedTab];
+
+    return (
+      <View style={styles.tabContent}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>{config.title}</Text>
+          {config.subtitle && <Text style={styles.sectionSubtitle}>{config.subtitle}</Text>}
         </View>
-      );
-    } else if (selectedTab === 'leaderboard') {
-      return (
-        <View style={styles.tabContent}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>
-              Leaderboard 🏆
-            </Text>
-            <Text style={[styles.sectionSubtitle, { color: theme.textSecondary }]}>
-              Top contributors
-            </Text>
+        {config.data.length > 0 ? (
+          config.data.map((fan, index) => renderFanCard(fan, config.ranked ? index + 1 : undefined))
+        ) : (
+          <View style={styles.emptyState}>
+            <Ionicons name="people-outline" size={48} color={TikTokTheme.colors.text.muted} />
+            <Text style={styles.emptyText}>{config.empty}</Text>
           </View>
-          {leaderboard.length > 0 ? (
-            leaderboard.map((fan, index) => renderFanCard(fan, index + 1))
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-                No leaderboard data yet
-              </Text>
-            </View>
-          )}
-        </View>
-      );
-    } else {
-      return (
-        <View style={styles.tabContent}>
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>
-              All Fans ({fans.length})
-            </Text>
-          </View>
-          {fans.length > 0 ? (
-            fans.slice(0, 50).map((fan) => renderFanCard(fan))
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-                No fans yet
-              </Text>
-            </View>
-          )}
-        </View>
-      );
-    }
+        )}
+      </View>
+    );
   };
 
+  const tabs: Array<{ key: TabKey; label: string }> = [
+    { key: 'super', label: 'Super Fans' },
+    { key: 'leaderboard', label: 'Leaderboard' },
+    { key: 'all', label: 'All Fans' },
+  ];
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: theme.text }]}>Fan Club</Text>
-        <Ionicons name="star" size={28} color={theme.primary} />
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Offline Banner */}
+      {!isConnected && (
+        <Animated.View entering={FadeInDown} style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline" size={16} color={TikTokTheme.colors.background.primary} />
+          <Text style={styles.offlineText}>Offline Mode - Showing cached fan data</Text>
+        </Animated.View>
+      )}
+
+      {/* Hero Section */}
+      <View style={styles.heroContainer}>
+        <Image
+          source={{ uri: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&q=80' }}
+          style={styles.heroBackground}
+          blurRadius={3}
+        />
+        <LinearGradient colors={['rgba(0,0,0,0.4)', 'rgba(0,0,0,0.95)']} style={styles.heroGradient} />
+        <View style={styles.heroContent}>
+          <Animated.Text entering={FadeIn} style={styles.heroTitle}>
+            Fan Club
+          </Animated.Text>
+          <Animated.Text entering={FadeIn.delay(100)} style={styles.heroSubtitle}>
+            {displayStats ? `${displayStats.total_fans} fans tracked` : 'Track your top supporters'}
+          </Animated.Text>
+        </View>
       </View>
 
       {/* Creator Selector */}
@@ -372,21 +400,21 @@ export default function FanClubScreen() {
           {creators.map((creator) => (
             <TouchableOpacity
               key={creator._id}
+              testID={`fans-creator-chip-${creator.tiktok_username}`}
               style={[
                 styles.creatorChip,
-                {
-                  backgroundColor:
-                    selectedCreator === creator._id ? theme.primary : theme.card,
-                },
+                selectedCreator === creator._id && styles.creatorChipActive,
               ]}
-              onPress={() => setSelectedCreator(creator._id)}
+              onPress={() => {
+                analyticsTracker.buttonClick('fans_select_creator', { creator: creator.tiktok_username });
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setSelectedCreator(creator._id);
+              }}
             >
               <Text
                 style={[
                   styles.creatorChipText,
-                  {
-                    color: selectedCreator === creator._id ? '#FFF' : theme.text,
-                  },
+                  selectedCreator === creator._id && styles.creatorChipTextActive,
                 ]}
               >
                 @{creator.tiktok_username}
@@ -401,61 +429,26 @@ export default function FanClubScreen() {
 
       {/* Tab Selector */}
       <View style={styles.tabSelector}>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            selectedTab === 'super' && { borderBottomColor: theme.primary, borderBottomWidth: 3 },
-          ]}
-          onPress={() => setSelectedTab('super')}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              { color: selectedTab === 'super' ? theme.primary : theme.textSecondary },
-            ]}
+        {tabs.map((tab) => (
+          <TouchableOpacity
+            key={tab.key}
+            testID={`fans-tab-${tab.key}`}
+            style={[styles.tab, selectedTab === tab.key && styles.tabActive]}
+            onPress={() => handleTabChange(tab.key)}
           >
-            Super Fans
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            selectedTab === 'leaderboard' && { borderBottomColor: theme.primary, borderBottomWidth: 3 },
-          ]}
-          onPress={() => setSelectedTab('leaderboard')}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              { color: selectedTab === 'leaderboard' ? theme.primary : theme.textSecondary },
-            ]}
-          >
-            Leaderboard
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            selectedTab === 'all' && { borderBottomColor: theme.primary, borderBottomWidth: 3 },
-          ]}
-          onPress={() => setSelectedTab('all')}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              { color: selectedTab === 'all' ? theme.primary : theme.textSecondary },
-            ]}
-          >
-            All Fans
-          </Text>
-        </TouchableOpacity>
+            <Text style={[styles.tabText, selectedTab === tab.key && styles.tabTextActive]}>
+              {tab.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* Content */}
       <ScrollView
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={TikTokTheme.colors.brand.cyan} colors={[TikTokTheme.colors.brand.cyan]} />
         }
       >
         {renderTabContent()}
@@ -464,206 +457,74 @@ export default function FanClubScreen() {
   );
 }
 
+export default function FansScreen() {
+  return (
+    <GodTierErrorBoundary>
+      <FansScreenContent />
+      <GodTierMetricsBadge />
+    </GodTierErrorBoundary>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    paddingBottom: 12,
-  },
-  headerTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-  },
-  creatorSelector: {
-    maxHeight: 60,
-    marginBottom: 16,
-  },
-  creatorSelectorContent: {
-    paddingHorizontal: 20,
-    gap: 8,
-  },
-  creatorChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  creatorChipText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  statsOverview: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 16,
-    gap: 12,
-  },
-  statCard: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  statCardEmoji: {
-    fontSize: 32,
-    marginBottom: 4,
-  },
-  statCardValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 8,
-  },
-  statCardLabel: {
-    fontSize: 11,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  tabSelector: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 16,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  tabContent: {
-    paddingHorizontal: 20,
-  },
-  sectionHeader: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  sectionSubtitle: {
-    fontSize: 14,
-  },
-  fanCard: {
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 12,
-  },
-  fanHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  rankBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FFD700',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  rankText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#000',
-  },
-  fanAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  avatarEmoji: {
-    fontSize: 24,
-  },
-  fanInfo: {
-    flex: 1,
-  },
-  fanName: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  fanUsername: {
-    fontSize: 12,
-  },
-  tierBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  tierText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  fanStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginTop: 4,
-  },
-  statLabel: {
-    fontSize: 10,
-    marginTop: 2,
-  },
-  badgesContainer: {
-    marginTop: 8,
-  },
-  badgesTitle: {
-    fontSize: 12,
-    marginBottom: 8,
-  },
-  badgesList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  badge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  badgeIcon: {
-    fontSize: 16,
-  },
-  badgeMore: {
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
-  },
-  loadingText: {
-    fontSize: 14,
-  },
-  emptyState: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 14,
-  },
+  container: { flex: 1, backgroundColor: TikTokTheme.colors.background.primary },
+  offlineBanner: { backgroundColor: TikTokTheme.colors.status.warning, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, gap: 8 },
+  offlineText: { fontSize: 12, fontWeight: '600', color: TikTokTheme.colors.background.primary },
+  heroContainer: { height: 120, position: 'relative' },
+  heroBackground: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  heroGradient: { ...StyleSheet.absoluteFillObject },
+  heroContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  heroTitle: { fontSize: 28, fontWeight: '900', color: TikTokTheme.colors.text.primary, marginBottom: 4 },
+  heroSubtitle: { fontSize: 14, color: TikTokTheme.colors.text.secondary },
+  creatorSelector: { maxHeight: 52, marginVertical: 12 },
+  creatorSelectorContent: { paddingHorizontal: TikTokTheme.spacing.base, gap: 8 },
+  creatorChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  creatorChipActive: { backgroundColor: TikTokTheme.colors.brand.cyan, borderColor: TikTokTheme.colors.brand.cyan },
+  creatorChipText: { fontSize: 14, fontWeight: '600', color: TikTokTheme.colors.text.primary },
+  creatorChipTextActive: { color: TikTokTheme.colors.background.primary },
+  statsOverview: { flexDirection: 'row', paddingHorizontal: TikTokTheme.spacing.base, marginBottom: 12, gap: 12 },
+  statCard: { flex: 1, height: 110, borderRadius: TikTokTheme.borderRadius.lg, overflow: 'hidden', elevation: 4 },
+  statCardBlur: { flex: 1 },
+  statCardContent: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  statCardValue: { fontSize: 20, fontWeight: '900', color: TikTokTheme.colors.text.primary, marginTop: 6 },
+  statCardLabel: { fontSize: 11, color: TikTokTheme.colors.text.muted, marginTop: 4, textAlign: 'center' },
+  tabSelector: { flexDirection: 'row', paddingHorizontal: TikTokTheme.spacing.base, marginBottom: 12 },
+  tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: 'transparent' },
+  tabActive: { borderBottomColor: TikTokTheme.colors.brand.cyan },
+  tabText: { fontSize: 14, fontWeight: '600', color: TikTokTheme.colors.text.secondary },
+  tabTextActive: { color: TikTokTheme.colors.brand.cyan },
+  tabContent: { paddingHorizontal: TikTokTheme.spacing.base },
+  sectionHeader: { marginBottom: 16 },
+  sectionTitle: { fontSize: 22, fontWeight: '700', color: TikTokTheme.colors.text.primary, marginBottom: 4 },
+  sectionSubtitle: { fontSize: 14, color: TikTokTheme.colors.text.secondary },
+  fanCard: { borderRadius: TikTokTheme.borderRadius.lg, overflow: 'hidden', marginBottom: 12, elevation: 2 },
+  fanBlur: { flex: 1 },
+  fanCardInner: { padding: TikTokTheme.spacing.base, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.1)' },
+  fanHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
+  rankBadge: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255, 255, 255, 0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  rankGold: { backgroundColor: 'rgba(255, 215, 0, 0.4)' },
+  rankSilver: { backgroundColor: 'rgba(192, 192, 192, 0.4)' },
+  rankBronze: { backgroundColor: 'rgba(205, 127, 50, 0.4)' },
+  rankText: { fontSize: 12, fontWeight: '700', color: TikTokTheme.colors.text.primary },
+  fanAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  avatarEmoji: { fontSize: 24 },
+  fanInfo: { flex: 1 },
+  fanName: { fontSize: 16, fontWeight: '600', color: TikTokTheme.colors.text.primary, marginBottom: 2 },
+  fanUsername: { fontSize: 12, color: TikTokTheme.colors.text.secondary },
+  tierBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
+  tierText: { fontSize: 10, fontWeight: '700' },
+  fanStats: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  statItem: { alignItems: 'center', flex: 1 },
+  statValue: { fontSize: 14, fontWeight: '700', color: TikTokTheme.colors.text.primary, marginTop: 4 },
+  statLabel: { fontSize: 10, color: TikTokTheme.colors.text.muted, marginTop: 2 },
+  badgesContainer: { marginTop: 8 },
+  badgesTitle: { fontSize: 12, color: TikTokTheme.colors.text.secondary, marginBottom: 8 },
+  badgesList: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  badge: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255, 255, 255, 0.08)', justifyContent: 'center', alignItems: 'center' },
+  badgeIcon: { fontSize: 16 },
+  badgeMore: { fontSize: 10, fontWeight: '700', color: TikTokTheme.colors.text.secondary },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
+  loadingText: { fontSize: 14, color: TikTokTheme.colors.text.secondary },
+  emptyState: { padding: 40, alignItems: 'center' },
+  emptyText: { fontSize: 14, color: TikTokTheme.colors.text.muted, marginTop: 8 },
 });

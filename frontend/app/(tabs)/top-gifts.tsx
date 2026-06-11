@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Image, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,11 +7,23 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { TikTokTheme } from '../../theme/TikTokTheme';
+import { GodTierErrorBoundary, performanceMonitor, analyticsTracker } from '../../src/utils/GodTierFramework';
+import { GodTierMetricsBadge } from '../../src/components/GodTierMetricsBadge';
+import { useNetwork } from '../../src/hooks/GodTierHooks';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
 
-export default function TopGiftsScreen() {
+function TopGiftsScreenContent() {
+  // God Tier: Network detection
+  const { isConnected } = useNetwork();
+
+  // God Tier: Performance monitoring & screen analytics
+  useEffect(() => {
+    const stopTimer = performanceMonitor.startTimer('top_gifts_screen');
+    analyticsTracker.screenView('top_gifts');
+    return () => stopTimer();
+  }, []);
   const [refreshing, setRefreshing] = useState(false);
   const [gifts] = useState([
     { id: 1, name: 'Diamond', emoji: '💎', value: 10000, count: 890, color: '#00F2EA' },
@@ -23,6 +35,7 @@ export default function TopGiftsScreen() {
   ]);
 
   const handleRefresh = async () => {
+    analyticsTracker.buttonClick('refresh_top_gifts');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRefreshing(true);
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -37,6 +50,13 @@ export default function TopGiftsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Offline Banner */}
+      {!isConnected && (
+        <Animated.View entering={FadeInDown} style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline" size={16} color={TikTokTheme.colors.background.primary} />
+          <Text style={styles.offlineText}>Offline Mode - Live data paused</Text>
+        </Animated.View>
+      )}
       <View style={styles.heroContainer}>
         <Image
           source={{ uri: 'https://images.unsplash.com/photo-1579548122080-c35fd6820ecb?w=800&q=80' }}
@@ -149,6 +169,8 @@ export default function TopGiftsScreen() {
 }
 
 const styles = StyleSheet.create({
+  offlineBanner: { backgroundColor: TikTokTheme.colors.status.warning, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, gap: 8 },
+  offlineText: { fontSize: 12, fontWeight: '600', color: TikTokTheme.colors.background.primary },
   container: { flex: 1, backgroundColor: TikTokTheme.colors.background.primary },
   heroContainer: { height: 160, position: 'relative' },
   heroBackground: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
@@ -184,3 +206,12 @@ const styles = StyleSheet.create({
   giftValue: { fontSize: 20, fontWeight: '900', color: TikTokTheme.colors.brand.cyan, marginBottom: 4 },
   giftCount: { fontSize: 11, color: TikTokTheme.colors.text.secondary },
 });
+
+export default function TopGiftsScreen() {
+  return (
+    <GodTierErrorBoundary>
+      <TopGiftsScreenContent />
+      <GodTierMetricsBadge />
+    </GodTierErrorBoundary>
+  );
+}

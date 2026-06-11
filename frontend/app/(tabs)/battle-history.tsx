@@ -7,10 +7,22 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { TikTokTheme } from '../../theme/TikTokTheme';
+import { GodTierErrorBoundary, performanceMonitor, analyticsTracker } from '../../src/utils/GodTierFramework';
+import { GodTierMetricsBadge } from '../../src/components/GodTierMetricsBadge';
+import { useNetwork } from '../../src/hooks/GodTierHooks';
 
 const { width } = Dimensions.get('window');
 
-export default function BattleHistoryScreen() {
+function BattleHistoryScreenContent() {
+  // God Tier: Network detection
+  const { isConnected } = useNetwork();
+
+  // God Tier: Performance monitoring & screen analytics
+  useEffect(() => {
+    const stopTimer = performanceMonitor.startTimer('battle_history_screen');
+    analyticsTracker.screenView('battle_history');
+    return () => stopTimer();
+  }, []);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [battles, setBattles] = useState([
@@ -20,6 +32,7 @@ export default function BattleHistoryScreen() {
   ]);
 
   const handleRefresh = async () => {
+    analyticsTracker.buttonClick('refresh_battle_history');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRefreshing(true);
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -47,6 +60,13 @@ export default function BattleHistoryScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Offline Banner */}
+      {!isConnected && (
+        <Animated.View entering={FadeInDown} style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline" size={16} color={TikTokTheme.colors.background.primary} />
+          <Text style={styles.offlineText}>Offline Mode - Live data paused</Text>
+        </Animated.View>
+      )}
       <View style={styles.heroContainer}>
         <Image
           source={{ uri: 'https://images.pexels.com/photos/7505924/pexels-photo-7505924.jpeg?w=800&q=80' }}
@@ -83,6 +103,7 @@ export default function BattleHistoryScreen() {
             <View style={styles.searchContent}>
               <Ionicons name="search" size={20} color={TikTokTheme.colors.text.muted} />
               <TextInput
+                testID="battle-history-search-input"
                 style={styles.searchInput}
                 placeholder="Search battles..."
                 placeholderTextColor={TikTokTheme.colors.text.muted}
@@ -90,7 +111,7 @@ export default function BattleHistoryScreen() {
                 onChangeText={setSearchQuery}
               />
               {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <TouchableOpacity testID="battle-history-search-clear" onPress={() => setSearchQuery('')}>
                   <Ionicons name="close-circle" size={20} color={TikTokTheme.colors.text.muted} />
                 </TouchableOpacity>
               )}
@@ -167,6 +188,8 @@ export default function BattleHistoryScreen() {
 }
 
 const styles = StyleSheet.create({
+  offlineBanner: { backgroundColor: TikTokTheme.colors.status.warning, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, gap: 8 },
+  offlineText: { fontSize: 12, fontWeight: '600', color: TikTokTheme.colors.background.primary },
   container: { flex: 1, backgroundColor: TikTokTheme.colors.background.primary },
   heroContainer: { height: 160, position: 'relative' },
   heroBackground: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
@@ -200,3 +223,12 @@ const styles = StyleSheet.create({
   statText: { fontSize: 11, color: TikTokTheme.colors.text.secondary },
   statDivider: { width: 1, height: 12, backgroundColor: 'rgba(255, 255, 255, 0.2)' },
 });
+
+export default function BattleHistoryScreen() {
+  return (
+    <GodTierErrorBoundary>
+      <BattleHistoryScreenContent />
+      <GodTierMetricsBadge />
+    </GodTierErrorBoundary>
+  );
+}

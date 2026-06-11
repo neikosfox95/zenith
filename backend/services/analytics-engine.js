@@ -1,11 +1,9 @@
 // ============================================================
 // ANALYTICS ENGINE - Real-Time TikTok Analytics Processor
-// Processes live events and generates analytics
+// Processes live events and generates analytics (MongoDB-backed)
 // ============================================================
 
-import { query, transaction, healthCheck } from '../lib/database.js';
-// MessageBus is optional - only use if Redis is available
-// import MessageBus from '../lib/message-bus.js';
+import { getDb } from '../lib/mongo.js';
 import cache from '../lib/cache.js';
 
 // MessageBus not available without Redis
@@ -24,15 +22,24 @@ class AnalyticsEngine {
   async start() {
     console.log('🚀 [Analytics Engine] Starting...');
 
-    // Check database health
-    const dbHealth = await healthCheck();
-    if (dbHealth.status === 'healthy') {
-      console.log('✅ [Analytics Engine] PostgreSQL connected');
-    } else {
-      console.warn('⚠️ [Analytics Engine] PostgreSQL unavailable, using MongoDB fallback');
+    try {
+      const db = await getDb();
+      await db.command({ ping: 1 });
+      console.log('✅ [Analytics Engine] MongoDB connected');
+
+      // Ensure indexes
+      await Promise.all([
+        db.collection('tracked_creators').createIndex({ username: 1 }, { unique: true }),
+        db.collection('live_streams').createIndex({ creator_id: 1, status: 1, started_at: -1 }),
+        db.collection('live_events').createIndex({ creator_id: 1, created_at: -1 }),
+        db.collection('gifts_tracking').createIndex({ creator_id: 1, created_at: -1 }),
+        db.collection('viewer_tracking').createIndex({ stream_id: 1, created_at: 1 }),
+        db.collection('top_gifters').createIndex({ creator_id: 1, total_diamonds: -1 }),
+      ]).catch(() => { /* indexes may already exist */ });
+    } catch (error) {
+      console.error('❌ [Analytics Engine] MongoDB unavailable:', error.message);
     }
 
-    // Subscribe to TikTok events
     await this._subscribeToEvents();
 
     this.isRunning = true;
@@ -40,7 +47,6 @@ class AnalyticsEngine {
   }
 
   async _subscribeToEvents() {
-    // Subscribe to all TikTok event types
     const eventTypes = [
       'gift', 'comment', 'like', 'share', 'follow',
       'join', 'member', 'roomUser', 'subscribe', 'envelope',
@@ -56,7 +62,6 @@ class AnalyticsEngine {
       }
       console.log(`📡 [Analytics Engine] Subscribed to ${eventTypes.length} event types`);
     } else {
-      console.warn(`⚠️ [Analytics Engine] MessageBus not available, event subscription skipped`);
       console.log(`📡 [Analytics Engine] Running in standalone mode (${eventTypes.length} event types registered)`);
     }
   }
@@ -96,78 +101,65 @@ class AnalyticsEngine {
 
   async _storeEvent(eventType, data) {
     try {
-      // Get or create creator
+      const db = await getDb();
       const creator = await this._getOrCreateCreator(data.username);
 
-      // Store in PostgreSQL
-      await query(`
-        INSERT INTO live_events (creator_id, event_type, event_data, user_id, username, timestamp)
-        VALUES ($1, $2, $3, $4, $5, $6)
-      `, [
-        creator.id,
-        eventType,
-        JSON.stringify(data),
-        data.userId || null,
-        data.user || data.username,
-        data.timestamp || Date.now()
-      ]);
-
+      await db.collection('live_events').insertOne({
+        creator_id: creator._id,
+        event_type: eventType,
+        event_data: data,
+        user_id: data.userId || null,
+        username: data.user || data.username,
+        timestamp: data.timestamp || Date.now(),
+        created_at: new Date()
+      });
     } catch (error) {
       console.error('[Analytics Engine] Failed to store event:', error.message);
-      // Fallback to MongoDB if PostgreSQL fails
-      // TODO: Add MongoDB fallback
     }
   }
 
   async _processGift(data) {
     try {
+      const db = await getDb();
       const creator = await this._getOrCreateCreator(data.username);
-      const stream = await this._getCurrentStream(creator.id);
+      const stream = await this._getCurrentStream(creator._id);
 
       if (!stream) return;
 
       // Calculate gift value
       const diamondCount = data.diamondCount || 0;
       const coinValue = diamondCount * 2; // 2 coins = 1 diamond
-      const usdValue = (coinValue * 0.0129).toFixed(2); // ~$0.0129 per coin
-      const creatorPayout = (usdValue * 0.5).toFixed(2); // 50% to creator
+      const usdValue = parseFloat((coinValue * 0.0129).toFixed(2)); // ~$0.0129 per coin
+      const creatorPayout = parseFloat((usdValue * 0.5).toFixed(2)); // 50% to creator
 
       // Store gift details
-      await query(`
-        INSERT INTO gifts_tracking (
-          stream_id, creator_id, gift_id, gift_name,
-          sender_username, sender_user_id,
-          repeat_count, diamond_count, coin_value,
-          usd_value, creator_payout, timestamp
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-      `, [
-        stream.id,
-        creator.id,
-        data.giftId,
-        data.giftName,
-        data.user,
-        data.userId,
-        data.repeatCount || 1,
-        diamondCount,
-        coinValue,
-        usdValue,
-        creatorPayout,
-        data.timestamp || Date.now()
-      ]);
+      await db.collection('gifts_tracking').insertOne({
+        stream_id: stream._id,
+        creator_id: creator._id,
+        gift_id: data.giftId,
+        gift_name: data.giftName,
+        sender_username: data.user,
+        sender_user_id: data.userId,
+        repeat_count: data.repeatCount || 1,
+        diamond_count: diamondCount,
+        coin_value: coinValue,
+        usd_value: usdValue,
+        creator_payout: creatorPayout,
+        timestamp: data.timestamp || Date.now(),
+        created_at: new Date()
+      });
 
       // Update stream totals
-      await query(`
-        UPDATE live_streams
-        SET total_gifts = total_gifts + 1,
-            total_diamonds = total_diamonds + $1,
-            revenue_usd = revenue_usd + $2,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = $3
-      `, [diamondCount, creatorPayout, stream.id]);
+      await db.collection('live_streams').updateOne(
+        { _id: stream._id },
+        {
+          $inc: { total_gifts: 1, total_diamonds: diamondCount, revenue_usd: creatorPayout },
+          $set: { updated_at: new Date() }
+        }
+      );
 
       // Update top gifters leaderboard
-      await this._updateTopGifter(creator.id, data.user, data.userId, diamondCount, parseFloat(usdValue));
+      await this._updateTopGifter(creator._id, data.user, data.userId, diamondCount, usdValue);
 
       console.log(`💎 [Analytics] Gift: ${data.giftName} x${data.repeatCount} = $${usdValue} (Creator: $${creatorPayout})`);
 
@@ -178,28 +170,29 @@ class AnalyticsEngine {
 
   async _processViewerCount(data) {
     try {
+      const db = await getDb();
       const creator = await this._getOrCreateCreator(data.username);
-      const stream = await this._getCurrentStream(creator.id);
+      const stream = await this._getCurrentStream(creator._id);
 
       if (!stream) return;
 
       const viewerCount = data.viewerCount || 0;
 
       // Store viewer tracking
-      await query(`
-        INSERT INTO viewer_tracking (stream_id, viewer_count, timestamp)
-        VALUES ($1, $2, $3)
-      `, [stream.id, viewerCount, data.timestamp || Date.now()]);
+      await db.collection('viewer_tracking').insertOne({
+        stream_id: stream._id,
+        viewer_count: viewerCount,
+        timestamp: data.timestamp || Date.now(),
+        created_at: new Date()
+      });
 
       // Update stream peak viewers
-      await query(`
-        UPDATE live_streams
-        SET peak_viewers = GREATEST(peak_viewers, $1),
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = $2
-      `, [viewerCount, stream.id]);
+      await db.collection('live_streams').updateOne(
+        { _id: stream._id },
+        { $max: { peak_viewers: viewerCount }, $set: { updated_at: new Date() } }
+      );
 
-      console.log(`👥 [Analytics] Viewers: ${viewerCount} (Peak: ${Math.max(stream.peak_viewers, viewerCount)})`);
+      console.log(`👥 [Analytics] Viewers: ${viewerCount} (Peak: ${Math.max(stream.peak_viewers || 0, viewerCount)})`);
 
     } catch (error) {
       console.error('[Analytics Engine] Failed to process viewer count:', error.message);
@@ -209,22 +202,27 @@ class AnalyticsEngine {
   async _processConnection(data) {
     try {
       if (data.status === 'connected') {
-        // Start new stream session
+        const db = await getDb();
         const creator = await this._getOrCreateCreator(data.username);
-        
-        await query(`
-          INSERT INTO live_streams (creator_id, started_at, status)
-          VALUES ($1, CURRENT_TIMESTAMP, 'live')
-        `, [creator.id]);
 
-        // Update creator status
-        await query(`
-          UPDATE creators
-          SET is_live = true,
-              last_live_at = CURRENT_TIMESTAMP,
-              updated_at = CURRENT_TIMESTAMP
-          WHERE id = $1
-        `, [creator.id]);
+        await db.collection('live_streams').insertOne({
+          creator_id: creator._id,
+          started_at: new Date(),
+          ended_at: null,
+          duration_seconds: null,
+          status: 'live',
+          total_gifts: 0,
+          total_diamonds: 0,
+          revenue_usd: 0,
+          peak_viewers: 0,
+          created_at: new Date(),
+          updated_at: new Date()
+        });
+
+        await db.collection('tracked_creators').updateOne(
+          { _id: creator._id },
+          { $set: { is_live: true, last_live_at: new Date(), updated_at: new Date() } }
+        );
 
         console.log(`🔴 [Analytics] Stream started for @${data.username}`);
       }
@@ -235,8 +233,9 @@ class AnalyticsEngine {
 
   async _processStreamEnd(data) {
     try {
+      const db = await getDb();
       const creator = await this._getOrCreateCreator(data.username);
-      const stream = await this._getCurrentStream(creator.id);
+      const stream = await this._getCurrentStream(creator._id);
 
       if (!stream) return;
 
@@ -246,27 +245,27 @@ class AnalyticsEngine {
       const durationSeconds = Math.floor((endedAt - startedAt) / 1000);
 
       // End stream session
-      await query(`
-        UPDATE live_streams
-        SET ended_at = $1,
-            duration_seconds = $2,
-            status = 'ended',
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = $3
-      `, [endedAt, durationSeconds, stream.id]);
+      await db.collection('live_streams').updateOne(
+        { _id: stream._id },
+        {
+          $set: {
+            ended_at: endedAt,
+            duration_seconds: durationSeconds,
+            status: 'ended',
+            updated_at: new Date()
+          }
+        }
+      );
 
       // Update creator status
-      await query(`
-        UPDATE creators
-        SET is_live = false,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = $1
-      `, [creator.id]);
+      await db.collection('tracked_creators').updateOne(
+        { _id: creator._id },
+        { $set: { is_live: false, updated_at: new Date() } }
+      );
 
       console.log(`🛑 [Analytics] Stream ended for @${data.username} (Duration: ${Math.floor(durationSeconds / 60)} minutes)`);
 
-      // Generate stream summary
-      await this._generateStreamSummary(stream.id);
+      await this._generateStreamSummary(stream._id);
 
     } catch (error) {
       console.error('[Analytics Engine] Failed to process stream end:', error.message);
@@ -276,42 +275,31 @@ class AnalyticsEngine {
   async _getOrCreateCreator(username) {
     if (!username) throw new Error('Username is required');
 
-    try {
-      // Check if creator exists
-      let result = await query(`
-        SELECT * FROM creators WHERE username = $1
-      `, [username]);
+    const db = await getDb();
+    const existing = await db.collection('tracked_creators').findOne({ username });
+    if (existing) return existing;
 
-      if (result.rows.length > 0) {
-        return result.rows[0];
-      }
-
-      // Create new creator
-      result = await query(`
-        INSERT INTO creators (username, tracking_status)
-        VALUES ($1, 'active')
-        RETURNING *
-      `, [username]);
-
-      console.log(`✨ [Analytics] Created new creator: @${username}`);
-      return result.rows[0];
-
-    } catch (error) {
-      console.error('[Analytics Engine] Failed to get/create creator:', error.message);
-      throw error;
-    }
+    const doc = {
+      username,
+      display_name: username,
+      tracking_status: 'active',
+      is_live: false,
+      last_live_at: null,
+      created_at: new Date(),
+      updated_at: new Date()
+    };
+    const result = await db.collection('tracked_creators').insertOne(doc);
+    console.log(`✨ [Analytics] Created new creator: @${username}`);
+    return { _id: result.insertedId, ...doc };
   }
 
   async _getCurrentStream(creatorId) {
     try {
-      const result = await query(`
-        SELECT * FROM live_streams
-        WHERE creator_id = $1 AND status = 'live'
-        ORDER BY started_at DESC
-        LIMIT 1
-      `, [creatorId]);
-
-      return result.rows[0] || null;
+      const db = await getDb();
+      return await db.collection('live_streams').findOne(
+        { creator_id: creatorId, status: 'live' },
+        { sort: { started_at: -1 } }
+      );
     } catch (error) {
       console.error('[Analytics Engine] Failed to get current stream:', error.message);
       return null;
@@ -320,32 +308,18 @@ class AnalyticsEngine {
 
   async _updateTopGifter(creatorId, username, userId, diamonds, usdValue) {
     try {
-      // Check if gifter exists
-      const result = await query(`
-        SELECT * FROM top_gifters
-        WHERE creator_id = $1 AND username = $2
-      `, [creatorId, username]);
+      const db = await getDb();
 
-      if (result.rows.length > 0) {
-        // Update existing gifter
-        await query(`
-          UPDATE top_gifters
-          SET total_gifts = total_gifts + 1,
-              total_diamonds = total_diamonds + $1,
-              total_spent_usd = total_spent_usd + $2,
-              last_gift_at = CURRENT_TIMESTAMP,
-              updated_at = CURRENT_TIMESTAMP
-          WHERE creator_id = $3 AND username = $4
-        `, [diamonds, usdValue, creatorId, username]);
-      } else {
-        // Create new gifter
-        await query(`
-          INSERT INTO top_gifters (creator_id, username, user_id, total_gifts, total_diamonds, total_spent_usd, last_gift_at)
-          VALUES ($1, $2, $3, 1, $4, $5, CURRENT_TIMESTAMP)
-        `, [creatorId, username, userId, diamonds, usdValue]);
-      }
+      await db.collection('top_gifters').updateOne(
+        { creator_id: creatorId, username },
+        {
+          $inc: { total_gifts: 1, total_diamonds: diamonds, total_spent_usd: usdValue },
+          $set: { last_gift_at: new Date(), updated_at: new Date() },
+          $setOnInsert: { user_id: userId, created_at: new Date() }
+        },
+        { upsert: true }
+      );
 
-      // Update ranks
       await this._updateGifterRanks(creatorId);
 
     } catch (error) {
@@ -355,17 +329,19 @@ class AnalyticsEngine {
 
   async _updateGifterRanks(creatorId) {
     try {
-      await query(`
-        WITH ranked_gifters AS (
-          SELECT id, ROW_NUMBER() OVER (ORDER BY total_diamonds DESC) as new_rank
-          FROM top_gifters
-          WHERE creator_id = $1
-        )
-        UPDATE top_gifters
-        SET rank = ranked_gifters.new_rank
-        FROM ranked_gifters
-        WHERE top_gifters.id = ranked_gifters.id
-      `, [creatorId]);
+      const db = await getDb();
+      const gifters = await db.collection('top_gifters')
+        .find({ creator_id: creatorId })
+        .sort({ total_diamonds: -1 })
+        .toArray();
+
+      const ops = gifters.map((g, index) => ({
+        updateOne: { filter: { _id: g._id }, update: { $set: { rank: index + 1 } } }
+      }));
+
+      if (ops.length > 0) {
+        await db.collection('top_gifters').bulkWrite(ops);
+      }
     } catch (error) {
       console.error('[Analytics Engine] Failed to update gifter ranks:', error.message);
     }
@@ -384,14 +360,9 @@ class AnalyticsEngine {
   async _generateStreamSummary(streamId) {
     try {
       console.log(`📊 [Analytics] Generating summary for stream ${streamId}...`);
-      
-      // Get stream details
-      const streamResult = await query('SELECT * FROM live_streams WHERE id = $1', [streamId]);
-      const stream = streamResult.rows[0];
-
+      const db = await getDb();
+      await db.collection('live_streams').findOne({ _id: streamId });
       // TODO: Generate analytics summary (hourly/daily aggregations)
-      // This will be expanded in future batches
-
       console.log(`✅ [Analytics] Summary generated for stream ${streamId}`);
     } catch (error) {
       console.error('[Analytics Engine] Failed to generate summary:', error.message);

@@ -7,6 +7,9 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeIn, FadeInUp } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { TikTokTheme } from '../../theme/TikTokTheme';
+import { GodTierErrorBoundary, performanceMonitor, analyticsTracker } from '../../src/utils/GodTierFramework';
+import { GodTierMetricsBadge } from '../../src/components/GodTierMetricsBadge';
+import { useNetwork } from '../../src/hooks/GodTierHooks';
 
 const { width } = Dimensions.get('window');
 
@@ -22,7 +25,16 @@ interface Battle {
   endTime?: Date;
 }
 
-export default function BattlesScreen() {
+function BattlesScreenContent() {
+  // God Tier: Network detection
+  const { isConnected } = useNetwork();
+
+  // God Tier: Performance monitoring & screen analytics
+  useEffect(() => {
+    const stopTimer = performanceMonitor.startTimer('battles_screen');
+    analyticsTracker.screenView('battles');
+    return () => stopTimer();
+  }, []);
   const [refreshing, setRefreshing] = useState(false);
   const [battles, setBattles] = useState<Battle[]>([]);
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
@@ -69,6 +81,7 @@ export default function BattlesScreen() {
   };
 
   const handleRefresh = async () => {
+    analyticsTracker.buttonClick('refresh_battles');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setRefreshing(true);
     await loadBattles();
@@ -94,6 +107,13 @@ export default function BattlesScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Offline Banner */}
+      {!isConnected && (
+        <Animated.View entering={FadeInDown} style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline" size={16} color={TikTokTheme.colors.background.primary} />
+          <Text style={styles.offlineText}>Offline Mode - Live data paused</Text>
+        </Animated.View>
+      )}
       {/* Hero Section */}
       <View style={styles.heroContainer}>
         <Image
@@ -164,7 +184,9 @@ export default function BattlesScreen() {
           {(['all', 'active', 'completed'] as const).map((filterType) => (
             <TouchableOpacity
               key={filterType}
+              testID={`battles-filter-${filterType}`}
               onPress={() => {
+                analyticsTracker.buttonClick('battles_filter_change', { filter: filterType });
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 setFilter(filterType);
               }}
@@ -286,6 +308,8 @@ export default function BattlesScreen() {
 }
 
 const styles = StyleSheet.create({
+  offlineBanner: { backgroundColor: TikTokTheme.colors.status.warning, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8, gap: 8 },
+  offlineText: { fontSize: 12, fontWeight: '600', color: TikTokTheme.colors.background.primary },
   container: {
     flex: 1,
     backgroundColor: TikTokTheme.colors.background.primary,
@@ -557,3 +581,12 @@ const styles = StyleSheet.create({
     color: TikTokTheme.colors.text.secondary,
   },
 });
+
+export default function BattlesScreen() {
+  return (
+    <GodTierErrorBoundary>
+      <BattlesScreenContent />
+      <GodTierMetricsBadge />
+    </GodTierErrorBoundary>
+  );
+}

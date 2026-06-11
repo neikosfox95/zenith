@@ -11,7 +11,14 @@ import axios from 'axios';
 import Redis from 'ioredis';
 import { v4 as uuidv4 } from 'uuid';
 
-const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+  lazyConnect: true,
+  enableOfflineQueue: false,
+  maxRetriesPerRequest: 0,
+  retryStrategy: () => null,
+});
+redis.on('error', () => { /* Redis optional in this environment */ });
+redis.connect().catch(() => {});
 
 // Initialize AI clients (with error handling for missing keys)
 let openai, googleAI;

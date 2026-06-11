@@ -1,13 +1,19 @@
 // ============================================================
-// ANALYTICS API ROUTES
+// ANALYTICS API ROUTES (MongoDB-backed)
 // Endpoints for querying analytics data
 // ============================================================
 
 import express from 'express';
-import { query } from '../lib/database.js';
+import { getDb } from '../lib/mongo.js';
 import analyticsEngine from '../services/analytics-engine.js';
 
 const router = express.Router();
+
+// Helper: find a tracked creator by username
+async function findCreator(username) {
+  const db = await getDb();
+  return db.collection('tracked_creators').findOne({ username });
+}
 
 // ============================================================
 // ANALYTICS ENGINE STATUS
@@ -35,47 +41,43 @@ router.get('/status', async (req, res) => {
 router.get('/creator/:username', async (req, res) => {
   try {
     const { username } = req.params;
+    const db = await getDb();
 
-    // Get creator
-    const creatorResult = await query(`
-      SELECT * FROM creators WHERE username = $1
-    `, [username]);
-
-    if (creatorResult.rows.length === 0) {
+    const creator = await findCreator(username);
+    if (!creator) {
       return res.status(404).json({
         success: false,
         error: 'Creator not found'
       });
     }
 
-    const creator = creatorResult.rows[0];
-
     // Get current stream
-    const streamResult = await query(`
-      SELECT * FROM live_streams
-      WHERE creator_id = $1 AND status = 'live'
-      ORDER BY started_at DESC
-      LIMIT 1
-    `, [creator.id]);
-
-    const currentStream = streamResult.rows[0] || null;
+    const currentStream = await db.collection('live_streams').findOne(
+      { creator_id: creator._id, status: 'live' },
+      { sort: { started_at: -1 } }
+    );
 
     // Get stream stats
     let streamStats = null;
     if (currentStream) {
-      const statsResult = await query(`
-        SELECT
-          COUNT(CASE WHEN event_type = 'gift' THEN 1 END) as total_gifts,
-          COUNT(CASE WHEN event_type = 'comment' THEN 1 END) as total_comments,
-          COUNT(CASE WHEN event_type = 'like' THEN 1 END) as total_likes,
-          COUNT(CASE WHEN event_type = 'share' THEN 1 END) as total_shares,
-          COUNT(CASE WHEN event_type = 'follow' THEN 1 END) as total_follows
-        FROM live_events
-        WHERE creator_id = $1
-        AND created_at >= (SELECT started_at FROM live_streams WHERE id = $2)
-      `, [creator.id, currentStream.id]);
+      const counts = await db.collection('live_events').aggregate([
+        {
+          $match: {
+            creator_id: creator._id,
+            created_at: { $gte: new Date(currentStream.started_at) }
+          }
+        },
+        { $group: { _id: '$event_type', count: { $sum: 1 } } }
+      ]).toArray();
 
-      streamStats = statsResult.rows[0];
+      const byType = Object.fromEntries(counts.map(c => [c._id, c.count]));
+      streamStats = {
+        total_gifts: byType.gift || 0,
+        total_comments: byType.comment || 0,
+        total_likes: byType.like || 0,
+        total_shares: byType.share || 0,
+        total_follows: byType.follow || 0
+      };
     }
 
     res.json({
@@ -101,33 +103,25 @@ router.get('/creator/:username/top-gifters', async (req, res) => {
   try {
     const { username } = req.params;
     const limit = parseInt(req.query.limit) || 10;
+    const db = await getDb();
 
-    // Get creator
-    const creatorResult = await query(`
-      SELECT id FROM creators WHERE username = $1
-    `, [username]);
-
-    if (creatorResult.rows.length === 0) {
+    const creator = await findCreator(username);
+    if (!creator) {
       return res.status(404).json({
         success: false,
         error: 'Creator not found'
       });
     }
 
-    const creatorId = creatorResult.rows[0].id;
-
-    // Get top gifters
-    const result = await query(`
-      SELECT *
-      FROM top_gifters
-      WHERE creator_id = $1
-      ORDER BY rank ASC
-      LIMIT $2
-    `, [creatorId, limit]);
+    const topGifters = await db.collection('top_gifters')
+      .find({ creator_id: creator._id })
+      .sort({ rank: 1 })
+      .limit(limit)
+      .toArray();
 
     res.json({
       success: true,
-      topGifters: result.rows
+      topGifters
     });
 
   } catch (error) {
@@ -146,33 +140,25 @@ router.get('/creator/:username/recent-gifts', async (req, res) => {
   try {
     const { username } = req.params;
     const limit = parseInt(req.query.limit) || 20;
+    const db = await getDb();
 
-    // Get creator
-    const creatorResult = await query(`
-      SELECT id FROM creators WHERE username = $1
-    `, [username]);
-
-    if (creatorResult.rows.length === 0) {
+    const creator = await findCreator(username);
+    if (!creator) {
       return res.status(404).json({
         success: false,
         error: 'Creator not found'
       });
     }
 
-    const creatorId = creatorResult.rows[0].id;
-
-    // Get recent gifts
-    const result = await query(`
-      SELECT *
-      FROM gifts_tracking
-      WHERE creator_id = $1
-      ORDER BY created_at DESC
-      LIMIT $2
-    `, [creatorId, limit]);
+    const gifts = await db.collection('gifts_tracking')
+      .find({ creator_id: creator._id })
+      .sort({ created_at: -1 })
+      .limit(limit)
+      .toArray();
 
     res.json({
       success: true,
-      gifts: result.rows
+      gifts
     });
 
   } catch (error) {
@@ -191,34 +177,39 @@ router.get('/creator/:username/viewer-trends', async (req, res) => {
   try {
     const { username } = req.params;
     const hours = parseInt(req.query.hours) || 24;
+    const db = await getDb();
 
-    // Get creator
-    const creatorResult = await query(`
-      SELECT id FROM creators WHERE username = $1
-    `, [username]);
-
-    if (creatorResult.rows.length === 0) {
+    const creator = await findCreator(username);
+    if (!creator) {
       return res.status(404).json({
         success: false,
         error: 'Creator not found'
       });
     }
 
-    const creatorId = creatorResult.rows[0].id;
+    const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
-    // Get viewer trends
-    const result = await query(`
-      SELECT vt.viewer_count, vt.timestamp, ls.id as stream_id
-      FROM viewer_tracking vt
-      JOIN live_streams ls ON vt.stream_id = ls.id
-      WHERE ls.creator_id = $1
-      AND vt.created_at >= NOW() - INTERVAL '${hours} hours'
-      ORDER BY vt.created_at ASC
-    `, [creatorId]);
+    // Join viewer_tracking with this creator's streams
+    const streamIds = await db.collection('live_streams')
+      .find({ creator_id: creator._id })
+      .project({ _id: 1 })
+      .toArray();
+
+    const trends = await db.collection('viewer_tracking')
+      .find({
+        stream_id: { $in: streamIds.map(s => s._id) },
+        created_at: { $gte: since }
+      })
+      .sort({ created_at: 1 })
+      .toArray();
 
     res.json({
       success: true,
-      trends: result.rows
+      trends: trends.map(t => ({
+        viewer_count: t.viewer_count,
+        timestamp: t.timestamp,
+        stream_id: t.stream_id
+      }))
     });
 
   } catch (error) {
@@ -237,33 +228,25 @@ router.get('/creator/:username/streams', async (req, res) => {
   try {
     const { username } = req.params;
     const limit = parseInt(req.query.limit) || 10;
+    const db = await getDb();
 
-    // Get creator
-    const creatorResult = await query(`
-      SELECT id FROM creators WHERE username = $1
-    `, [username]);
-
-    if (creatorResult.rows.length === 0) {
+    const creator = await findCreator(username);
+    if (!creator) {
       return res.status(404).json({
         success: false,
         error: 'Creator not found'
       });
     }
 
-    const creatorId = creatorResult.rows[0].id;
-
-    // Get stream history
-    const result = await query(`
-      SELECT *
-      FROM live_streams
-      WHERE creator_id = $1
-      ORDER BY started_at DESC
-      LIMIT $2
-    `, [creatorId, limit]);
+    const streams = await db.collection('live_streams')
+      .find({ creator_id: creator._id })
+      .sort({ started_at: -1 })
+      .limit(limit)
+      .toArray();
 
     res.json({
       success: true,
-      streams: result.rows
+      streams
     });
 
   } catch (error) {
@@ -283,42 +266,30 @@ router.get('/creator/:username/events', async (req, res) => {
     const { username } = req.params;
     const limit = parseInt(req.query.limit) || 50;
     const eventType = req.query.type;
+    const db = await getDb();
 
-    // Get creator
-    const creatorResult = await query(`
-      SELECT id FROM creators WHERE username = $1
-    `, [username]);
-
-    if (creatorResult.rows.length === 0) {
+    const creator = await findCreator(username);
+    if (!creator) {
       return res.status(404).json({
         success: false,
         error: 'Creator not found'
       });
     }
 
-    const creatorId = creatorResult.rows[0].id;
-
-    // Build query
-    let sql = `
-      SELECT *
-      FROM live_events
-      WHERE creator_id = $1
-    `;
-    const params = [creatorId];
-
+    const filter = { creator_id: creator._id };
     if (eventType) {
-      sql += ` AND event_type = $2`;
-      params.push(eventType);
+      filter.event_type = eventType;
     }
 
-    sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
-    params.push(limit);
-
-    const result = await query(sql, params);
+    const events = await db.collection('live_events')
+      .find(filter)
+      .sort({ created_at: -1 })
+      .limit(limit)
+      .toArray();
 
     res.json({
       success: true,
-      events: result.rows
+      events
     });
 
   } catch (error) {
@@ -335,15 +306,16 @@ router.get('/creator/:username/events', async (req, res) => {
 
 router.get('/creators', async (req, res) => {
   try {
-    const result = await query(`
-      SELECT * FROM creators
-      WHERE tracking_status = 'active'
-      ORDER BY last_live_at DESC NULLS LAST
-    `);
+    const db = await getDb();
+
+    const creators = await db.collection('tracked_creators')
+      .find({ tracking_status: 'active' })
+      .sort({ last_live_at: -1 })
+      .toArray();
 
     res.json({
       success: true,
-      creators: result.rows
+      creators
     });
 
   } catch (error) {
