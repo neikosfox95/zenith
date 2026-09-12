@@ -13,7 +13,7 @@ import { useAnalytics } from '../../src/hooks/realtime';
 import { useAnalyticsStore, type TopGifter, type RevenueData, type AnalyticsSummary } from '../../src/stores/analyticsStore';
 import { useUIStore } from '../../src/stores/uiStore';
 import { TikTokTheme } from '../../theme/TikTokTheme';
-import { analyticsAPI } from '../../src/services/api';
+import { analyticsAPI } from '../../src/services/api/endpoints/analytics';
 import { VictoryLine, VictoryChart, VictoryTheme, VictoryAxis, VictoryArea } from 'victory-native';
 
 // FIX: this screen derived the API base URL locally from
@@ -72,13 +72,22 @@ function AnalyticsScreenContent() {
   const loadAnalytics = async () => {
     const startTimer = performanceMonitor.startTimer('load_analytics');
     try {
-      const [giftersData, revenueData] = await Promise.all([
+      const [summaryData, giftersData, revenueData] = await Promise.all([
+        analyticsAPI.getSummary().catch(() => null),
         analyticsAPI.getTopGifters(10),
         analyticsAPI.getRevenueHistory(7),
       ]);
-      setTopGifters(giftersData);
-      setRevenueHistory(revenueData);
-      analyticsTracker.track('analytics_loaded', { gifters: giftersData.length });
+      if (summaryData) {
+        // Push the authenticated summary into the shared store so the
+        // revenue-trend indicator and metric cards stay in sync with the API.
+        const { setSummary } = useAnalyticsStore.getState();
+        setSummary(summaryData);
+      }
+      setTopGifters(Array.isArray(giftersData) ? giftersData : []);
+      setRevenueHistory(Array.isArray(revenueData) ? revenueData : []);
+      analyticsTracker.track('analytics_loaded', {
+        gifters: Array.isArray(giftersData) ? giftersData.length : 0,
+      });
     } catch (error) {
       console.error('Failed to load analytics:', error);
       analyticsTracker.track('analytics_load_failed', { error: String(error) });
@@ -215,6 +224,43 @@ Exported: ${new Date().toLocaleString()}
                 </View>
                 <Text style={styles.metricValue}>{formatCurrency(displaySummary.total_revenue)}</Text>
                 <Text style={styles.metricLabel}>Total Revenue</Text>
+                {typeof displaySummary.revenue_change_pct === 'number' && (
+                  <View style={styles.trendRow}>
+                    <Ionicons
+                      name={
+                        displaySummary.revenue_trend === 'down'
+                          ? 'trending-down'
+                          : displaySummary.revenue_trend === 'up'
+                            ? 'trending-up'
+                            : 'remove'
+                      }
+                      size={14}
+                      color={
+                        displaySummary.revenue_trend === 'down'
+                          ? '#FE2C55'
+                          : displaySummary.revenue_trend === 'up'
+                            ? '#10B981'
+                            : TikTokTheme.colors.text.muted
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.trendText,
+                        {
+                          color:
+                            displaySummary.revenue_trend === 'down'
+                              ? '#FE2C55'
+                              : displaySummary.revenue_trend === 'up'
+                                ? '#10B981'
+                                : TikTokTheme.colors.text.muted,
+                        },
+                      ]}
+                    >
+                      {displaySummary.revenue_change_pct > 0 ? '+' : ''}
+                      {displaySummary.revenue_change_pct}% 30d
+                    </Text>
+                  </View>
+                )}
               </LinearGradient>
             </BlurView>
           </View>
@@ -417,6 +463,8 @@ const styles = StyleSheet.create({
   metricIcon: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
   metricValue: { fontSize: 24, fontWeight: '900', color: TikTokTheme.colors.text.primary, marginTop: 4 },
   metricLabel: { fontSize: 11, color: TikTokTheme.colors.text.muted, textAlign: 'center', marginTop: 4 },
+  trendRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  trendText: { fontSize: 11, fontWeight: '600' },
   insightSection: { marginBottom: TikTokTheme.spacing.base },
   insightCard: { height: 140, borderRadius: TikTokTheme.borderRadius.lg, overflow: 'hidden', elevation: 4 },
   insightBackground: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },

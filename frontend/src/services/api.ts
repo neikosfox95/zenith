@@ -55,16 +55,50 @@ api.interceptors.response.use(
 
 export { api as axiosInstance, API_BASE, BACKEND_URL, mediaUrl, AUTH_TOKEN_KEY, AsyncStorage };
 
+function normalizeCreatorDoc(c: any) {
+  if (!c || typeof c !== 'object') return c;
+  const id = String(c.id ?? c._id ?? c.creator_id ?? '');
+  const tiktok_username = c.tiktok_username || c.username || '';
+  return {
+    ...c,
+    id,
+    _id: c._id ?? id,
+    tiktok_username,
+    username: c.username || tiktok_username,
+    is_live: Boolean(c.is_live),
+    viewer_count: Number(c.viewer_count ?? c.current_viewers ?? 0) || 0,
+  };
+}
+
+function extractCreatorsPayload(payload: any): any[] {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload.data)) return payload.data;
+  if (Array.isArray(payload.creators)) return payload.creators;
+  if (Array.isArray(payload.items)) return payload.items;
+  return [];
+}
+
 export const creatorsAPI = {
   addCreator: async (tiktokUsername: string) => {
     const response = await api.post('/creators', { tiktok_username: tiktokUsername });
-    return response.data;
+    return normalizeCreatorDoc(response.data?.creator ?? response.data);
   },
   getCreators: async () => {
-    const response = await api.get('/creators/list');
-    const creators = response.data?.creators || [];
-    // Normalize: legacy screens expect `tiktok_username`
-    return creators.map((c: any) => ({ ...c, tiktok_username: c.tiktok_username || c.username }));
+    // Prefer the authenticated, user-scoped list. Fall back to the legacy
+    // /creators/list path for older deployments that still expose it.
+    try {
+      const response = await api.get('/creators');
+      const creators = extractCreatorsPayload(response.data);
+      return creators.map(normalizeCreatorDoc);
+    } catch (err: any) {
+      if (err?.response?.status === 404) {
+        const response = await api.get('/creators/list');
+        const creators = extractCreatorsPayload(response.data);
+        return creators.map(normalizeCreatorDoc);
+      }
+      throw err;
+    }
   },
   deleteCreator: async (creatorId: string) => {
     const response = await api.delete(`/creators/${creatorId}`);
@@ -134,14 +168,39 @@ export const fansAPI = {
   },
 };
 
+function unwrapAnalyticsPayload(payload: any, nestedKeys: string[] = []) {
+  if (payload == null) return payload;
+  let out = payload;
+  for (const key of nestedKeys) {
+    if (out && typeof out === 'object' && out[key] != null && typeof out[key] === 'object') {
+      out = { ...out, ...out[key] };
+    }
+  }
+  return out;
+}
+
 export const analyticsAPI = {
+  // User-scoped overall summary (authenticated).
+  getSummary: async () => {
+    const response = await api.get('/analytics/summary');
+    return unwrapAnalyticsPayload(response.data, ['summary']);
+  },
+  // User-scoped live counters (authenticated).
+  getRealtimeStats: async () => {
+    const response = await api.get('/analytics/realtime');
+    return unwrapAnalyticsPayload(response.data, ['realtime']);
+  },
   getTopGifters: async (limit: number = 10) => {
     const response = await api.get(`/analytics/top-gifters?limit=${limit}`);
-    return response.data?.topGifters || [];
+    const data = response.data;
+    if (Array.isArray(data)) return data;
+    return data?.topGifters || data?.data || [];
   },
   getRevenueHistory: async (days: number = 7) => {
     const response = await api.get(`/analytics/revenue-history?days=${days}`);
-    return response.data?.history || [];
+    const data = response.data;
+    if (Array.isArray(data)) return data;
+    return data?.history || data?.data || [];
   },
   getStreamAnalytics: async (streamId: string) => {
     const response = await api.get(`/streams/${streamId}/analytics`);

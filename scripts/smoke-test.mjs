@@ -171,7 +171,14 @@ await step('DB-backed endpoints fail with 503 + DB_UNAVAILABLE, not an opaque 50
 // 5. Authentication
 // ------------------------------------------------------------
 await step('protected endpoints require a bearer token', async () => {
-  const probes = ['/api/creators', '/api/analytics/overview', '/api/ai-studio/models', '/api/gaming/achievements'];
+  const probes = [
+    '/api/creators',
+    '/api/analytics/overview',
+    '/api/analytics/summary',
+    '/api/analytics/realtime',
+    '/api/ai-studio/models',
+    '/api/gaming/achievements',
+  ];
   const offenders = [];
   for (const path of probes) {
     const r = await call('GET', path);
@@ -189,6 +196,59 @@ await step('an invalid bearer token is rejected with INVALID_TOKEN', async () =>
   const code = r.json?.code ?? r.json?.error?.code;
   if (code !== 'INVALID_TOKEN') throw new Error(`expected INVALID_TOKEN, got ${code}`);
   return `401 ${code}`;
+});
+
+await step('authenticated analytics endpoints fail with 503 when DB is down', async () => {
+  // Mint a structurally-valid token the same way the server does, using the
+  // dev secret file when present so this works against a live process.
+  // When the DB is up this still must not 401/404 — any 2xx/4xx-other-than-
+  // auth is acceptable; we only assert the down-DB contract when applicable.
+  const secret =
+    process.env.JWT_SECRET ||
+    (await import('node:fs/promises')
+      .then((fs) => fs.readFile(new URL('../backend/.dev-jwt-secret', import.meta.url), 'utf8'))
+      .then((s) => s.trim())
+      .catch(() => null));
+
+  if (!secret) {
+    return 'skipped — no JWT secret available to mint a test token';
+  }
+
+  // Inline HMAC-SHA256 JWT (no dependency) so smoke stays dependency-free.
+  const b64 = (buf) => Buffer.from(buf).toString('base64url');
+  const header = b64(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const payload = b64(
+    JSON.stringify({
+      userId: '507f1f77bcf86cd799439011',
+      iss: 'zenith',
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    })
+  );
+  const crypto = await import('node:crypto');
+  const sig = crypto.createHmac('sha256', secret).update(`${header}.${payload}`).digest('base64url');
+  const token = `${header}.${payload}.${sig}`;
+
+  const paths = ['/api/analytics/summary', '/api/analytics/realtime'];
+  const details = [];
+  for (const path of paths) {
+    const r = await call('GET', path, { headers: { Authorization: `Bearer ${token}` } });
+    if (r.status === 401 || r.status === 403) {
+      throw new Error(`${path} rejected a valid token: ${r.status}`);
+    }
+    if (r.status === 404) {
+      throw new Error(`${path} is not mounted`);
+    }
+    if (!dbConnected) {
+      expect(r.status, 503, `${path} status`);
+      const code = r.json?.code ?? r.json?.error?.code;
+      expect(code, 'DB_UNAVAILABLE', `${path} code`);
+      details.push(`${path}=503`);
+    } else {
+      details.push(`${path}=${r.status}`);
+    }
+  }
+  return details.join(', ');
 });
 
 // ------------------------------------------------------------
