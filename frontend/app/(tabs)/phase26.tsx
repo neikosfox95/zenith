@@ -12,7 +12,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { TikTokColors } from '../../src/constants/tiktokTheme';
-import Constants from 'expo-constants';
+
+// FIX: this screen derived the API base URL locally from
+// EXPO_PUBLIC_BACKEND_URL, which is defined nowhere (app.json has no
+// `extra` block and no .env sets it), so the value was undefined and
+// every request went to a URL literally starting with "undefined/".
+// All screens now share src/config/backend.ts.
+import { BACKEND_URL as backendUrl } from '../../src/config/backend';
 
 export default function Phase26Screen() {
   const { theme } = useTheme();
@@ -23,8 +29,6 @@ export default function Phase26Screen() {
   const [itinerary, setItinerary] = useState<any>(null);
   const [nearbyPlaces, setNearbyPlaces] = useState<any[]>([]);
   const [translation, setTranslation] = useState<any>(null);
-
-  const backendUrl = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || '';
 
   const planTrip = async () => {
     if (!destination || !duration) return;

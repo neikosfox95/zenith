@@ -1,5 +1,5 @@
-import apiClient from './apiClient';
-import { AnalyticsSummary, TopGifter, RevenueData } from '../../stores/analyticsStore';
+import apiClient from '../apiClient';
+import { AnalyticsSummary, TopGifter, RevenueData } from '../../../stores/analyticsStore';
 
 export const analyticsAPI = {
   // Get overall analytics summary

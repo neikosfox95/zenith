@@ -4,6 +4,7 @@ import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { TikTokTheme } from '../../../theme/TikTokTheme';
 import * as Haptics from 'expo-haptics';
+import { resolveGlassBlur } from './glassBlur';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -24,7 +25,12 @@ export const GlassModal: React.FC<GlassModalProps> = ({
   showCloseButton = true,
 }) => {
   const handleClose = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    // FIX: impactAsync returns a promise that rejects where there is no haptic
+    // engine (web / simulators). Un-awaited it produced an unhandled rejection
+    // on every modal dismiss.
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+      /* haptics are a progressive enhancement */
+    });
     onClose();
   };
 
@@ -37,12 +43,9 @@ export const GlassModal: React.FC<GlassModalProps> = ({
       statusBarTranslucent
     >
       <View style={styles.overlay}>
-        <BlurView
-          style={StyleSheet.absoluteFill}
-          blurType="dark"
-          blurAmount={20}
-          reducedTransparencyFallbackColor="rgba(0,0,0,0.8)"
-        />
+        {/* FIX: legacy @react-native-community/blur props were ignored by
+            expo-blur, so the modal backdrop never blurred. */}
+        <BlurView style={StyleSheet.absoluteFill} {...resolveGlassBlur({ blurType: 'dark', blurAmount: 20 })} />
         
         <TouchableOpacity
           style={StyleSheet.absoluteFill}
@@ -51,12 +54,7 @@ export const GlassModal: React.FC<GlassModalProps> = ({
         />
         
         <View style={[styles.contentContainer, contentStyle]}>
-          <BlurView
-            style={StyleSheet.absoluteFill}
-            blurType="dark"
-            blurAmount={30}
-            reducedTransparencyFallbackColor={TikTokTheme.colors.background.secondary}
-          />
+          <BlurView style={StyleSheet.absoluteFill} {...resolveGlassBlur({ blurType: 'dark', blurAmount: 30 })} />
           
           {showCloseButton && (
             <TouchableOpacity style={styles.closeButton} onPress={handleClose}>

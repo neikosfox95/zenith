@@ -13,21 +13,89 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { TikTokColors } from '../../src/constants/tiktokTheme';
-import Constants from 'expo-constants';
+
+// FIX: this screen derived the API base URL locally from
+// EXPO_PUBLIC_BACKEND_URL, which is defined nowhere (app.json has no
+// `extra` block and no .env sets it), so the value was undefined and
+// every request went to a URL literally starting with "undefined/".
+// All screens now share src/config/backend.ts.
+import { BACKEND_URL as backendUrl } from '../../src/config/backend';
 
 const { width } = Dimensions.get('window');
+
+// ------------------------------------------------------------
+// Payload types for the Phase 10 prediction endpoints.
+//
+// FIX: these five states were declared `useState(null)`, which infers `null`
+// and turns the setter into `(prevState: null) => null`. Nothing could be
+// stored in a type-checked way and every `viralPrediction.viral_score` read
+// reported "Property does not exist on type never" — so the whole screen's
+// rendering was unverifiable by the compiler.
+// ------------------------------------------------------------
+interface ViralPrediction {
+  viral_score?: number;
+  predicted_views?: number;
+  predicted_engagement?: number;
+  confidence?: number;
+  recommendations?: string[];
+  [key: string]: unknown;
+}
+
+interface GrowthForecast {
+  current_followers?: number;
+  predicted_followers?: number;
+  growth_rate?: number;
+  factors?: string[];
+  [key: string]: unknown;
+}
+
+/** Revenue figures arrive as `{ monthly, yearly }` objects. */
+interface Money {
+  monthly?: number;
+  yearly?: number;
+  [key: string]: unknown;
+}
+
+interface RevenueInsights {
+  current_revenue?: Money | number;
+  potential_revenue?: Money | number;
+  optimization_opportunities?: string[];
+  [key: string]: unknown;
+}
+
+/**
+ * Every prediction field is optional because the API may return a partial
+ * payload. Without a default these rendered as `NaN`, `Infinity` or threw on
+ * `undefined.toFixed()`.
+ */
+const monthlyOf = (value?: Money | number): number => {
+  if (typeof value === 'number') return value;
+  return Number(value?.monthly ?? 0);
+};
+
+interface SentimentSnapshot {
+  overall?: string;
+  score?: number;
+  positive?: number;
+  negative?: number;
+  neutral?: number;
+  [key: string]: unknown;
+}
+
+interface CompetitorSnapshot {
+  competitors?: unknown[];
+  [key: string]: unknown;
+}
 
 export default function Phase10AnalyticsScreen() {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [viralPrediction, setViralPrediction] = useState(null);
-  const [growthForecast, setGrowthForecast] = useState(null);
-  const [sentimentData, setSentimentData] = useState(null);
-  const [competitorData, setCompetitorData] = useState(null);
-  const [revenueInsights, setRevenueInsights] = useState(null);
-
-  const backendUrl = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || '';
+  const [viralPrediction, setViralPrediction] = useState<ViralPrediction | null>(null);
+  const [growthForecast, setGrowthForecast] = useState<GrowthForecast | null>(null);
+  const [sentimentData, setSentimentData] = useState<SentimentSnapshot | null>(null);
+  const [competitorData, setCompetitorData] = useState<CompetitorSnapshot | null>(null);
+  const [revenueInsights, setRevenueInsights] = useState<RevenueInsights | null>(null);
 
   const fetchAnalytics = async () => {
     setLoading(true);
@@ -122,26 +190,26 @@ export default function Phase10AnalyticsScreen() {
               </View>
               <View style={styles.viralScore}>
                 <Text style={[styles.viralScoreValue, { color: TikTokColors.pink }]}>
-                  {Math.round(viralPrediction.viral_score)}/100
+                  {Math.round(viralPrediction.viral_score ?? 0)}/100
                 </Text>
                 <Text style={[styles.viralScoreLabel, { color: theme.textSecondary }]}>Viral Score</Text>
               </View>
               <View style={styles.predictionGrid}>
                 <View style={styles.predictionItem}>
                   <Text style={[styles.predictionValue, { color: theme.text }]}>
-                    {(viralPrediction.predicted_views / 1000).toFixed(1)}K
+                    {((viralPrediction.predicted_views ?? 0) / 1000).toFixed(1)}K
                   </Text>
                   <Text style={[styles.predictionLabel, { color: theme.textSecondary }]}>Predicted Views</Text>
                 </View>
                 <View style={styles.predictionItem}>
                   <Text style={[styles.predictionValue, { color: theme.text }]}>
-                    {(viralPrediction.predicted_engagement / 1000).toFixed(1)}K
+                    {((viralPrediction.predicted_engagement ?? 0) / 1000).toFixed(1)}K
                   </Text>
                   <Text style={[styles.predictionLabel, { color: theme.textSecondary }]}>Engagement</Text>
                 </View>
                 <View style={styles.predictionItem}>
                   <Text style={[styles.predictionValue, { color: theme.text }]}>
-                    {Math.round(viralPrediction.confidence * 100)}%
+                    {Math.round((viralPrediction.confidence ?? 0) * 100)}%
                   </Text>
                   <Text style={[styles.predictionLabel, { color: theme.textSecondary }]}>Confidence</Text>
                 </View>
@@ -169,15 +237,15 @@ export default function Phase10AnalyticsScreen() {
                 {renderStatCard(
                   'people',
                   'Current',
-                  `${(growthForecast.current_followers / 1000).toFixed(1)}K`,
+                  `${((growthForecast.current_followers ?? 0) / 1000).toFixed(1)}K`,
                   'Followers',
                   TikTokColors.pink
                 )}
                 {renderStatCard(
                   'arrow-up',
                   'Predicted',
-                  `${(growthForecast.predicted_followers / 1000).toFixed(1)}K`,
-                  `+${Math.round(growthForecast.growth_rate * 100)}% Growth`,
+                  `${((growthForecast.predicted_followers ?? 0) / 1000).toFixed(1)}K`,
+                  `+${Math.round((growthForecast.growth_rate ?? 0) * 100)}% Growth`,
                   TikTokColors.cyan
                 )}
               </View>
@@ -208,13 +276,13 @@ export default function Phase10AnalyticsScreen() {
                 <View style={styles.revenueItem}>
                   <Text style={[styles.revenueLabel, { color: theme.textSecondary }]}>Current Monthly</Text>
                   <Text style={[styles.revenueValue, { color: theme.text }]}>
-                    ${revenueInsights.current_revenue?.monthly.toFixed(2)}
+                    ${monthlyOf(revenueInsights.current_revenue).toFixed(2)}
                   </Text>
                 </View>
                 <View style={styles.revenueItem}>
                   <Text style={[styles.revenueLabel, { color: theme.textSecondary }]}>Potential Monthly</Text>
                   <Text style={[styles.revenueValue, { color: '#10B981' }]}>
-                    ${revenueInsights.potential_revenue?.monthly.toFixed(2)}
+                    ${monthlyOf(revenueInsights.potential_revenue).toFixed(2)}
                   </Text>
                 </View>
               </View>

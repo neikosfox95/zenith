@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { useSocket } from '../../contexts/SocketContext';
 import { useAnalyticsStore } from '../../stores/analyticsStore';
 

@@ -10,12 +10,19 @@ import { GodTierErrorBoundary, performanceMonitor, analyticsTracker } from '../.
 import { GodTierMetricsBadge } from '../../src/components/GodTierMetricsBadge';
 import { useApiCall, useNetwork, useLocalStorage } from '../../src/hooks/GodTierHooks';
 import { useLiveMonitoring } from '../../src/hooks/realtime';
+import type { LiveEvent as MonitoringLiveEvent } from '../../src/hooks/realtime/useLiveMonitoring';
 import { useLiveStore } from '../../src/stores/liveStore';
 import { useUIStore } from '../../src/stores/uiStore';
 import { TikTokTheme } from '../../theme/TikTokTheme';
 
+// FIX: this screen derived the API base URL locally from
+// EXPO_PUBLIC_BACKEND_URL, which is defined nowhere (app.json has no
+// `extra` block and no .env sets it), so the value was undefined and
+// every request went to a URL literally starting with "undefined/".
+// All screens now share src/config/backend.ts.
+import { BACKEND_URL } from '../../src/config/backend';
+
 const { width } = Dimensions.get('window');
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 function LiveMonitoringScreenContent() {
   const { events, liveCreators } = useLiveMonitoring();
@@ -28,8 +35,9 @@ function LiveMonitoringScreenContent() {
   const { isConnected } = useNetwork();
   
   // God Tier: Cached data
-  const [cachedEvents, setCachedEvents] = useLocalStorage('live_events', []);
-  const [cachedStats, setCachedStats] = useLocalStorage('live_stats', null);
+  // Explicit type args — inferring T from a `[]` default yields never[].
+  const [cachedEvents, setCachedEvents] = useLocalStorage<never[], MonitoringLiveEvent[]>('live_events', []);
+  const [cachedStats, setCachedStats] = useLocalStorage<null, Record<string, number> | null>('live_stats', null);
 
   // God Tier: Performance monitoring
   useEffect(() => {

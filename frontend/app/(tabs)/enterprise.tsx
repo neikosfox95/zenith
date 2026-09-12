@@ -12,20 +12,48 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
-import Constants from 'expo-constants';
+import { BACKEND_URL as backendBaseUrl } from '../../src/config/backend';
 
 const { width } = Dimensions.get('window');
+
+/** GET /api/health (and the enterprise status endpoint) service map. */
+interface SystemHealth {
+  status?: string;
+  database?: string | boolean;
+  services?: Record<string, boolean | string | number | null | undefined>;
+  [key: string]: unknown;
+}
+
+interface SystemMetrics {
+  response_time?: number;
+  requests_per_min?: number;
+  active_users?: number;
+  uptime?: number | string;
+  [key: string]: unknown;
+}
+
+interface ApiKeyEntry {
+  id?: string;
+  name?: string;
+  key?: string;
+  created_at?: string | number | Date;
+}
 
 export default function EnterpriseScreen() {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [systemHealth, setSystemHealth] = useState(null);
-  const [systemMetrics, setSystemMetrics] = useState(null);
-  const [apiKeys, setApiKeys] = useState([]);
+  // FIX: untyped useState(null)/useState([]) — the setters became
+  // `(prev: null) => null` / `never[]`, so nothing could be stored and every
+  // property read below reported "does not exist on type never".
+  const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
+  const [systemMetrics, setSystemMetrics] = useState<SystemMetrics | null>(null);
+  const [apiKeys, setApiKeys] = useState<ApiKeyEntry[]>([]);
   const [selectedLanguage, setSelectedLanguage] = useState('en');
 
-  const backendUrl = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || '';
+  // FIX: app.json defines no `extra` block, so this was always '' and every
+  // call below was a bare relative path that only works on web.
+  const backendUrl = backendBaseUrl;
 
   const LANGUAGES = [
     { code: 'en', name: 'English', flag: '🇬🇧' },
@@ -109,7 +137,7 @@ export default function EnterpriseScreen() {
     fetchApiKeys();
   }, []);
 
-  const getHealthColor = (status) => {
+  const getHealthColor = (status?: string) => {
     if (status === 'healthy') return '#00C851';
     if (status === 'degraded') return '#ffbb33';
     return '#ff4444';
@@ -162,7 +190,9 @@ export default function EnterpriseScreen() {
               </Text>
             </View>
             <View style={[styles.healthCard, { backgroundColor: theme.card }]}>
-              <Ionicons name="database" size={32} color={theme.primary} />
+              {/* FIX: "database" is not an Ionicons glyph name, so this
+                  rendered an empty box. "server-outline" is the equivalent. */}
+              <Ionicons name="server-outline" size={32} color={theme.primary} />
               <Text style={[styles.healthValue, { color: theme.text }]}>
                 {systemHealth.services?.database ? '✅' : '❌'}
               </Text>
@@ -254,7 +284,7 @@ export default function EnterpriseScreen() {
                   {key.key?.substring(0, 20)}...
                 </Text>
                 <Text style={[styles.apiKeyMeta, { color: theme.textSecondary }]}>
-                  Created: {new Date(key.created_at).toLocaleDateString()}
+                  Created: {key.created_at ? new Date(key.created_at).toLocaleDateString() : '—'}
                 </Text>
               </View>
             ))

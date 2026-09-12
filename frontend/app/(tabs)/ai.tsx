@@ -11,26 +11,48 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
-import Constants from 'expo-constants';
+
+// FIX: this screen derived the API base URL locally from
+// EXPO_PUBLIC_BACKEND_URL, which is defined nowhere (app.json has no
+// `extra` block and no .env sets it), so the value was undefined and
+// every request went to a URL literally starting with "undefined/".
+// All screens now share src/config/backend.ts.
+import { BACKEND_URL as backendUrl } from '../../src/config/backend';
 
 const { width } = Dimensions.get('window');
 
+/**
+ * FIX: `color` was inferred as `string[]`, but LinearGradient's `colors` prop
+ * is `readonly [ColorValue, ColorValue, ...ColorValue[]]` — a tuple with at
+ * least two entries. A plain array is not assignable to it, so every gradient
+ * on this screen was a type error. `as const` makes each palette a readonly
+ * tuple of literal colours, which is exactly what the prop wants.
+ */
 const AI_MODELS = [
-  { id: 'gemini', name: 'Gemini', icon: '⚡', color: ['#4285F4', '#34A853'], best: 'Speed' },
-  { id: 'openai', name: 'GPT-5.2', icon: '🧠', color: ['#10a37f', '#1a7f64'], best: 'Reasoning' },
-  { id: 'claude', name: 'Claude', icon: '🎯', color: ['#CC785C', '#A85C4C'], best: 'Analysis' },
-  { id: 'grok', name: 'Grok', icon: '🚀', color: ['#1DA1F2', '#0c7abf'], best: 'Real-time' },
+  { id: 'gemini', name: 'Gemini', icon: '⚡', color: ['#4285F4', '#34A853'] as const, best: 'Speed' },
+  { id: 'openai', name: 'GPT-5.2', icon: '🧠', color: ['#10a37f', '#1a7f64'] as const, best: 'Reasoning' },
+  { id: 'claude', name: 'Claude', icon: '🎯', color: ['#CC785C', '#A85C4C'] as const, best: 'Analysis' },
+  { id: 'grok', name: 'Grok', icon: '🚀', color: ['#1DA1F2', '#0c7abf'] as const, best: 'Real-time' },
 ];
+
+/** Shape returned by POST /api/ai/analyze-sentiment (and the local error fallback). */
+interface SentimentResult {
+  overall?: string;
+  score?: number;
+  analysis?: string;
+  [key: string]: unknown;
+}
 
 export default function AIScreen() {
   const { theme } = useTheme();
   const [selectedModel, setSelectedModel] = useState('gemini');
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState('');
-  const [sentiment, setSentiment] = useState(null);
+  // FIX: `useState(null)` infers `null`, so the setter's type became
+  // `(prevState: null) => null` and every read of `sentiment.overall` was
+  // "Property does not exist on type never".
+  const [sentiment, setSentiment] = useState<SentimentResult | null>(null);
   const [recommendations, setRecommendations] = useState('');
-
-  const backendUrl = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || '';
 
   const generateStreamSummary = async () => {
     setLoading(true);

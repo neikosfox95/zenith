@@ -6,8 +6,14 @@ import { TikTokColors } from '../../src/constants/tiktokTheme';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import axios from 'axios';
 
+// FIX: this screen derived the API base URL locally from
+// EXPO_PUBLIC_BACKEND_URL, which is defined nowhere (app.json has no
+// `extra` block and no .env sets it), so the value was undefined and
+// every request went to a URL literally starting with "undefined/".
+// All screens now share src/config/backend.ts.
+import { BACKEND_URL } from '../../src/config/backend';
+
 const { width } = Dimensions.get('window');
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 export default function AIProviderAnalytics() {
   const [loading, setLoading] = useState(true);

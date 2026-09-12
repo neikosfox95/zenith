@@ -106,7 +106,7 @@ export default function Login() {
               onPress={() => router.push('/(auth)/register')}
             >
               <Text style={[styles.linkText, { color: theme.textSecondary }]}>
-                Don't have an account?{' '}
+                Don&apos;t have an account?{' '}
                 <Text style={{ color: theme.primary }}>Sign Up</Text>
               </Text>
             </TouchableOpacity>

@@ -14,9 +14,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { TikTokColors, TikTokSpacing, TikTokBorderRadius, TikTokFontSize, ModelBrandColors } from '../../src/constants/tiktokTheme';
-import Constants from 'expo-constants';
+import { API_BASE } from '../../src/config/backend';
+import { getTokenSync } from '../../src/services/authToken';
 
-const API_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
+// FIX: base URL now comes from the shared config. The hardcoded
+// 'http://localhost:8001' fallback cannot work in Expo web (the browser's
+// localhost is the viewer's machine) and made every call on this screen fail.
+// `API_BASE` already includes the `/api` prefix and is same-origin on web.
+const API_URL = API_BASE;
 
 interface VoiceModel {
   id: string;
@@ -79,9 +84,9 @@ export default function VoiceScreen() {
 
   const fetchModels = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/voice/models`, {
+      const response = await fetch(`${API_URL}/voice/models`, {
         headers: {
-          'Authorization': `Bearer ${user?.token}`
+          'Authorization': `Bearer ${getTokenSync() ?? ''}`
         }
       });
       const data = await response.json();
@@ -95,9 +100,9 @@ export default function VoiceScreen() {
 
   const fetchProfiles = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/voice/profiles`, {
+      const response = await fetch(`${API_URL}/voice/profiles`, {
         headers: {
-          'Authorization': `Bearer ${user?.token}`
+          'Authorization': `Bearer ${getTokenSync() ?? ''}`
         }
       });
       const data = await response.json();
@@ -117,10 +122,10 @@ export default function VoiceScreen() {
     setResult(null);
 
     try {
-      const response = await fetch(`${API_URL}/api/voice/clone`, {
+      const response = await fetch(`${API_URL}/voice/clone`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${user?.token}`,
+          'Authorization': `Bearer ${getTokenSync() ?? ''}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -158,10 +163,10 @@ export default function VoiceScreen() {
     setResult(null);
 
     try {
-      const response = await fetch(`${API_URL}/api/voice/convert`, {
+      const response = await fetch(`${API_URL}/voice/convert`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${user?.token}`,
+          'Authorization': `Bearer ${getTokenSync() ?? ''}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -197,10 +202,10 @@ export default function VoiceScreen() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/api/voice/profile/save`, {
+      const response = await fetch(`${API_URL}/voice/profile/save`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${user?.token}`,
+          'Authorization': `Bearer ${getTokenSync() ?? ''}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -242,10 +247,10 @@ export default function VoiceScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await fetch(`${API_URL}/api/voice/profile/${voiceId}`, {
+              await fetch(`${API_URL}/voice/profile/${voiceId}`, {
                 method: 'DELETE',
                 headers: {
-                  'Authorization': `Bearer ${user?.token}`
+                  'Authorization': `Bearer ${getTokenSync() ?? ''}`
                 }
               });
               Alert.alert('Success', 'Profile deleted');

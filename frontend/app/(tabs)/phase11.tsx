@@ -14,7 +14,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { TikTokColors } from '../../src/constants/tiktokTheme';
-import Constants from 'expo-constants';
+
+// FIX: this screen derived the API base URL locally from
+// EXPO_PUBLIC_BACKEND_URL, which is defined nowhere (app.json has no
+// `extra` block and no .env sets it), so the value was undefined and
+// every request went to a URL literally starting with "undefined/".
+// All screens now share src/config/backend.ts.
+import { BACKEND_URL as backendUrl } from '../../src/config/backend';
 
 const { width } = Dimensions.get('window');
 
@@ -60,8 +66,6 @@ export default function Phase11PlatformsScreen() {
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<any>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-
-  const backendUrl = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || '';
 
   const categories = [
     { id: 'all', name: 'All', icon: 'apps' },
@@ -313,7 +317,7 @@ export default function Phase11PlatformsScreen() {
           <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
             <Text style={[styles.modalTitle, { color: theme.text }]}>Connect {selectedPlatform.name}</Text>
             <Text style={[styles.modalText, { color: theme.textSecondary }]}>
-              You'll be redirected to {selectedPlatform.name} to authorize this connection.
+              You&apos;ll be redirected to {selectedPlatform.name} to authorize this connection.
             </Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity

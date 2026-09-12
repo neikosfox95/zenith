@@ -2,6 +2,7 @@ import React, { ReactNode } from 'react';
 import { View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { TikTokTheme } from '../../../theme/TikTokTheme';
+import { resolveGlassBlur } from './glassBlur';
 
 interface GlassCardProps {
   children: ReactNode;
@@ -20,12 +21,11 @@ export const GlassCard: React.FC<GlassCardProps> = ({
 }) => {
   return (
     <View style={[styles.container, style]}>
-      <BlurView
-        style={StyleSheet.absoluteFill}
-        blurType={blurType}
-        blurAmount={blurAmount}
-        reducedTransparencyFallbackColor={TikTokTheme.colors.background.secondary}
-      />
+      {/* FIX: blurType/blurAmount/reducedTransparencyFallbackColor are
+          @react-native-community/blur props. expo-blur ignores them, so the
+          blur never rendered and every card fell back to its flat rgba
+          background. resolveGlassBlur maps them onto tint/intensity. */}
+      <BlurView style={StyleSheet.absoluteFill} {...resolveGlassBlur({ blurType, blurAmount, intensity })} />
       <View style={styles.content}>
         {children}
       </View>

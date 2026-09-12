@@ -10,15 +10,21 @@ import { GodTierErrorBoundary, performanceMonitor, analyticsTracker } from '../.
 import { GodTierMetricsBadge } from '../../src/components/GodTierMetricsBadge';
 import { useApiCall, useNetwork, useLocalStorage } from '../../src/hooks/GodTierHooks';
 import { useAnalytics } from '../../src/hooks/realtime';
-import { useAnalyticsStore } from '../../src/stores/analyticsStore';
+import { useAnalyticsStore, type TopGifter, type RevenueData, type AnalyticsSummary } from '../../src/stores/analyticsStore';
 import { useUIStore } from '../../src/stores/uiStore';
 import { TikTokTheme } from '../../theme/TikTokTheme';
 import { analyticsAPI } from '../../src/services/api';
 import { VictoryLine, VictoryChart, VictoryTheme, VictoryAxis, VictoryArea } from 'victory-native';
 
+// FIX: this screen derived the API base URL locally from
+// EXPO_PUBLIC_BACKEND_URL, which is defined nowhere (app.json has no
+// `extra` block and no .env sets it), so the value was undefined and
+// every request went to a URL literally starting with "undefined/".
+// All screens now share src/config/backend.ts.
+import { BACKEND_URL } from '../../src/config/backend';
+
 const { width } = Dimensions.get('window');
 const CHART_WIDTH = width - 48;
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 function AnalyticsScreenContent() {
   const { summary } = useAnalytics();
@@ -31,9 +37,11 @@ function AnalyticsScreenContent() {
   const { isConnected } = useNetwork();
   
   // God Tier: Cached data
-  const [cachedSummary, setCachedSummary] = useLocalStorage('analytics_summary', null);
-  const [cachedGifters, setCachedGifters] = useLocalStorage('analytics_gifters', []);
-  const [cachedRevenue, setCachedRevenue] = useLocalStorage('analytics_revenue', []);
+  // Explicit type args: without them `T` is inferred from the default value
+  // (null / []) and the setter can never accept real data.
+  const [cachedSummary, setCachedSummary] = useLocalStorage<null, AnalyticsSummary | null>('analytics_summary', null);
+  const [cachedGifters, setCachedGifters] = useLocalStorage<never[], TopGifter[]>('analytics_gifters', []);
+  const [cachedRevenue, setCachedRevenue] = useLocalStorage<never[], RevenueData[]>('analytics_revenue', []);
 
   // God Tier: Performance monitoring
   useEffect(() => {

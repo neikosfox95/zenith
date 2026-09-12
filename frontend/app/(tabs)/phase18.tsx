@@ -12,15 +12,19 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
 import { TikTokColors } from '../../src/constants/tiktokTheme';
-import Constants from 'expo-constants';
+
+// FIX: this screen derived the API base URL locally from
+// EXPO_PUBLIC_BACKEND_URL, which is defined nowhere (app.json has no
+// `extra` block and no .env sets it), so the value was undefined and
+// every request went to a URL literally starting with "undefined/".
+// All screens now share src/config/backend.ts.
+import { BACKEND_URL as backendUrl } from '../../src/config/backend';
 
 export default function Phase18Screen() {
   const { theme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [projectName, setProjectName] = useState('');
   const [projects, setProjects] = useState<any[]>([]);
-
-  const backendUrl = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || '';
 
   const createProject = async () => {
     if (!projectName.trim()) return;

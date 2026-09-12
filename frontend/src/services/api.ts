@@ -1,26 +1,59 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE, BACKEND_URL, mediaUrl } from '../config/backend';
+import { AUTH_TOKEN_KEY, getTokenSync, hydrateToken } from './authToken';
 
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
-
+// FIX: `process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001'` could
+// never resolve from a browser — in Expo web the bundle runs in the user's
+// browser, so "localhost" is *their* machine. The base URL now comes from
+// src/config/backend.ts, which uses same-origin relative URLs on web (proxied
+// by the dev server) and the configured host on native.
 const api = axios.create({
-  baseURL: `${API_URL}/api`,
-  timeout: 10000,
+  baseURL: API_BASE,
+  timeout: 15000,
 });
 
-// Add auth token to requests
+void hydrateToken();
+
+// Add auth token to requests.
+// Synchronous read from the shared in-memory mirror instead of hitting
+// AsyncStorage on every request (which serialised all outgoing calls behind an
+// async storage read and raced concurrent requests).
 api.interceptors.request.use(
-  async (config) => {
-    const token = await AsyncStorage.getItem('auth_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+  (config) => {
+    if (!config.headers.Authorization) {
+      const token = getTokenSync();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
+  (error) => Promise.reject(error)
+);
+
+// Surface a normalised error shape so screens can stop guessing between
+// `err.response?.data?.error`, `err.response?.data?.error?.message` and
+// `err.message`.
+api.interceptors.response.use(
+  (response) => response,
   (error) => {
+    const status = error.response?.status;
+    const payload = error.response?.data;
+    error.apiMessage =
+      payload?.error?.message ||
+      (typeof payload?.error === 'string' ? payload.error : null) ||
+      payload?.message ||
+      (status === 503
+        ? 'Backend dependency unavailable — the API is up but its database is not.'
+        : error.message);
+    error.apiStatus = status ?? 0;
+    error.apiCode = payload?.error?.code || payload?.code || null;
     return Promise.reject(error);
   }
 );
+
+export { api as axiosInstance, API_BASE, BACKEND_URL, mediaUrl, AUTH_TOKEN_KEY, AsyncStorage };
 
 export const creatorsAPI = {
   addCreator: async (tiktokUsername: string) => {
@@ -57,7 +90,10 @@ export const streamsAPI = {
     return response.data;
   },
   getVideoUrl: (streamId: string) => {
-    return `${API_URL}/api/streams/${streamId}/video`;
+    // FIX: referenced a local `API_URL` that no longer exists. Video/audio
+    // `src` attributes need a resolvable URL, so this goes through mediaUrl()
+    // which prefixes the backend host on native and stays same-origin on web.
+    return mediaUrl(`/api/streams/${streamId}/video`);
   },
 };
 

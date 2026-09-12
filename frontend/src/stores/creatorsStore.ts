@@ -13,6 +13,25 @@ export interface Creator {
   last_live_at?: string;
   total_streams?: number;
   total_revenue?: number;
+
+  // ------------------------------------------------------------
+  // FIX: realtime viewer/like/comment counters were missing from this type,
+  // but `useCreatorStatus` was already writing `viewer_count` into the store on
+  // every `creator:viewers` socket event. TypeScript rejected the write, and at
+  // runtime nothing in the UI could read the field back in a type-safe way —
+  // so the live viewer counter, the single most important number on a live
+  // monitoring dashboard, had no home in the data model.
+  // ------------------------------------------------------------
+  /** Current concurrent viewers. Updated from the `creator:viewers` event. */
+  viewer_count?: number;
+  /** Peak concurrent viewers for the current/last stream. */
+  peak_viewers?: number;
+  /** Total likes for the current/last stream. */
+  like_count?: number;
+  /** Current stream title, when live. */
+  stream_title?: string;
+  /** ISO timestamp of the last realtime update for this creator. */
+  updated_at?: string;
 }
 
 interface CreatorsState {

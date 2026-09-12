@@ -14,9 +14,14 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { TikTokColors, TikTokSpacing, TikTokBorderRadius, TikTokFontSize, ModelBrandColors } from '../../src/constants/tiktokTheme';
-import Constants from 'expo-constants';
+import { API_BASE } from '../../src/config/backend';
+import { getTokenSync } from '../../src/services/authToken';
 
-const API_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8001';
+// FIX: base URL now comes from the shared config. The hardcoded
+// 'http://localhost:8001' fallback cannot work in Expo web (the browser's
+// localhost is the viewer's machine) and made every call on this screen fail.
+// `API_BASE` already includes the `/api` prefix and is same-origin on web.
+const API_URL = API_BASE;
 
 interface CodingModel {
   id: string;
@@ -52,9 +57,9 @@ export default function CodeAIScreen() {
 
   const fetchModels = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/code/models`, {
+      const response = await fetch(`${API_URL}/code/models`, {
         headers: {
-          'Authorization': `Bearer ${user?.token}`
+          'Authorization': `Bearer ${getTokenSync() ?? ''}`
         }
       });
       const data = await response.json();
@@ -76,10 +81,10 @@ export default function CodeAIScreen() {
     setResult('');
 
     try {
-      const response = await fetch(`${API_URL}/api/code/generate`, {
+      const response = await fetch(`${API_URL}/code/generate`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${user?.token}`,
+          'Authorization': `Bearer ${getTokenSync() ?? ''}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({

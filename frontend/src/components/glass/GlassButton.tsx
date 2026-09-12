@@ -3,6 +3,7 @@ import { TouchableOpacity, Text, StyleSheet, StyleProp, ViewStyle, TextStyle, Vi
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { TikTokTheme } from '../../../theme/TikTokTheme';
+import { resolveGlassBlur } from './glassBlur';
 
 interface GlassButtonProps {
   onPress: () => void;
@@ -26,12 +27,19 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
   haptic = true,
 }) => {
   const handlePress = () => {
-    if (!disabled) {
-      if (haptic) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-      onPress();
+    if (disabled) return;
+
+    if (haptic) {
+      // FIX: impactAsync returns a promise that REJECTS on platforms with no
+      // haptic engine (web, simulators, some Android builds). Un-awaited, every
+      // button press on those platforms produced an unhandled rejection —
+      // noise in the console at best, a red error overlay in dev at worst.
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {
+        /* haptics are a progressive enhancement */
+      });
     }
+
+    onPress();
   };
 
   return (
@@ -42,12 +50,9 @@ export const GlassButton: React.FC<GlassButtonProps> = ({
       activeOpacity={0.7}
     >
       {variant !== 'ghost' && (
-        <BlurView
-          style={StyleSheet.absoluteFill}
-          blurType="dark"
-          blurAmount={10}
-          reducedTransparencyFallbackColor={TikTokTheme.colors.background.secondary}
-        />
+        // FIX: was passing @react-native-community/blur props to expo-blur, so
+        // no button in the app actually rendered its glass blur.
+        <BlurView style={StyleSheet.absoluteFill} {...resolveGlassBlur({ blurType: 'dark', blurAmount: 10 })} />
       )}
       <View style={styles.content}>
         {children || (

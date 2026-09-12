@@ -10,13 +10,20 @@ import { GodTierErrorBoundary, performanceMonitor, analyticsTracker } from '../.
 import { GodTierMetricsBadge } from '../../src/components/GodTierMetricsBadge';
 import { useApiCall, useNetwork, useLocalStorage, useResponsive } from '../../src/hooks/GodTierHooks';
 import { useDashboard } from '../../src/hooks/realtime';
+import type { DashboardStats, Creator as DashboardCreator } from '../../src/hooks/realtime/useDashboard';
 import { useDashboardStore } from '../../src/stores/dashboardStore';
 import { useUIStore } from '../../src/stores/uiStore';
 import { TikTokTheme } from '../../theme/TikTokTheme';
 
+// FIX: this screen derived the API base URL locally from
+// EXPO_PUBLIC_BACKEND_URL, which is defined nowhere (app.json has no
+// `extra` block and no .env sets it), so the value was undefined and
+// every request went to a URL literally starting with "undefined/".
+// All screens now share src/config/backend.ts.
+import { BACKEND_URL } from '../../src/config/backend';
+
 const { width, height } = Dimensions.get('window');
 const CARD_WIDTH = (width - 48) / 2;
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 function DashboardScreenContent() {
   const { stats, creators } = useDashboard();
@@ -28,8 +35,10 @@ function DashboardScreenContent() {
   const { isConnected } = useNetwork();
   
   // God Tier: Cached dashboard data
-  const [cachedStats, setCachedStats] = useLocalStorage('dashboard_stats', null);
-  const [cachedCreators, setCachedCreators] = useLocalStorage('dashboard_creators', []);
+  // Explicit type args — see the note in useLocalStorage: inferring T from a
+  // `null` default makes the setter unusable.
+  const [cachedStats, setCachedStats] = useLocalStorage<null, DashboardStats | null>('dashboard_stats', null);
+  const [cachedCreators, setCachedCreators] = useLocalStorage<never[], DashboardCreator[]>('dashboard_creators', []);
   
   // God Tier: Responsive design
   const { isTablet } = useResponsive();
@@ -243,7 +252,7 @@ Exported: ${new Date().toLocaleString()}
 
         {/* Revenue Card with Chart Background */}
         <Animated.View entering={FadeInDown.delay(300)} style={styles.revenueSection}>
-          <Text style={styles.sectionTitle}>Today's Revenue</Text>
+          <Text style={styles.sectionTitle}>Today&apos;s Revenue</Text>
           <View style={styles.revenueCard}>
             <Image
               source={{ uri: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&q=80' }}
@@ -315,7 +324,7 @@ Exported: ${new Date().toLocaleString()}
                           <Text style={styles.liveText}>LIVE</Text>
                         </View>
                       ) : (
-                        <Text style={styles.offlineText}>Offline</Text>
+                        <Text style={styles.offlineBadgeText}>Offline</Text>
                       )}
                       <Text style={styles.creatorStats}>{creator.viewer_count} viewers</Text>
                     </View>
@@ -651,7 +660,12 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     color: TikTokTheme.colors.background.primary,
   },
-  offlineText: {
+  // FIX: `offlineText` was declared twice in this StyleSheet (here and above,
+  // next to offlineBanner). In a JS object literal the second declaration wins
+  // silently, so the offline *banner* picked up the *badge* styling — muted
+  // grey text on a dark banner instead of primary-coloured text. Two distinct
+  // usages now have two distinct style names.
+  offlineBadgeText: {
     fontSize: 12,
     color: TikTokTheme.colors.text.muted,
     marginVertical: 4,

@@ -15,7 +15,7 @@
  */
 
 import React, { Component, ReactNode } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { TikTokColors } from '../constants/tiktokTheme';
@@ -337,10 +337,14 @@ export function debounce<T extends (...args: any[]) => any>(
   func: T,
   delay: number
 ): (...args: Parameters<T>) => void {
-  let timeoutId: NodeJS.Timeout;
-  
+  // FIX: was typed `NodeJS.Timeout`. Under React Native / Expo web,
+  // setTimeout returns a number, so the assignment failed type-checking and
+  // the shared debounce utility could not be used from typed code at all.
+  // `ReturnType<typeof setTimeout>` is correct on every platform.
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
   return (...args: Parameters<T>) => {
-    clearTimeout(timeoutId);
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
     timeoutId = setTimeout(() => func(...args), delay);
   };
 }
