@@ -8,7 +8,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Keyboard, AppState, Dimensions } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import { cacheManager, performanceMonitor, networkMonitor } from '../utils/GodTierFramework';
+import { cacheManager, performanceMonitor } from '../utils/GodTierFramework';
 
 // ============================================================
 // useApiCall - Advanced API hook with caching, retry, offline
@@ -281,7 +281,9 @@ export function useResponsive() {
 // usePrevious - Track previous state
 // ============================================================
 export function usePrevious<T>(value: T): T | undefined {
-  const ref = useRef<T>();
+  // FIX: React 19's useRef type requires an explicit initial argument;
+  // `useRef<T>()` no longer compiles.
+  const ref = useRef<T | undefined>(undefined);
 
   useEffect(() => {
     ref.current = value;
@@ -311,38 +313,113 @@ export function useInterval(callback: () => void, delay: number | null) {
 // ============================================================
 // useLocalStorage - Persist state
 // ============================================================
-export function useLocalStorage<T>(key: string, initialValue: T) {
-  const [storedValue, setStoredValue] = useState<T>(initialValue);
+/**
+ * FIXES (this hook is the offline-cache backbone of every God Tier screen, so
+ * its type signature leaking was responsible for most of the app's remaining
+ * type errors):
+ *
+ *  1. INFERENCE. `useLocalStorage<T>(key, initialValue: T)` inferred `T` from
+ *     the default value, so `useLocalStorage('k', null)` produced `T = null`
+ *     and the setter's type became `(val: null) => null` — a *function* — which
+ *     is why `setCachedSummary(summary)` failed with "Argument of type
+ *     AnalyticsSummary is not assignable to parameter of type (val: null) =>
+ *     null", and why reading `cachedSummary.status` reported
+ *     "Property does not exist on type never". Likewise `useLocalStorage('k', [])`
+ *     inferred `never[]`.
+ *
+ *     `D` (the default's type) is now a separate parameter from `T` (the
+ *     stored value's type), and an explicit `T` always wins.
+ *
+ *  2. STALE CLOSURE. The updater form read `storedValue` from the render
+ *     closure, so two `setValue(prev => …)` calls in the same tick both
+ *     computed from the same base and the first write was lost. It now uses
+ *     React's functional setState.
+ *
+ *  3. MISSING useCallback. `setValue` was recreated on every render and is in
+ *     the dependency array of effects across the app, causing those effects to
+ *     re-run (and re-fetch) on every render.
+ *
+ *  4. THE CACHED VALUE WAS NEVER TYPED. `cacheManager.get()` returns `any` and
+ *     was assigned straight into state, so a corrupt or foreign cache entry
+ *     under the same key would land in the UI unchecked.
+ */
+/**
+ * Type parameters are ordered `<D, T = D>` — the *default value's* type comes
+ * first because it is the one TypeScript can infer, and `T` (the type you
+ * actually store) defaults to it.
+ *
+ * That ordering gives both call styles correct behaviour:
+ *
+ *   useLocalStorage('flag', true)                 -> D = T = boolean
+ *   useLocalStorage<Summary | null>('k', null)    -> D = null, T = Summary | null
+ *
+ * With the more obvious `<T, D>` ordering, `useLocalStorage('k', null)` infers
+ * `T = null` and the setter becomes `(val: null) => null` — which is the bug
+ * that made every offline cache in the app fail to type-check.
+ */
+export function useLocalStorage<D, T = D>(
+  key: string,
+  initialValue: D
+): [T | D, (value: T | D | ((prev: T | D) => T | D)) => Promise<void>, boolean] {
+  type Stored = T | D;
+
+  const [storedValue, setStoredValue] = useState<Stored>(initialValue as Stored);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadValue();
+    let cancelled = false;
+
+    const load = async () => {
+      setLoading(true);
+      try {
+        const cached = (await cacheManager.get(key)) as Stored | null | undefined;
+        // `null` and `undefined` both mean "cache miss" — but `false` and `0`
+        // are legitimate stored values and must not be discarded.
+        if (!cancelled && cached !== null && cached !== undefined) {
+          setStoredValue(cached);
+        }
+      } catch (error) {
+        console.error(`[useLocalStorage] error loading "${key}":`, error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, [key]);
 
-  const loadValue = async () => {
-    try {
-      const cached = await cacheManager.get(key);
-      if (cached !== null) {
-        setStoredValue(cached);
+  // Mirror of the current value so an updater function can be resolved
+  // *synchronously*. React may defer (or in StrictMode double-invoke) a
+  // functional setState callback, so reading the result back out of it would
+  // race the cache write below.
+  const valueRef = useRef<Stored>(initialValue as Stored);
+  valueRef.current = storedValue;
+
+  const setValue = useCallback(
+    async (value: Stored | ((prev: Stored) => Stored)) => {
+      const resolved = (
+        typeof value === 'function'
+          ? (value as (prev: Stored) => Stored)(valueRef.current)
+          : value
+      ) as Stored;
+
+      valueRef.current = resolved;
+      setStoredValue(resolved);
+
+      try {
+        await cacheManager.set(key, resolved, 86400000); // 24h
+      } catch (error) {
+        // Persistence is best-effort; the in-memory state is already updated.
+        console.error(`[useLocalStorage] error saving "${key}":`, error);
       }
-    } catch (error) {
-      console.error(`Error loading ${key}:`, error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [key]
+  );
 
-  const setValue = async (value: T | ((val: T) => T)) => {
-    try {
-      const valueToStore = value instanceof Function ? value(storedValue) : value;
-      setStoredValue(valueToStore);
-      await cacheManager.set(key, valueToStore, 86400000); // 24h
-    } catch (error) {
-      console.error(`Error saving ${key}:`, error);
-    }
-  };
-
-  return [storedValue, setValue, loading] as const;
+  return [storedValue, setValue, loading];
 }
 
 // ============================================================

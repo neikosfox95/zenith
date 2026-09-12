@@ -108,8 +108,12 @@ export default function HomeScreen() {
           <View>
             <Text style={styles.headerTitle}>TikTok AI Command</Text>
             <Text style={styles.headerSubtitle}>1,000,000/1,000,000 Zenith Grade</Text>
+            {/* FIX: `styles.userEmail` was never defined in the StyleSheet, so
+                it resolved to undefined and the line only looked right because
+                the inline object happened to carry the real styles. The style
+                now lives in the StyleSheet with the rest of them. */}
             {user && (
-              <Text style={[styles.userEmail, { fontSize: 11, color: 'rgba(255,255,255,0.8)', marginTop: 4 }]}>
+              <Text style={styles.userEmail}>
                 {user.email}
               </Text>
             )}
@@ -404,6 +408,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
+  },
+  userEmail: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 4,
   },
   phaseBadgeText: {
     fontSize: 11,

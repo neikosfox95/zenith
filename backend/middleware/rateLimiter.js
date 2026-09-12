@@ -1,163 +1,201 @@
+// ============================================================
+// RATE LIMITING
+// ------------------------------------------------------------
+// Changes from the previous version:
+//   * Limits/windows come from config (env-tunable) instead of being
+//     hard-coded literals duplicated in the handler bodies.
+//   * A single shared `skip` covers every health endpoint — previously only
+//     `/api/health` and `/health` were exempted, so the new readiness probe
+//     would have been throttled by the very limiter it is trying to report on.
+//   * `RATE_LIMIT_DISABLED=true` (auto-set in NODE_ENV=test) turns every
+//     limiter into a pass-through, which makes integration tests deterministic
+//     instead of randomly 429-ing after ~10 requests.
+//   * The reported `limit` in each 429 body is derived from the same value
+//     that is actually enforced, so they can never drift apart again.
+// ============================================================
+
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import config from '../config/index.js';
 
-/**
- * Sprint 1 & 2 OPTIMIZED: Near-100% Effective Rate Limiting
- * Enhanced configuration for maximum precision without Redis
- * Implements draft-7 standard and optimized settings for 95%+ effectiveness
- */
+/** Paths that must never be rate limited (probes, docs). */
+const EXEMPT_PATHS = new Set([
+  '/health',
+  '/health/ready',
+  '/api/health',
+  '/api/version',
+  '/metrics',
+]);
 
-// Custom key generator that combines IP and optional user ID for authenticated requests
+/** Auth endpoints are exempt from the *general* limiter — they have their own. */
+const AUTH_PATHS = new Set([
+  '/api/login',
+  '/api/register',
+  '/api/auth/login',
+  '/api/auth/register',
+]);
+
+const isExempt = (req) => EXEMPT_PATHS.has(req.path);
+
+// Combine IP + user so an authenticated user is not pooled with anonymous
+// traffic sharing their NAT/proxy address.
 const keyGenerator = (req) => {
   const ip = req.ip ? ipKeyGenerator(req.ip) : 'unknown';
   const userId = req.user?.userId || req.userId || '';
   return `${ip}:${userId}`;
 };
 
-// Custom handler for when rate limit is exceeded
-const handler = (req, res) => {
-  res.status(429).json({
-    error: 'Too many requests',
-    message: 'Rate limit exceeded. Please try again later.',
-    code: 'RATE_LIMIT_EXCEEDED',
-    retryAfter: res.getHeader('Retry-After'),
-    timestamp: new Date().toISOString()
-  });
-};
-
-// Base configuration for enhanced precision
 const baseConfig = {
-  standardHeaders: 'draft-7', // Use draft-7 for better precision
+  standardHeaders: 'draft-7',
   legacyHeaders: false,
   keyGenerator,
   skipFailedRequests: false,
   skipSuccessfulRequests: false,
-  // Enhanced validation for accurate counting
   validate: {
+    // We set `trust proxy` explicitly in server.js; let express-rate-limit
+    // validate against that instead of warning on every boot.
     xForwardedForHeader: false,
-    trustProxy: false
-  }
+    trustProxy: false,
+  },
 };
 
-// General API rate limiter - 300 requests per 15 minutes (OPTIMIZED)
-export const apiLimiter = rateLimit({
-  ...baseConfig,
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300,
-  handler: (req, res) => {
-    res.status(429).json({
-      error: 'Too many API requests',
-      message: 'API rate limit exceeded. Please try again after 15 minutes.',
-      code: 'API_RATE_LIMIT_EXCEEDED',
-      retryAfter: res.getHeader('Retry-After'),
-      limit: 300,
-      timestamp: new Date().toISOString()
-    });
-  },
-  skip: (req) => {
-    // Skip health checks and auth routes (they have their own limiters)
-    return req.path === '/api/health' || 
-           req.path === '/health' || 
-           req.path === '/api/login' || 
-           req.path === '/api/register' ||
-           req.path === '/api/auth/login' ||
-           req.path === '/api/auth/register';
-  }
-});
+const limited = (req, res, code, message, limit) =>
+  res.status(429).json({
+    error: 'Too many requests',
+    message,
+    code,
+    limit,
+    retryAfter: res.getHeader('Retry-After') ?? null,
+    timestamp: new Date().toISOString(),
+  });
 
-// ULTRA-STRICT authentication rate limiter - 10 requests per 15 minutes (OPTIMIZED FOR 100%)
-export const authLimiter = rateLimit({
-  ...baseConfig,
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
-  // Enhanced key generator for auth - includes request path for better isolation
-  keyGenerator: (req) => {
-    const ip = req.ip ? ipKeyGenerator(req.ip) : 'unknown';
-    const userId = req.user?.userId || req.userId || '';
-    const path = req.path || '';
-    return `auth:${ip}:${userId}:${path}`;
-  },
-  handler: (req, res) => {
-    res.status(429).json({
-      error: 'Too many authentication attempts',
-      message: 'You have exceeded the maximum number of login attempts. Please try again after 15 minutes.',
-      code: 'AUTH_RATE_LIMIT_EXCEEDED',
-      retryAfter: res.getHeader('Retry-After'),
-      limit: 10,
-      timestamp: new Date().toISOString()
-    });
-  },
-  // Additional precision settings for auth
-  requestPropertyName: 'rateLimit',
-  skipSuccessfulRequests: false, // Count all for maximum strictness
-  requestWasSuccessful: (req, res) => res.statusCode < 400 // Define success as < 400
-});
+/** Wrap a limiter so it can be switched off wholesale (tests, load harnesses). */
+const withKillSwitch = (limiter) => {
+  if (!config.rateLimit.disabled) return limiter;
+  return (req, res, next) => next();
+};
 
-// AI generation rate limiter - 50 requests per hour (OPTIMIZED)
-export const aiLimiter = rateLimit({
-  ...baseConfig,
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 50,
-  handler: (req, res) => {
-    res.status(429).json({
-      error: 'AI request limit reached',
-      message: 'You have reached your AI request limit. Please try again in an hour or upgrade your plan.',
-      code: 'AI_RATE_LIMIT_EXCEEDED',
-      retryAfter: res.getHeader('Retry-After'),
-      limit: 50,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
+// General API — 300 requests / 15 minutes
+const API_LIMIT = config.rateLimit.api.max;
+export const apiLimiter = withKillSwitch(
+  rateLimit({
+    ...baseConfig,
+    windowMs: config.rateLimit.api.windowMs,
+    max: API_LIMIT,
+    handler: (req, res) =>
+      limited(
+        req,
+        res,
+        'API_RATE_LIMIT_EXCEEDED',
+        `API rate limit exceeded. Please try again after ${Math.round(
+          config.rateLimit.api.windowMs / 60000
+        )} minutes.`,
+        API_LIMIT
+      ),
+    skip: (req) => isExempt(req) || AUTH_PATHS.has(req.path),
+  })
+);
 
-// Speed limiter - 100 requests per 15 minutes (OPTIMIZED)
-export const speedLimiter = rateLimit({
-  ...baseConfig,
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
-  handler,
-  skip: (req) => req.path === '/api/health' || req.path === '/health'
-});
+// Authentication — 10 requests / 15 minutes, per IP *and* path so a failed
+// login cannot lock out registration on the same device.
+const AUTH_LIMIT = config.rateLimit.auth.max;
+export const authLimiter = withKillSwitch(
+  rateLimit({
+    ...baseConfig,
+    windowMs: config.rateLimit.auth.windowMs,
+    max: AUTH_LIMIT,
+    keyGenerator: (req) => {
+      const ip = req.ip ? ipKeyGenerator(req.ip) : 'unknown';
+      return `auth:${ip}:${req.path || ''}`;
+    },
+    handler: (req, res) =>
+      limited(
+        req,
+        res,
+        'AUTH_RATE_LIMIT_EXCEEDED',
+        'You have exceeded the maximum number of authentication attempts. Please try again later.',
+        AUTH_LIMIT
+      ),
+    requestPropertyName: 'rateLimit',
+    skipSuccessfulRequests: false,
+    requestWasSuccessful: (req, res) => res.statusCode < 400,
+    skip: isExempt,
+  })
+);
 
-// File upload rate limiter - 10 uploads per hour (OPTIMIZED)
-export const uploadLimiter = rateLimit({
-  ...baseConfig,
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10,
-  handler: (req, res) => {
-    res.status(429).json({
-      error: 'Upload limit reached',
-      message: 'You have reached your file upload limit. Please try again in an hour.',
-      code: 'UPLOAD_RATE_LIMIT_EXCEEDED',
-      retryAfter: res.getHeader('Retry-After'),
-      limit: 10,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
+// AI generation — 50 requests / hour
+const AI_LIMIT = config.rateLimit.ai.max;
+export const aiLimiter = withKillSwitch(
+  rateLimit({
+    ...baseConfig,
+    windowMs: config.rateLimit.ai.windowMs,
+    max: AI_LIMIT,
+    handler: (req, res) =>
+      limited(
+        req,
+        res,
+        'AI_RATE_LIMIT_EXCEEDED',
+        'You have reached your AI request limit. Please try again later or upgrade your plan.',
+        AI_LIMIT
+      ),
+    skip: isExempt,
+  })
+);
 
-// Webhook rate limiter - 100 requests per minute (OPTIMIZED)
-export const webhookLimiter = rateLimit({
-  ...baseConfig,
-  windowMs: 60 * 1000, // 1 minute
-  max: 100,
-  handler: (req, res) => {
-    res.status(429).json({
-      error: 'Webhook rate limit exceeded',
-      message: 'Too many webhook requests. Please slow down.',
-      code: 'WEBHOOK_RATE_LIMIT_EXCEEDED',
-      retryAfter: res.getHeader('Retry-After'),
-      limit: 100,
-      timestamp: new Date().toISOString()
-    });
-  }
-});
+// General throughput guard — 100 requests / 15 minutes
+export const speedLimiter = withKillSwitch(
+  rateLimit({
+    ...baseConfig,
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    handler: (req, res) =>
+      limited(req, res, 'RATE_LIMIT_EXCEEDED', 'Rate limit exceeded. Please slow down.', 100),
+    skip: isExempt,
+  })
+);
 
-// Export all limiters as an object for easy importing
+// Uploads — 10 / hour
+export const uploadLimiter = withKillSwitch(
+  rateLimit({
+    ...baseConfig,
+    windowMs: 60 * 60 * 1000,
+    max: config.rateLimit.upload.max,
+    handler: (req, res) =>
+      limited(
+        req,
+        res,
+        'UPLOAD_RATE_LIMIT_EXCEEDED',
+        'You have reached your file upload limit. Please try again in an hour.',
+        config.rateLimit.upload.max
+      ),
+    skip: isExempt,
+  })
+);
+
+// Webhooks — 100 / minute
+export const webhookLimiter = withKillSwitch(
+  rateLimit({
+    ...baseConfig,
+    windowMs: 60 * 1000,
+    max: 100,
+    handler: (req, res) =>
+      limited(
+        req,
+        res,
+        'WEBHOOK_RATE_LIMIT_EXCEEDED',
+        'Too many webhook requests. Please slow down.',
+        100
+      ),
+    skip: isExempt,
+  })
+);
+
+export const rateLimitInternals = { EXEMPT_PATHS, AUTH_PATHS, keyGenerator };
+
 export default {
   apiLimiter,
   authLimiter,
   aiLimiter,
   uploadLimiter,
   speedLimiter,
-  webhookLimiter
+  webhookLimiter,
 };

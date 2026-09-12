@@ -1,5 +1,5 @@
-import apiClient from './apiClient';
-import { LiveEvent } from '../../stores/liveEventsStore';
+import apiClient from '../apiClient';
+import { LiveEvent } from '../../../stores/liveEventsStore';
 
 export interface LiveEventsResponse {
   events: LiveEvent[];

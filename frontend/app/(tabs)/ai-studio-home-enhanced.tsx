@@ -38,15 +38,26 @@ import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { GodTierErrorBoundary, performanceMonitor, analyticsTracker } from '../../src/utils/GodTierFramework';
 import { useApiCall, useNetwork, useLocalStorage, useResponsive } from '../../src/hooks/GodTierHooks';
 
+// FIX: this screen derived the API base URL locally from
+// EXPO_PUBLIC_BACKEND_URL, which is defined nowhere (app.json has no
+// `extra` block and no .env sets it), so the value was undefined and
+// every request went to a URL literally starting with "undefined/".
+// All screens now share src/config/backend.ts.
+import { BACKEND_URL } from '../../src/config/backend';
+
 const { width } = Dimensions.get('window');
-const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 function AIStudioHomeContent() {
   const router = useRouter();
   const { isConnected } = useNetwork();
   const { isTablet } = useResponsive();
   const [showQuickActions, setShowQuickActions] = useState(false);
-  const [cachedData, setCachedData] = useLocalStorage('ai_studio_home', null);
+  // Explicit type args — inferring T from a `null` default makes the setter
+  // accept only `(prev: null) => null`.
+  const [cachedData, setCachedData] = useLocalStorage<
+    null,
+    { status: unknown; usage: unknown; timestamp: number } | null
+  >('ai_studio_home', null);
 
   // Track screen view
   useEffect(() => {

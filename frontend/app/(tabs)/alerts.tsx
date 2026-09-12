@@ -324,7 +324,7 @@ function AlertsScreenContent() {
             <LinearGradient colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.9)']} style={styles.emptyOverlay}>
               <Ionicons name="notifications-off" size={64} color={TikTokTheme.colors.text.muted} />
               <Text style={styles.emptyTitle}>No Alerts</Text>
-              <Text style={styles.emptyText}>You're all caught up!</Text>
+              <Text style={styles.emptyText}>You&apos;re all caught up!</Text>
             </LinearGradient>
           </View>
         )}

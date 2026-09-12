@@ -13,19 +13,44 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/contexts/ThemeContext';
-import Constants from 'expo-constants';
+import { BACKEND_URL } from '../../src/config/backend';
+
+/** Shape returned by the media generation endpoints (and the local error fallback). */
+interface MediaResult {
+  error?: string;
+  url?: string;
+  [key: string]: unknown;
+}
 
 const { width } = Dimensions.get('window');
 
 // Category tabs for media types
+// FIX: `as const` on each palette so it types as a readonly tuple, which is
+// what LinearGradient's `colors` prop requires (a plain string[] is not
+// assignable to `readonly [ColorValue, ColorValue, ...ColorValue[]]`).
 const MEDIA_CATEGORIES = [
-  { id: 'image', name: 'Image', icon: 'image', color: ['#FF6B6B', '#FF8E53'] },
-  { id: 'audio', name: 'Audio', icon: 'musical-notes', color: ['#4ECDC4', '#44A08D'] },
-  { id: 'video', name: 'Video', icon: 'videocam', color: ['#667EEA', '#764BA2'] },
+  { id: 'image', name: 'Image', icon: 'image', color: ['#FF6B6B', '#FF8E53'] as const },
+  { id: 'audio', name: 'Audio', icon: 'musical-notes', color: ['#4ECDC4', '#44A08D'] as const },
+  { id: 'video', name: 'Video', icon: 'videocam', color: ['#667EEA', '#764BA2'] as const },
 ];
 
+/**
+ * FIX: IMAGE_MODELS / AUDIO_MODELS / VIDEO_MODELS each carry a different
+ * fourth field (`speed`, `features`, `duration`), so `getModels()` returned a
+ * union and reading `model.speed` on an audio model was a type error. One
+ * shared shape with all three optional keeps the render code honest.
+ */
+interface MediaModel {
+  id: string;
+  name: string;
+  provider: string;
+  speed?: string;
+  features?: string;
+  duration?: string;
+}
+
 // Image generation models
-const IMAGE_MODELS = [
+const IMAGE_MODELS: MediaModel[] = [
   { id: 'nano-banana-2', name: 'Nano Banana 2', provider: 'Google', speed: '1-3s' },
   { id: 'nano-banana-pro', name: 'Nano Banana Pro', provider: 'Google', speed: 'Slower' },
   { id: 'gpt-image-1.5', name: 'GPT Image 1.5', provider: 'OpenAI', speed: '4x faster' },
@@ -34,14 +59,14 @@ const IMAGE_MODELS = [
 ];
 
 // Audio models
-const AUDIO_MODELS = [
+const AUDIO_MODELS: MediaModel[] = [
   { id: 'whisper', name: 'Whisper', provider: 'OpenAI', features: 'Transcription' },
   { id: 'fish-audio-instant', name: 'Fish Audio Instant', provider: 'Fish', features: 'Voice Clone' },
   { id: 'voicebox-2.0', name: 'VoiceBox 2.0', provider: 'Meta', features: '50+ Languages' },
 ];
 
 // Video models
-const VIDEO_MODELS = [
+const VIDEO_MODELS: MediaModel[] = [
   { id: 'veo-3.1-fast', name: 'Veo 3.1 Fast', provider: 'Google', duration: '8s' },
   { id: 'veo-3.1', name: 'Veo 3.1', provider: 'Google', duration: '8s (4K)' },
   { id: 'sora-2-pro', name: 'Sora 2 Pro', provider: 'OpenAI', duration: '60s' },
@@ -54,12 +79,19 @@ export default function MediaScreen() {
   const [selectedModel, setSelectedModel] = useState('nano-banana-2');
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
+  // FIX: `useState(null)` made the setter `(prevState: null) => null`, so
+  // `setResult(data)` and every `result.error` read were type errors.
+  const [result, setResult] = useState<MediaResult | null>(null);
 
-  const backendUrl = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || '';
+  // FIX: read `expoConfig.extra.EXPO_PUBLIC_BACKEND_URL`, which app.json does
+  // not define, so this was always '' and every call below was a bare relative
+  // path. On native that resolves against nothing; on web it only works by
+  // accident when the bundle and the API share an origin. Both now go through
+  // the shared backend config.
+  const backendUrl = BACKEND_URL;
 
   // Get models based on active category
-  const getModels = () => {
+  const getModels = (): MediaModel[] => {
     if (activeCategory === 'image') return IMAGE_MODELS;
     if (activeCategory === 'audio') return AUDIO_MODELS;
     return VIDEO_MODELS;

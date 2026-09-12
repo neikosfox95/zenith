@@ -4,32 +4,46 @@ import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
+import config, { ensureDir } from '../config/index.js';
 
-// MinIO Configuration
-const MINIO_ENDPOINT = process.env.MINIO_ENDPOINT || 'localhost';
-const MINIO_PORT = parseInt(process.env.MINIO_PORT || '9000');
-const MINIO_ACCESS_KEY = process.env.MINIO_ACCESS_KEY || 'minioadmin';
-const MINIO_SECRET_KEY = process.env.MINIO_SECRET_KEY || 'minioadmin';
-const MINIO_USE_SSL = process.env.MINIO_USE_SSL === 'true';
-const AUDIO_BUCKET = 'voice-audio';
+// ------------------------------------------------------------
+// MinIO configuration
+// ------------------------------------------------------------
+// FIX: the old code defaulted the access/secret keys to 'minioadmin' and then
+// eagerly probed the bucket on import. With no MinIO running that produced a
+// stream of connection errors during startup and `minioAvailable` flickered.
+// Object storage is now strictly opt-in via credentials, and the probe is
+// skipped entirely when it is not configured.
+const MINIO_ENDPOINT = config.minio.endpoint;
+const MINIO_PORT = config.minio.port;
+const MINIO_ACCESS_KEY = config.minio.accessKey;
+const MINIO_SECRET_KEY = config.minio.secretKey;
+const MINIO_USE_SSL = config.minio.useSSL;
+const MINIO_ENABLED = config.minio.enabled;
+const AUDIO_BUCKET = config.minio.bucket;
 
 // Initialize MinIO Client
 const minioClient = new Client({
   endPoint: MINIO_ENDPOINT,
   port: MINIO_PORT,
   useSSL: MINIO_USE_SSL,
-  accessKey: MINIO_ACCESS_KEY,
-  secretKey: MINIO_SECRET_KEY
+  accessKey: MINIO_ACCESS_KEY || 'unset',
+  secretKey: MINIO_SECRET_KEY || 'unset'
 });
 
+// ------------------------------------------------------------
 // Local storage fallback
-const STORAGE_PATH = '/app/storage';
-const LOCAL_AUDIO_PATH = path.join(STORAGE_PATH, 'audio');
+// ------------------------------------------------------------
+// FIX: '/app/storage' was a hardcoded absolute path from a previous container
+// layout. `fs.mkdirSync` at import time threw EACCES anywhere else and took the
+// whole backend down. Paths now resolve from the central config, and creation
+// is best-effort with a null-safe fallback.
+const STORAGE_PATH = config.paths.dataRoot;
+const LOCAL_AUDIO_PATH = config.paths.audio;
 
-// Ensure directories exist
-if (!fs.existsSync(LOCAL_AUDIO_PATH)) {
-  fs.mkdirSync(LOCAL_AUDIO_PATH, { recursive: true });
-}
+/** @type {string|null} null when the audio directory is not writable */
+const resolvedAudioPath = ensureDir(LOCAL_AUDIO_PATH);
+export const audioStorageAvailable = resolvedAudioPath !== null;
 
 /**
  * Audio Storage Service
@@ -45,6 +59,11 @@ class AudioStorageService {
    * Initialize MinIO and create bucket
    */
   async initMinIO() {
+    if (!MINIO_ENABLED) {
+      this.minioAvailable = false;
+      console.log('[audio-storage] MinIO not configured — using local filesystem storage');
+      return;
+    }
     try {
       // Check if bucket exists
       const exists = await minioClient.bucketExists(AUDIO_BUCKET);
@@ -203,13 +222,21 @@ class AudioStorageService {
     }
 
     // Local fallback
-    const userDir = path.join(LOCAL_AUDIO_PATH, userId);
+    const userDir = path.join(LOCAL_AUDIO_PATH, String(userId));
     if (fs.existsSync(userDir)) {
-      const localFiles = fs.readdirSync(userDir);
-      localFiles.forEach(file => {
-        const stats = fs.statSync(path.join(userDir, file));
+      const localFiles = fs.readdirSync(userDir, { withFileTypes: true });
+      localFiles.forEach(entry => {
+        // FIX: statSync on a directory or broken symlink used to throw and
+        // abort the whole listing. Skip anything that is not a regular file.
+        if (!entry.isFile()) return;
+        let stats;
+        try {
+          stats = fs.statSync(path.join(userDir, entry.name));
+        } catch {
+          return;
+        }
         files.push({
-          name: `${userId}/${file}`,
+          name: `${userId}/${entry.name}`,
           size: stats.size,
           lastModified: stats.mtime
         });
@@ -254,10 +281,23 @@ class AudioStorageService {
     } else {
       // Local storage stats
       stats.path = LOCAL_AUDIO_PATH;
-      
-      if (fs.existsSync(LOCAL_AUDIO_PATH)) {
-        const files = fs.readdirSync(LOCAL_AUDIO_PATH, { recursive: true });
-        stats.file_count = files.length;
+      stats.available = audioStorageAvailable;
+
+      // FIX: `{ recursive: true }` also returns directories, so file_count was
+      // inflated, and any read error propagated out of getStats().
+      try {
+        if (fs.existsSync(LOCAL_AUDIO_PATH)) {
+          const entries = fs.readdirSync(LOCAL_AUDIO_PATH, {
+            recursive: true,
+            withFileTypes: true,
+          });
+          stats.file_count = entries.filter((e) => e.isFile()).length;
+        } else {
+          stats.file_count = 0;
+        }
+      } catch (error) {
+        stats.file_count = 0;
+        stats.error = error.message;
       }
     }
 

@@ -1,5 +1,5 @@
-import apiClient from './apiClient';
-import { Creator } from '../../stores/creatorsStore';
+import apiClient from '../apiClient';
+import { Creator } from '../../../stores/creatorsStore';
 
 export interface CreateCreatorPayload {
   tiktok_username: string;

@@ -6,6 +6,10 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "tiktokmonitor",
+    "extra": {
+      "EXPO_PUBLIC_BACKEND_URL": "",
+      "EXPO_PUBLIC_LAN_IP": ""
+    },
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

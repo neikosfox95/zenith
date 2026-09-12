@@ -2,30 +2,51 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
+import config, { ensureDir } from '../config/index.js';
 
 /**
  * Sprint 2 Phase 3: File Upload System with Multer
  * Handles image, video, and document uploads with validation
  */
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = '/app/backend/uploads';
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+// ------------------------------------------------------------
+// Storage location
+// ------------------------------------------------------------
+// FIX: this used to be the hardcoded absolute path '/app/backend/uploads'
+// and `fs.mkdirSync` ran at *import time*. On any machine that is not that
+// exact container layout the call throws EACCES/ENOENT, and because the
+// throw happens during module evaluation it took the entire Express app
+// down before it could listen. Paths now come from the central config and
+// directory creation is best-effort: if it fails we expose
+// `uploadsAvailable === false` and uploads return a clean 503 instead of
+// crashing the process.
+const uploadsDir = config.paths.uploads;
+const subdirs = config.paths.uploadSubdirs;
 
-// Create subdirectories for different file types
-const subdirs = ['images', 'videos', 'documents', 'audio'];
-subdirs.forEach(dir => {
-  const fullPath = path.join(uploadsDir, dir);
-  if (!fs.existsSync(fullPath)) {
-    fs.mkdirSync(fullPath, { recursive: true });
-  }
-});
+/** @type {string|null} null when the upload tree could not be created */
+export const uploadsRoot = ensureDir(uploadsDir)
+  ? subdirs.reduce((ok, dir) => (ensureDir(path.join(uploadsDir, dir)) ? ok : null), uploadsDir)
+  : null;
+
+export const uploadsAvailable = uploadsRoot !== null;
+
+/** 503 guard applied to every upload route. */
+export function requireUploads(req, res, next) {
+  if (uploadsAvailable) return next();
+  return res.status(503).json({
+    error: 'Upload storage unavailable',
+    message: `The server cannot write to its upload directory (${uploadsDir}).`,
+    code: 'UPLOAD_STORAGE_UNAVAILABLE',
+    timestamp: new Date().toISOString(),
+  });
+}
 
 // Configure storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    if (!uploadsAvailable) {
+      return cb(new Error('Upload storage is not available on this server'));
+    }
     // Determine subdirectory based on file type
     let subdir = 'documents';
     
@@ -218,6 +239,9 @@ export function deleteFile(filePath) {
 }
 
 export default {
+  uploadsRoot,
+  uploadsAvailable,
+  requireUploads,
   uploadSingle,
   uploadMultiple,
   uploadFields,

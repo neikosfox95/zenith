@@ -1,4 +1,4 @@
-module.exports = function(api) {
+module.exports = function (api) {
   api.cache(true);
   return {
     presets: [
@@ -10,9 +10,13 @@ module.exports = function(api) {
         },
       ],
     ],
-    plugins: [
-      // Required for expo-router file-based routing
-      'expo-router/babel',
-    ],
+    // FIX: `"expo-router/babel"` used to be listed here. In Expo SDK 50+ that
+    // module is an empty stub whose only job is to print
+    //   "expo-router/babel is deprecated in favor of babel-preset-expo"
+    // once per bundle. The real router transform now lives inside
+    // babel-preset-expo (build/expo-router-plugin.js), so keeping the stub only
+    // added warning noise to every Metro build and made it harder to spot real
+    // problems in the logs.
+    plugins: [],
   };
 };
