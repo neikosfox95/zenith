@@ -4,16 +4,121 @@
 // ============================================================
 
 import express from 'express';
-import { getDb } from '../lib/mongo.js';
+import { getDb, ServiceUnavailableError } from '../lib/mongo.js';
 import analyticsEngine from '../services/analytics-engine.js';
+import {
+  buildAnalyticsSummary,
+  buildRealtimeAnalytics,
+} from '../services/user-analytics.js';
 
 const router = express.Router();
+
+// Helper: map thrown DB errors to the standard 503 envelope so route files
+// that call getDb() behave the same as handlers wrapped in requireDb.
+function handleRouteError(res, error, fallbackMessage) {
+  if (
+    error instanceof ServiceUnavailableError ||
+    error?.code === 'DB_UNAVAILABLE' ||
+    error?.statusCode === 503
+  ) {
+    const retryAfter = 15;
+    const message =
+      error.message ||
+      'The database is not reachable. The API is up, but this endpoint needs persistence.';
+    return res.status(503).json({
+      error: {
+        message,
+        code: 'DB_UNAVAILABLE',
+        statusCode: 503,
+        retryAfter,
+        timestamp: new Date().toISOString(),
+      },
+      message,
+      code: 'DB_UNAVAILABLE',
+      retryAfter,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  console.error('[analytics]', fallbackMessage, error);
+  return res.status(500).json({
+    success: false,
+    error: error.message || fallbackMessage,
+    message: error.message || fallbackMessage,
+    code: 'INTERNAL_ERROR',
+    timestamp: new Date().toISOString(),
+  });
+}
 
 // Helper: find a tracked creator by username
 async function findCreator(username) {
   const db = await getDb();
   return db.collection('tracked_creators').findOne({ username });
 }
+
+// ============================================================
+// USER-SCOPED SUMMARY
+// ------------------------------------------------------------
+// Aggregates revenue / gifts / viewers across every creator the
+// authenticated user owns (user_creators → creators/live_streams/gifts).
+// Auth is enforced by requireAuth mounted on /api/analytics in server.js.
+// ============================================================
+
+router.get('/summary', async (req, res) => {
+  try {
+    const userId = req.userId ?? req.user?.userId ?? req.user?.id;
+    if (!userId) {
+      return res.status(401).json({
+        error: 'This endpoint requires a bearer token.',
+        message: 'This endpoint requires a bearer token.',
+        code: 'NO_TOKEN',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const db = await getDb();
+    const summary = await buildAnalyticsSummary(db, userId);
+    return res.json({
+      success: true,
+      ...summary,
+      // Nested copy so clients that read `data.summary` or `response.summary`
+      // still work alongside flat field access.
+      summary,
+    });
+  } catch (error) {
+    return handleRouteError(res, error, 'Failed to build analytics summary');
+  }
+});
+
+// ============================================================
+// USER-SCOPED REALTIME SNAPSHOT
+// ------------------------------------------------------------
+// Cheap poll target for the dashboard — live counts only.
+// ============================================================
+
+router.get('/realtime', async (req, res) => {
+  try {
+    const userId = req.userId ?? req.user?.userId ?? req.user?.id;
+    if (!userId) {
+      return res.status(401).json({
+        error: 'This endpoint requires a bearer token.',
+        message: 'This endpoint requires a bearer token.',
+        code: 'NO_TOKEN',
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const db = await getDb();
+    const realtime = await buildRealtimeAnalytics(db, userId);
+    return res.json({
+      success: true,
+      ...realtime,
+      realtime,
+    });
+  } catch (error) {
+    return handleRouteError(res, error, 'Failed to build realtime analytics');
+  }
+});
 
 // ============================================================
 // ANALYTICS ENGINE STATUS

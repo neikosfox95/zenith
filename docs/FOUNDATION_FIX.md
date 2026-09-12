@@ -29,12 +29,33 @@ crash at runtime, it just did the wrong thing.
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Backend unit + integration tests | `cd backend && npm test` | **72 / 72 pass** |
+| Backend unit + integration tests | `cd backend && npm test` | **79 / 79 pass** (incl. analytics) |
 | Frontend type check | `cd frontend && npx tsc --noEmit -p tsconfig.json` | **0 errors** (was 128) |
-| Frontend lint | `cd frontend && npx expo lint` | **0 errors** (123 warnings, all pre-existing) |
-| Web bundle builds | `cd frontend && npx expo export --platform web` | clean, 2117 modules |
+| Frontend lint | `cd frontend && npx expo lint` | **0 errors** (warnings pre-existing) |
+| Web bundle builds | `cd frontend && npx expo export --platform web` | clean |
 | Live API smoke test | `node scripts/smoke-test.mjs` | **17 / 17 pass** (1 skip, needs a DB) |
 | Live preview | `node scripts/dev-proxy.js` | app + API on one origin, `:8080` |
+
+### User-scoped analytics (follow-up)
+
+The foundation left a gap: the analytics screen called `/api/analytics/summary`
+and `/api/analytics/realtime`, but those routes did not exist, and the dashboard
+hook served hard-coded mock numbers. That gap is closed:
+
+- `GET /api/analytics/summary` — authenticated, scoped through `user_creators`,
+  aggregates `creators` / `live_streams` / `gifts` into total revenue, gifts,
+  viewers, peak viewers, stream totals/averages, live gift/revenue totals, and
+  current vs previous 30-day revenue periods (with `revenue_trend` /
+  `revenue_change_pct`).
+- `GET /api/analytics/realtime` — same ownership scope, live counters only.
+- Both answer `401` anonymously and `503 DB_UNAVAILABLE` when Mongo is down.
+- Frontend: `useAnalytics` / `useDashboard` hit the real endpoints; the revenue
+  trend indicator is restored from period data; `creatorsAPI` normalises the
+  paginated `{ data, pagination }` envelope and Mongo `_id` fields.
+- Regression coverage lives in `backend/tests/analytics.test.js` (auth,
+  ownership isolation, summary aggregation, realtime). The suite uses an
+  in-process fake DB because this environment cannot download a MongoDB binary;
+  it automatically prefers `mongodb-memory-server` when that host is reachable.
 
 The TypeScript baseline of **128 errors** is the number of `error TS…` lines
 reported by `tsc --noEmit` at commit `6ff843a`. It is not an estimate.
@@ -460,11 +481,13 @@ round trip needs a real database.
 
 Honest about what is *not* done:
 
-- **No database in this environment.** `mongod` and `redis-server` are not
-  installable here, so every DB-backed path is verified by unit test against a
-  down database plus the `503` contract — not against real data. The
-  register/login round trip is skipped in the smoke test for this reason.
-- **123 ESLint warnings remain**, overwhelmingly unused variables and
+- **No real MongoDB binary in this environment.** `mongod` and `redis-server`
+  are not installable here. DB-backed paths are verified by (a) the `503`
+  contract against a down database and (b) analytics aggregation against an
+  in-process fake DB (`backend/tests/helpers/fake-db.js`). The fake prefers
+  `mongodb-memory-server` automatically when the download host is reachable.
+  The register/login round trip is still skipped in the smoke test.
+- **ESLint warnings remain**, overwhelmingly unused variables and
   `react-hooks/exhaustive-deps` across screens not touched by this work. They
   are real debt; they are not fixed here because clearing them means reasoning
   about each screen's intent, which is feature work.
@@ -484,3 +507,8 @@ Honest about what is *not* done:
 - **`withBackendProxy.js`** (an Expo config plugin that would attach the proxy
   to `expo start` directly) exists but is **not** wired into `app.json`'s
   `plugins`. The standalone `scripts/dev-proxy.js` is the supported path.
+
+> Closed gap: user-scoped `/api/analytics/summary` and `/api/analytics/realtime`
+> now exist, are authenticated, isolate ownership, and are covered by
+> `backend/tests/analytics.test.js`. The dashboard and analytics hooks no longer
+> ship mock numbers as their primary data source.
